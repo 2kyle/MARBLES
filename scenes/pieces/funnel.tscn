@@ -1,0 +1,62 @@
+[gd_scene load_steps=7 format=3]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_funnel"]
+friction = 0.1
+bounce = 0.3
+
+[sub_resource type="BoxShape3D" id="Shape_side"]
+size = Vector3(0.2, 0.6, 5.25)
+
+[sub_resource type="StandardMaterial3D" id="Mat_funnel"]
+albedo_color = Color(0.3, 0.55, 0.95, 1)
+roughness = 0.5
+
+[sub_resource type="BoxMesh" id="Mesh_side"]
+material = SubResource("Mat_funnel")
+size = Vector3(0.2, 0.6, 5.25)
+
+[sub_resource type="BoxShape3D" id="Shape_chute"]
+size = Vector3(0.2, 0.6, 2.0)
+
+[sub_resource type="BoxMesh" id="Mesh_chute"]
+material = SubResource("Mat_funnel")
+size = Vector3(0.2, 0.6, 2.0)
+
+[node name="Funnel" type="StaticBody3D"]
+physics_material_override = SubResource("PhysicsMaterial_funnel")
+
+[node name="LeftShape" type="CollisionShape3D" parent="."]
+position = Vector3(-1.7, 0.3, 0)
+rotation = Vector3(0, -0.309, 0)
+shape = SubResource("Shape_side")
+
+[node name="LeftMesh" type="MeshInstance3D" parent="."]
+position = Vector3(-1.7, 0.3, 0)
+rotation = Vector3(0, -0.309, 0)
+mesh = SubResource("Mesh_side")
+
+[node name="RightShape" type="CollisionShape3D" parent="."]
+position = Vector3(1.7, 0.3, 0)
+rotation = Vector3(0, 0.309, 0)
+shape = SubResource("Shape_side")
+
+[node name="RightMesh" type="MeshInstance3D" parent="."]
+position = Vector3(1.7, 0.3, 0)
+rotation = Vector3(0, 0.309, 0)
+mesh = SubResource("Mesh_side")
+
+[node name="LeftChuteShape" type="CollisionShape3D" parent="."]
+position = Vector3(-1, 0.3, -3.5)
+shape = SubResource("Shape_chute")
+
+[node name="LeftChuteMesh" type="MeshInstance3D" parent="."]
+position = Vector3(-1, 0.3, -3.5)
+mesh = SubResource("Mesh_chute")
+
+[node name="RightChuteShape" type="CollisionShape3D" parent="."]
+position = Vector3(1, 0.3, -3.5)
+shape = SubResource("Shape_chute")
+
+[node name="RightChuteMesh" type="MeshInstance3D" parent="."]
+position = Vector3(1, 0.3, -3.5)
+mesh = SubResource("Mesh_chute")

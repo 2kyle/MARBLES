@@ -1,0 +1,251 @@
+[gd_scene load_steps=30 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/pieces/bumper_post.tscn" id="1_bumper"]
+[ext_resource type="PackedScene" path="res://scenes/pieces/ramp_jump.tscn" id="2_ramp"]
+[ext_resource type="PackedScene" path="res://scenes/pieces/angled_rail.tscn" id="3_rail"]
+[ext_resource type="PackedScene" path="res://scenes/pieces/funnel.tscn" id="4_funnel"]
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_wood"]
+friction = 0.6
+bounce = 0.1
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_wall"]
+friction = 0.2
+bounce = 0.4
+
+[sub_resource type="StandardMaterial3D" id="Mat_lane"]
+albedo_color = Color(0.62, 0.45, 0.28, 1)
+roughness = 0.55
+
+[sub_resource type="StandardMaterial3D" id="Mat_wall"]
+albedo_color = Color(0.5, 0.34, 0.22, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_deck"]
+albedo_color = Color(0.72, 0.58, 0.4, 1)
+roughness = 0.4
+
+[sub_resource type="StandardMaterial3D" id="Mat_line"]
+albedo_color = Color(0.95, 0.85, 0.2, 1)
+emission_enabled = true
+emission = Color(0.6, 0.5, 0.05, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_table"]
+albedo_color = Color(0.25, 0.2, 0.17, 1)
+roughness = 0.9
+
+[sub_resource type="BoxShape3D" id="Shape_lane"]
+size = Vector3(5, 0.4, 36)
+
+[sub_resource type="BoxMesh" id="Mesh_lane"]
+material = SubResource("Mat_lane")
+size = Vector3(5, 0.4, 36)
+
+[sub_resource type="BoxShape3D" id="Shape_lane_wall"]
+size = Vector3(0.3, 0.8, 36)
+
+[sub_resource type="BoxMesh" id="Mesh_lane_wall"]
+material = SubResource("Mat_wall")
+size = Vector3(0.3, 0.8, 36)
+
+[sub_resource type="BoxShape3D" id="Shape_back_wall"]
+size = Vector3(5.6, 0.8, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_back_wall"]
+material = SubResource("Mat_wall")
+size = Vector3(5.6, 0.8, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_deck"]
+size = Vector3(5.6, 0.4, 10.5)
+
+[sub_resource type="BoxMesh" id="Mesh_deck"]
+material = SubResource("Mat_deck")
+size = Vector3(5.6, 0.4, 10.5)
+
+[sub_resource type="BoxShape3D" id="Shape_deck_wall"]
+size = Vector3(0.3, 0.8, 10.5)
+
+[sub_resource type="BoxMesh" id="Mesh_deck_wall"]
+material = SubResource("Mat_wall")
+size = Vector3(0.3, 0.8, 10.5)
+
+[sub_resource type="BoxShape3D" id="Shape_pit"]
+size = Vector3(10, 0.4, 8)
+
+[sub_resource type="BoxMesh" id="Mesh_pit"]
+material = SubResource("Mat_wall")
+size = Vector3(10, 0.4, 8)
+
+[sub_resource type="BoxShape3D" id="Shape_cushion"]
+size = Vector3(10, 5, 0.4)
+
+[sub_resource type="BoxMesh" id="Mesh_cushion"]
+material = SubResource("Mat_wall")
+size = Vector3(10, 5, 0.4)
+
+[sub_resource type="BoxShape3D" id="Shape_pit_front"]
+size = Vector3(10, 2.8, 0.4)
+
+[sub_resource type="BoxShape3D" id="Shape_arrival"]
+size = Vector3(5.6, 2, 0.4)
+
+[sub_resource type="BoxMesh" id="Mesh_line"]
+material = SubResource("Mat_line")
+size = Vector3(5.6, 0.02, 0.15)
+
+[sub_resource type="PlaneMesh" id="Mesh_table"]
+material = SubResource("Mat_table")
+size = Vector2(120, 120)
+
+[node name="Course" type="Node3D"]
+
+[node name="Slope" type="Node3D" parent="."]
+position = Vector3(0, 6.869, 0)
+rotation = Vector3(-0.191986, 0, 0)
+
+[node name="LaneFloor" type="StaticBody3D" parent="Slope"]
+physics_material_override = SubResource("PhysicsMaterial_wood")
+
+[node name="Shape" type="CollisionShape3D" parent="Slope/LaneFloor"]
+position = Vector3(0, -0.2, -18)
+shape = SubResource("Shape_lane")
+
+[node name="Mesh" type="MeshInstance3D" parent="Slope/LaneFloor"]
+position = Vector3(0, -0.2, -18)
+mesh = SubResource("Mesh_lane")
+
+[node name="Walls" type="StaticBody3D" parent="Slope"]
+physics_material_override = SubResource("PhysicsMaterial_wall")
+
+[node name="LeftShape" type="CollisionShape3D" parent="Slope/Walls"]
+position = Vector3(-2.65, 0.4, -18)
+shape = SubResource("Shape_lane_wall")
+
+[node name="LeftMesh" type="MeshInstance3D" parent="Slope/Walls"]
+position = Vector3(-2.65, 0.4, -18)
+mesh = SubResource("Mesh_lane_wall")
+
+[node name="RightShape" type="CollisionShape3D" parent="Slope/Walls"]
+position = Vector3(2.65, 0.4, -18)
+shape = SubResource("Shape_lane_wall")
+
+[node name="RightMesh" type="MeshInstance3D" parent="Slope/Walls"]
+position = Vector3(2.65, 0.4, -18)
+mesh = SubResource("Mesh_lane_wall")
+
+[node name="BackShape" type="CollisionShape3D" parent="Slope/Walls"]
+position = Vector3(0, 0.4, 0.15)
+shape = SubResource("Shape_back_wall")
+
+[node name="BackMesh" type="MeshInstance3D" parent="Slope/Walls"]
+position = Vector3(0, 0.4, 0.15)
+mesh = SubResource("Mesh_back_wall")
+
+[node name="StartGate" type="Node3D" parent="Slope"]
+
+[node name="Spawn0" type="Marker3D" parent="Slope/StartGate"]
+position = Vector3(-1.5, 0.32, -1)
+
+[node name="Spawn1" type="Marker3D" parent="Slope/StartGate"]
+position = Vector3(1.5, 0.32, -1)
+
+[node name="Spawn2" type="Marker3D" parent="Slope/StartGate"]
+position = Vector3(-0.5, 0.32, -1)
+
+[node name="Spawn3" type="Marker3D" parent="Slope/StartGate"]
+position = Vector3(0.5, 0.32, -1)
+
+[node name="Pieces" type="Node3D" parent="Slope"]
+
+[node name="BumperPost1" parent="Slope/Pieces" instance=ExtResource("1_bumper")]
+position = Vector3(-0.8, 0, -9)
+
+[node name="BumperPost2" parent="Slope/Pieces" instance=ExtResource("1_bumper")]
+position = Vector3(1.4, 0, -13)
+
+[node name="RampJump" parent="Slope/Pieces" instance=ExtResource("2_ramp")]
+position = Vector3(-1.2, 0, -17)
+
+[node name="AngledRailRight" parent="Slope/Pieces" instance=ExtResource("3_rail")]
+position = Vector3(1.75, 0, -21.5)
+rotation = Vector3(0, 0.436332, 0)
+
+[node name="AngledRailLeft" parent="Slope/Pieces" instance=ExtResource("3_rail")]
+position = Vector3(-1.75, 0, -25.5)
+rotation = Vector3(0, -0.436332, 0)
+
+[node name="Funnel" parent="Slope/Pieces" instance=ExtResource("4_funnel")]
+position = Vector3(0, 0, -31.5)
+
+[node name="PinDeck" type="StaticBody3D" parent="."]
+physics_material_override = SubResource("PhysicsMaterial_wood")
+
+[node name="Shape" type="CollisionShape3D" parent="PinDeck"]
+position = Vector3(0, -0.2, -40.75)
+shape = SubResource("Shape_deck")
+
+[node name="Mesh" type="MeshInstance3D" parent="PinDeck"]
+position = Vector3(0, -0.2, -40.75)
+mesh = SubResource("Mesh_deck")
+
+[node name="DeckWalls" type="StaticBody3D" parent="."]
+physics_material_override = SubResource("PhysicsMaterial_wall")
+
+[node name="LeftShape" type="CollisionShape3D" parent="DeckWalls"]
+position = Vector3(-2.95, 0.4, -40.75)
+shape = SubResource("Shape_deck_wall")
+
+[node name="LeftMesh" type="MeshInstance3D" parent="DeckWalls"]
+position = Vector3(-2.95, 0.4, -40.75)
+mesh = SubResource("Mesh_deck_wall")
+
+[node name="RightShape" type="CollisionShape3D" parent="DeckWalls"]
+position = Vector3(2.95, 0.4, -40.75)
+shape = SubResource("Shape_deck_wall")
+
+[node name="RightMesh" type="MeshInstance3D" parent="DeckWalls"]
+position = Vector3(2.95, 0.4, -40.75)
+mesh = SubResource("Mesh_deck_wall")
+
+[node name="Pit" type="StaticBody3D" parent="."]
+physics_material_override = SubResource("PhysicsMaterial_wall")
+
+[node name="FloorShape" type="CollisionShape3D" parent="Pit"]
+position = Vector3(0, -3, -50)
+shape = SubResource("Shape_pit")
+
+[node name="FloorMesh" type="MeshInstance3D" parent="Pit"]
+position = Vector3(0, -3, -50)
+mesh = SubResource("Mesh_pit")
+
+[node name="CushionShape" type="CollisionShape3D" parent="Pit"]
+position = Vector3(0, -0.5, -54)
+shape = SubResource("Shape_cushion")
+
+[node name="CushionMesh" type="MeshInstance3D" parent="Pit"]
+position = Vector3(0, -0.5, -54)
+mesh = SubResource("Mesh_cushion")
+
+[node name="FrontShape" type="CollisionShape3D" parent="Pit"]
+position = Vector3(0, -1.6, -46.2)
+shape = SubResource("Shape_pit_front")
+
+[node name="ArrivalLine" type="Area3D" parent="."]
+position = Vector3(0, 1, -36.5)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+
+[node name="Shape" type="CollisionShape3D" parent="ArrivalLine"]
+shape = SubResource("Shape_arrival")
+
+[node name="LineMesh" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.01, -36.5)
+mesh = SubResource("Mesh_line")
+
+[node name="RackSpot" type="Marker3D" parent="."]
+position = Vector3(0, 0, -38.3)
+
+[node name="Table" type="MeshInstance3D" parent="."]
+position = Vector3(0, -8, -25)
+mesh = SubResource("Mesh_table")

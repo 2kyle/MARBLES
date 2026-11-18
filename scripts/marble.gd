@@ -14,6 +14,9 @@ extends RigidBody3D
 @export var lean_side_force := 5.5
 ## Forward/back lean force, weaker than sideways on purpose.
 @export var lean_forward_force := 3.0
+## Top speed in metres per second. Keeps boosted marbles from launching
+## off the end of the lane over the pins.
+@export var max_speed := 11.0
 ## Extra push when the marble hits a bumper post.
 @export var bumper_kick := 2.5
 
@@ -46,6 +49,8 @@ func _physics_process(_delta: float) -> void:
 	# world space line up on the X and Z axes.
 	var force := Vector3(l.x * lean_side_force, 0.0, l.y * lean_forward_force)
 	apply_central_force(force * mass)
+	if linear_velocity.length() > max_speed:
+		linear_velocity = linear_velocity.limit_length(max_speed)
 
 
 ## Take this marble out of the frame (fell in a gutter, for example).

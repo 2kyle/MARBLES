@@ -54,18 +54,18 @@ material = SubResource("Mat_wall")
 size = Vector3(5.6, 0.8, 0.3)
 
 [sub_resource type="BoxShape3D" id="Shape_deck"]
-size = Vector3(5.6, 0.4, 10.5)
+size = Vector3(5.6, 0.4, 11.5)
 
 [sub_resource type="BoxMesh" id="Mesh_deck"]
 material = SubResource("Mat_deck")
-size = Vector3(5.6, 0.4, 10.5)
+size = Vector3(5.6, 0.4, 11.5)
 
 [sub_resource type="BoxShape3D" id="Shape_deck_wall"]
-size = Vector3(0.3, 0.8, 10.5)
+size = Vector3(0.3, 0.8, 11.5)
 
 [sub_resource type="BoxMesh" id="Mesh_deck_wall"]
 material = SubResource("Mat_wall")
-size = Vector3(0.3, 0.8, 10.5)
+size = Vector3(0.3, 0.8, 11.5)
 
 [sub_resource type="BoxShape3D" id="Shape_pit"]
 size = Vector3(10, 0.4, 8)
@@ -165,30 +165,30 @@ script = ExtResource("5_builder")
 physics_material_override = SubResource("PhysicsMaterial_wood")
 
 [node name="Shape" type="CollisionShape3D" parent="PinDeck"]
-position = Vector3(0, -0.2, -40.75)
+position = Vector3(0, -0.2, -40.25)
 shape = SubResource("Shape_deck")
 
 [node name="Mesh" type="MeshInstance3D" parent="PinDeck"]
-position = Vector3(0, -0.2, -40.75)
+position = Vector3(0, -0.2, -40.25)
 mesh = SubResource("Mesh_deck")
 
 [node name="DeckWalls" type="StaticBody3D" parent="."]
 physics_material_override = SubResource("PhysicsMaterial_wall")
 
 [node name="LeftShape" type="CollisionShape3D" parent="DeckWalls"]
-position = Vector3(-2.95, 0.4, -40.75)
+position = Vector3(-2.95, 0.4, -40.25)
 shape = SubResource("Shape_deck_wall")
 
 [node name="LeftMesh" type="MeshInstance3D" parent="DeckWalls"]
-position = Vector3(-2.95, 0.4, -40.75)
+position = Vector3(-2.95, 0.4, -40.25)
 mesh = SubResource("Mesh_deck_wall")
 
 [node name="RightShape" type="CollisionShape3D" parent="DeckWalls"]
-position = Vector3(2.95, 0.4, -40.75)
+position = Vector3(2.95, 0.4, -40.25)
 shape = SubResource("Shape_deck_wall")
 
 [node name="RightMesh" type="MeshInstance3D" parent="DeckWalls"]
-position = Vector3(2.95, 0.4, -40.75)
+position = Vector3(2.95, 0.4, -40.25)
 mesh = SubResource("Mesh_deck_wall")
 
 [node name="Pit" type="StaticBody3D" parent="."]

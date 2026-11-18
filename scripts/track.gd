@@ -88,6 +88,55 @@ func _ready() -> void:
 	rebuild()
 
 
+## The layout the track was last built from (see TrackGen), or empty if
+## it's the hand-drawn curve from the editor.
+var layout: Array = []
+## Top-view position of the start, kept when the layout changes mid-match
+## so the start stays put and the rest of the track swings round.
+var start_xz := Vector2.ZERO
+
+
+## Replace the track with one built from a TrackGen layout.
+func apply_layout(new_layout: Array, new_start_xz: Vector2) -> void:
+	layout = new_layout
+	start_xz = new_start_xz
+	var pts := TrackGen.points(layout, start_xz)
+	var curve := Curve3D.new()
+	curve.bake_interval = 0.2
+	var keep := []
+	for i in range(0, pts.size(), 3):
+		keep.append(pts[i])
+	if (pts.size() - 1) % 3 != 0:
+		keep.append(pts[-1])
+	for i in keep.size():
+		var prev: Vector3 = keep[maxi(i - 1, 0)]
+		var next: Vector3 = keep[mini(i + 1, keep.size() - 1)]
+		var handle: Vector3 = (next - prev) / 6.0
+		if i == 0 or i == keep.size() - 1:
+			handle *= 2.0
+		curve.add_point(keep[i], -handle, handle)
+	if _path == null:
+		_path = get_node("Path")
+	_path.transform = Transform3D.IDENTITY
+	if _path.curve_changed.is_connected(_queue_rebuild):
+		_path.curve_changed.disconnect(_queue_rebuild)
+	_path.curve = curve
+	_path.curve_changed.connect(_queue_rebuild)
+	rebuild()
+
+
+## Where the track ends (track-local) and which way it points, flattened.
+## The pin deck goes here.
+func end_transform() -> Transform3D:
+	var len := length()
+	var f := frame_at(len)
+	var fwd := -f.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var yaw := atan2(-fwd.x, -fwd.z)
+	return Transform3D(Basis(Vector3.UP, yaw), f.origin)
+
+
 func _queue_rebuild() -> void:
 	if not is_inside_tree():
 		return

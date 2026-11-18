@@ -99,93 +99,96 @@ curve = SubResource("Curve_track")
 [node name="Placed" type="Node3D" parent="Track"]
 script = ExtResource("5_builder")
 
-[node name="PinDeck" type="StaticBody3D" parent="."]
+[node name="Deck" type="Node3D" parent="."]
+position = Vector3(0, 0, -34.8)
+
+[node name="PinDeck" type="StaticBody3D" parent="Deck"]
 physics_material_override = SubResource("PhysicsMaterial_wood")
 
-[node name="Shape" type="CollisionShape3D" parent="PinDeck"]
-position = Vector3(0, -0.2, -40.25)
+[node name="Shape" type="CollisionShape3D" parent="Deck/PinDeck"]
+position = Vector3(0, -0.2, -5.45)
 shape = SubResource("Shape_deck")
 
-[node name="Mesh" type="MeshInstance3D" parent="PinDeck"]
-position = Vector3(0, -0.2, -40.25)
+[node name="Mesh" type="MeshInstance3D" parent="Deck/PinDeck"]
+position = Vector3(0, -0.2, -5.45)
 mesh = SubResource("Mesh_deck")
 
-[node name="DeckWalls" type="StaticBody3D" parent="."]
+[node name="DeckWalls" type="StaticBody3D" parent="Deck"]
 physics_material_override = SubResource("PhysicsMaterial_wall")
 
-[node name="LeftShape" type="CollisionShape3D" parent="DeckWalls"]
-position = Vector3(-2.95, 0.4, -40.25)
+[node name="LeftShape" type="CollisionShape3D" parent="Deck/DeckWalls"]
+position = Vector3(-2.95, 0.4, -5.45)
 shape = SubResource("Shape_deck_wall")
 
-[node name="LeftMesh" type="MeshInstance3D" parent="DeckWalls"]
-position = Vector3(-2.95, 0.4, -40.25)
+[node name="LeftMesh" type="MeshInstance3D" parent="Deck/DeckWalls"]
+position = Vector3(-2.95, 0.4, -5.45)
 mesh = SubResource("Mesh_deck_wall")
 
-[node name="RightShape" type="CollisionShape3D" parent="DeckWalls"]
-position = Vector3(2.95, 0.4, -40.25)
+[node name="RightShape" type="CollisionShape3D" parent="Deck/DeckWalls"]
+position = Vector3(2.95, 0.4, -5.45)
 shape = SubResource("Shape_deck_wall")
 
-[node name="RightMesh" type="MeshInstance3D" parent="DeckWalls"]
-position = Vector3(2.95, 0.4, -40.25)
+[node name="RightMesh" type="MeshInstance3D" parent="Deck/DeckWalls"]
+position = Vector3(2.95, 0.4, -5.45)
 mesh = SubResource("Mesh_deck_wall")
 
-[node name="Pit" type="StaticBody3D" parent="."]
+[node name="Pit" type="StaticBody3D" parent="Deck"]
 physics_material_override = SubResource("PhysicsMaterial_wall")
 
-[node name="FloorShape" type="CollisionShape3D" parent="Pit"]
-position = Vector3(0, -3, -50)
+[node name="FloorShape" type="CollisionShape3D" parent="Deck/Pit"]
+position = Vector3(0, -3, -15.2)
 shape = SubResource("Shape_pit")
 
-[node name="FloorMesh" type="MeshInstance3D" parent="Pit"]
-position = Vector3(0, -3, -50)
+[node name="FloorMesh" type="MeshInstance3D" parent="Deck/Pit"]
+position = Vector3(0, -3, -15.2)
 mesh = SubResource("Mesh_pit")
 
-[node name="CushionShape" type="CollisionShape3D" parent="Pit"]
-position = Vector3(0, -0.5, -54)
+[node name="CushionShape" type="CollisionShape3D" parent="Deck/Pit"]
+position = Vector3(0, -0.5, -19.2)
 shape = SubResource("Shape_cushion")
 
-[node name="CushionMesh" type="MeshInstance3D" parent="Pit"]
-position = Vector3(0, -0.5, -54)
+[node name="CushionMesh" type="MeshInstance3D" parent="Deck/Pit"]
+position = Vector3(0, -0.5, -19.2)
 mesh = SubResource("Mesh_cushion")
 
-[node name="FrontShape" type="CollisionShape3D" parent="Pit"]
-position = Vector3(0, -1.6, -46.2)
+[node name="FrontShape" type="CollisionShape3D" parent="Deck/Pit"]
+position = Vector3(0, -1.6, -11.4)
 shape = SubResource("Shape_pit_front")
 
-[node name="ArrivalLine" type="Area3D" parent="."]
-position = Vector3(0, 1, -36.5)
+[node name="ArrivalLine" type="Area3D" parent="Deck"]
+position = Vector3(0, 1, -1.7)
 collision_layer = 0
 collision_mask = 2
 monitorable = false
 
-[node name="Shape" type="CollisionShape3D" parent="ArrivalLine"]
+[node name="Shape" type="CollisionShape3D" parent="Deck/ArrivalLine"]
 shape = SubResource("Shape_arrival")
 
-[node name="LineMesh" type="MeshInstance3D" parent="."]
-position = Vector3(0, 0.01, -36.5)
+[node name="LineMesh" type="MeshInstance3D" parent="Deck"]
+position = Vector3(0, 0.01, -1.7)
 mesh = SubResource("Mesh_line")
 
-[node name="RackSpot" type="Marker3D" parent="."]
-position = Vector3(0, 0, -38.3)
+[node name="RackSpot" type="Marker3D" parent="Deck"]
+position = Vector3(0, 0, -3.5)
 
 [node name="Water" type="MeshInstance3D" parent="."]
 position = Vector3(0, -4, 0)
 mesh = SubResource("Mesh_water")
 cast_shadow = 0
 
-[node name="DeckPost0" type="MeshInstance3D" parent="."]
-position = Vector3(-2.4, -2.4, -36)
+[node name="DeckPost0" type="MeshInstance3D" parent="Deck"]
+position = Vector3(-2.4, -2.4, -1.2)
 mesh = SubResource("Mesh_post")
 
-[node name="DeckPost1" type="MeshInstance3D" parent="."]
-position = Vector3(2.4, -2.4, -36)
+[node name="DeckPost1" type="MeshInstance3D" parent="Deck"]
+position = Vector3(2.4, -2.4, -1.2)
 mesh = SubResource("Mesh_post")
 
-[node name="DeckPost2" type="MeshInstance3D" parent="."]
-position = Vector3(-2.4, -2.4, -44.5)
+[node name="DeckPost2" type="MeshInstance3D" parent="Deck"]
+position = Vector3(-2.4, -2.4, -9.7)
 mesh = SubResource("Mesh_post")
 
-[node name="DeckPost3" type="MeshInstance3D" parent="."]
-position = Vector3(2.4, -2.4, -44.5)
+[node name="DeckPost3" type="MeshInstance3D" parent="Deck"]
+position = Vector3(2.4, -2.4, -9.7)
 mesh = SubResource("Mesh_post")
 

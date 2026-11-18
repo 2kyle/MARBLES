@@ -6,6 +6,8 @@ A party game where friends build a bowling lane together, then race physics marb
 
 ![The whole track over the water](docs/track.png)
 
+![Placing a track card](docs/track_card.png)
+
 ![Drafting pieces](docs/draft.png)
 
 ![Placing pieces in the build phase](docs/build.png)
@@ -19,9 +21,11 @@ Each frame has four steps, like the design doc:
 3. **Roll (45 s max):** marbles drop together, crash into each other, and race to one shared rack of 21 pins. You can lean your marble, but the lane does most of the work.
 4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
 
-A match is 10 frames. The track itself winds left and right, banks through its corners and has a steep drop in the middle, high above the water. It starts empty except for a funnel in front of the pins. A marble that flies off the track splashes into the water and is out for that frame.
+A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. It starts empty except for a funnel in front of the pins. A marble that flies off the track splashes into the water and is out for that frame.
 
 ### Pieces
+
+Every crate has at least one track card. While you place a track card, a yellow see-through track shows the new shape from your cursor onward. The ring turns red where the new shape would run into the track or the pin deck. Pieces further down the track move with it, and the pins move to the new end.
 
 | Piece | What it does |
 | --- | --- |
@@ -37,6 +41,9 @@ A match is 10 frames. The track itself winds left and right, banks through its c
 | Hump | Smooth hill across the lane that tosses marbles up |
 | Washboard | Row of little bumps that make marbles hop and skid |
 | Tilt table | A square of lane that rocks side to side |
+| Track: bend | Changes the track itself: adds a bend where you drop it, turning toward the side you drop it on |
+| Track: cliff drop | Changes the track itself: adds a steep drop where you drop it |
+| Track: hairpin | Changes the track itself: adds a tight U-turn, toward the side you drop it on |
 | Bomb (item) | Drop it on the lane to blow up every piece inside the red circle. It doesn't stay |
 
 ## How to play it
@@ -95,7 +102,9 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 
 ### Reshaping the track
 
-The track is built from a curve, so you can redesign it by dragging points:
+Random tracks come from `scripts/track_gen.gd`. To change how they're made, edit the numbers in `_random_segment()` there: how long bends are, how sharply they turn, and how steep drops are.
+
+To play on a track you've drawn yourself instead, click the **Main** node in `scenes/main.tscn` and untick **Random Track**. Then reshape it by dragging points:
 
 1. Open `scenes/course.tscn` and click **Path** (under **Track**) in the Scene panel.
 2. Orange dots appear along the track in the 3D view. Drag one and the floor, walls and posts follow it straight away. Drag a dot up or down to make that part steeper or flatter.
@@ -122,6 +131,7 @@ scripts/
   scoring.gd         the scoring rules, on their own
   piece_catalog.gd   the list of draftable pieces (add new ones here)
   draft_build.gd     draft and build rules
+  track_gen.gd       makes random track layouts and applies track cards
   track.gd           builds the track's floor, walls and posts from the curve
   course_builder.gd  the build area, placed pieces, and the bomb
   thumbnails.gd      live pictures of each piece for the draft cards

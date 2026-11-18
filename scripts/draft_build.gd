@@ -41,7 +41,7 @@ func setup(p_builder: CourseBuilder, p_count: int, p_colors: Array) -> void:
 # ---------------------------------------------------------------- Draft
 
 func start_draft(crate_size: int, rng: RandomNumberGenerator) -> void:
-	crate = PieceCatalog.random_crate(crate_size, rng)
+	crate = PieceCatalog.random_crate(crate_size, rng, not builder.track.layout.is_empty())
 	taken_by = _filled(crate.size(), -1)
 	picks = _filled(player_count, "")
 	draft_cursor = []
@@ -131,10 +131,10 @@ func request_place(player: int) -> bool:
 		return false
 	var id: String = picks[player]
 	if not builder.place(id, cursor_pos[player], cursor_angle[player], player):
-		message[player] = "Too close to another piece"
+		message[player] = "The track would hit itself" if PieceCatalog.is_track(id) else "Too close to another piece"
 		return false
 	has_placed[player] = true
-	message[player] = "Boom!" if PieceCatalog.is_bomb(id) else "Placed!"
+	message[player] = "Boom!" if PieceCatalog.is_bomb(id) else ("Track changed!" if PieceCatalog.is_track(id) else "Placed!")
 	_free_cursor(player)
 	_update_visuals()  # other cursors may be blocked or freed now
 	return true
@@ -182,7 +182,11 @@ func _update_visuals() -> void:
 		if p >= _ghosts.size() or _ghosts[p] == null:
 			continue
 		var ghost: Node3D = _ghosts[p]
-		ghost.transform = builder.lane_xform(cursor_pos[p],
+		if ghost.has_meta("track_card"):
+			# Track cards show the new track shape from the cursor onward.
+			(ghost as MeshInstance3D).mesh = builder.reshape_preview(picks[p], cursor_pos[p])
+		else:
+			ghost.transform = builder.lane_xform(cursor_pos[p],
 				PieceCatalog.info(picks[p]).base_rotation + cursor_angle[p], 0.02)
 		var marker: MeshInstance3D = _markers[p]
 		marker.transform = builder.lane_xform(cursor_pos[p], 0.0, 0.012 + 0.004 * p) \

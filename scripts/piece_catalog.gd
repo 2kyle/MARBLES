@@ -4,7 +4,9 @@ extends RefCounted
 ## scenes/pieces/, then add an entry here.
 ##
 ## kind: "piece" stays on the lane; "bomb" is a one-shot item that blows up
-##     placed pieces near where it lands.
+##     placed pieces near where it lands; "track" reshapes the track itself
+##     where it's dropped (the scene is only its picture). Which way a track
+##     card turns depends on which side of the track you drop it.
 ## radius: rough footprint in metres. Pieces can't be placed with their
 ##     centres closer than about their two radii, and the bomb clears
 ##     anything within its radius.
@@ -84,6 +86,24 @@ const PIECES := {
 		"scene": "res://scenes/pieces/tilt_table.tscn",
 		"kind": "piece", "radius": 1.2, "base_rotation": 0.0,
 	},
+	"track_bend": {
+		"name": "Track: bend",
+		"about": "Bends the track itself. Drop it on the side you want it to turn",
+		"scene": "res://scenes/pieces/track_bend.tscn",
+		"kind": "track", "segment": "bend", "radius": 1.6, "base_rotation": 0.0,
+	},
+	"track_drop": {
+		"name": "Track: cliff drop",
+		"about": "Adds a steep drop to the track itself",
+		"scene": "res://scenes/pieces/track_drop.tscn",
+		"kind": "track", "segment": "drop", "radius": 1.6, "base_rotation": 0.0,
+	},
+	"track_hairpin": {
+		"name": "Track: hairpin",
+		"about": "Adds a tight U-turn. Drop it on the side you want it to turn",
+		"scene": "res://scenes/pieces/track_hairpin.tscn",
+		"kind": "track", "segment": "hairpin", "radius": 1.6, "base_rotation": 0.0,
+	},
 	"bomb": {
 		"name": "Bomb",
 		"about": "Blows up every piece near where you drop it",
@@ -109,10 +129,41 @@ static func is_bomb(id: String) -> bool:
 	return PIECES.has(id) and PIECES[id].kind == "bomb"
 
 
-## A crate of `count` random picks (repeats allowed).
-static func random_crate(count: int, rng: RandomNumberGenerator) -> Array:
-	var all := ids()
+static func is_track(id: String) -> bool:
+	return PIECES.has(id) and PIECES[id].kind == "track"
+
+
+## The new stretch of track a track card adds. `side` < 0 = left of the
+## centre line (turn left), > 0 = right.
+static func track_segment(id: String, side: float) -> Dictionary:
+	var sign := 1.0 if side < 0.0 else -1.0
+	match PIECES[id].segment:
+		"drop":
+			return TrackGen.drop()
+		"hairpin":
+			return TrackGen.hairpin(sign)
+		_:
+			return TrackGen.bend(75.0 * sign)
+
+
+## A crate of `count` random picks (repeats allowed). With `track_cards`
+## on, there's always at least one card that reshapes the track.
+static func random_crate(count: int, rng: RandomNumberGenerator, track_cards := true) -> Array:
+	var all := []
+	var tracks := []
+	for id in ids():
+		if is_track(id):
+			tracks.append(id)
+			if not track_cards:
+				continue
+		all.append(id)
 	var crate := []
 	for i in count:
 		crate.append(all[rng.randi_range(0, all.size() - 1)])
+	if track_cards:
+		var has_track := false
+		for id in crate:
+			has_track = has_track or is_track(id)
+		if not has_track:
+			crate[rng.randi_range(0, count - 1)] = tracks[rng.randi_range(0, tracks.size() - 1)]
 	return crate

@@ -25,6 +25,9 @@ const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 
 ## Marbles in the match (1 to 4). Each extra player uses the next key set.
 @export_range(1, 4) var player_count := 2
+## Make a new random track layout at the start of every match. Turn off
+## to play on the hand-drawn curve in scenes/course.tscn (Track/Path).
+@export var random_track := true
 ## Marbles bump into each other. Press C in game to flip it.
 @export var marbles_collide := true
 ## Frames in a match.
@@ -78,7 +81,8 @@ var _repeat := {}  # held-key repeat timers for build cursors
 @onready var rack: Rack = $Rack
 @onready var camera: CameraRig = $Camera
 @onready var hud: Hud = $Hud
-@onready var arrival_line: Area3D = $Course/ArrivalLine
+@onready var arrival_line: Area3D = $Course/Deck/ArrivalLine
+@onready var deck: Node3D = $Course/Deck
 @onready var track: Track = $Course/Track
 @onready var builder: CourseBuilder = $Course/Track/Placed
 @onready var draft_build: DraftBuild = $DraftBuild
@@ -87,7 +91,7 @@ var _repeat := {}  # held-key repeat timers for build cursors
 func _ready() -> void:
 	Controls.setup()
 	_rng.randomize()
-	rack.global_position = ($Course/RackSpot as Node3D).global_position
+	builder.track_reshaped.connect(_on_track_reshaped)
 	rack.swept.connect(_on_rack_swept)
 	arrival_line.body_entered.connect(_on_arrival_line_body_entered)
 	draft_build.setup(builder, player_count, PLAYER_COLORS)
@@ -102,8 +106,45 @@ func _new_match() -> void:
 	frame_points.clear()
 	last_result = {}
 	builder.clear()
+	if random_track:
+		_new_track()
+	_place_deck()
 	_prepare_roll()
 	state = State.WAITING
+
+
+## A fresh random track, centred over the water.
+func _new_track() -> void:
+	var layout := TrackGen.random_layout(_rng)
+	var pts := TrackGen.points(layout)
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for p in pts:
+		lo = lo.min(Vector2(p.x, p.z))
+		hi = hi.max(Vector2(p.x, p.z))
+	track.apply_layout(layout, -(lo + hi) / 2.0)
+
+
+func _put_marbles_at_gate() -> void:
+	for m in marbles:
+		var gate := track.world_frame_at(1.0, SPAWN_X[m.player_id])
+		m.global_position = gate.origin + gate.basis.y * 0.32
+		m.linear_velocity = Vector3.ZERO
+		m.angular_velocity = Vector3.ZERO
+
+
+func _on_track_reshaped() -> void:
+	_place_deck()
+	if state != State.ROLLING:
+		_put_marbles_at_gate()
+		rack.reset()
+
+
+## Move the pin deck (and the rack) to wherever the track ends.
+func _place_deck() -> void:
+	var end := track.global_transform * track.end_transform()
+	deck.global_transform = Transform3D(end.basis, end.origin + Vector3(0, -TrackGen.END_Y, 0))
+	rack.global_transform = ($Course/Deck/RackSpot as Node3D).global_transform
 
 
 func _prepare_roll() -> void:
@@ -124,11 +165,10 @@ func _prepare_roll() -> void:
 		m.color = PLAYER_COLORS[i]
 		m.freeze = true
 		add_child(m)
-		var gate := track.world_frame_at(1.0, SPAWN_X[i])
-		m.global_position = gate.origin + gate.basis.y * 0.32
 		m.set_marble_collision(marbles_collide)
 		marbles.append(m)
 
+	_put_marbles_at_gate()
 	rack.reset()
 	_update_camera()
 	camera.snap_to(camera.target)
@@ -398,10 +438,12 @@ func _marbles_center() -> Vector3:
 func _update_camera() -> void:
 	if _overhead_camera or state in [State.WAITING, State.DRAFT]:
 		# The whole track from high up.
+		var box := _course_box()
+		var size := maxf(box.size.x, box.size.z)
 		camera.heading = Vector3.FORWARD
-		camera.follow_offset = Vector3(0, 40, 30)
-		camera.look_ahead = Vector3(0, 0, -6)
-		camera.target = Vector3(1, 4, -2)
+		camera.follow_offset = Vector3(0, size * 0.72, size * 0.62)
+		camera.look_ahead = Vector3(0, 0, -size * 0.08)
+		camera.target = box.get_center()
 		return
 	if state == State.BUILD:
 		# Follow the build cursors, facing down the track where they are.
@@ -424,10 +466,10 @@ func _update_camera() -> void:
 		# Swing to the pins for each impact, then back to anyone still rolling.
 		pin_cam = _no_marbles_rolling() or _roll_time - _last_arrival_time < pin_cam_time
 	if pin_cam:
-		camera.heading = Vector3.FORWARD
+		camera.heading = -deck.global_basis.z
 		camera.follow_offset = Vector3(0, 3.2, 6.5)
 		camera.look_ahead = Vector3(0, -1.0, -3.0)
-		camera.target = rack.global_position + Vector3(0, 0, 1.0)
+		camera.target = rack.global_position - camera.heading * 1.0
 	else:
 		camera.follow_offset = Vector3(0, 8.0, 7.0)
 		camera.look_ahead = Vector3(0, -2.0, -10.0)
@@ -436,7 +478,19 @@ func _update_camera() -> void:
 		if d < track.length() - 1.0:
 			camera.heading = -track.world_frame_at(d + 4.0).basis.z
 		else:
-			camera.heading = Vector3.FORWARD
+			camera.heading = -deck.global_basis.z
+
+
+## Box around the track and pin deck (world space), for the overview camera.
+func _course_box() -> AABB:
+	var box := AABB(deck.global_position, Vector3.ZERO)
+	var len := track.length()
+	var d := 0.0
+	while d <= len:
+		box = box.expand(track.world_frame_at(d).origin)
+		d += 4.0
+	box = box.expand(deck.global_transform * Vector3(0, 0, -20))
+	return box
 
 
 func _no_marbles_rolling() -> bool:

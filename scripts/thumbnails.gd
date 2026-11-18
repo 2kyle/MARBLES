@@ -41,7 +41,8 @@ func _make(id: String) -> Texture2D:
 	floor_mesh.material = floor_mat
 	floor_tile.mesh = floor_mesh
 	floor_tile.position.y = -0.03
-	vp.add_child(floor_tile)
+	if not PieceCatalog.is_track(id):
+		vp.add_child(floor_tile)
 	vp.add_child(piece)
 
 	var cam := Camera3D.new()

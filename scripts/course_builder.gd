@@ -17,10 +17,14 @@ extends Node3D
 ## How much two pieces' footprints may overlap (0 = not at all, 1 = fully).
 @export_range(0.0, 1.0) var overlap_allowed := 0.35
 
+## A track card changed the shape of the track (the pin deck must move).
+signal track_reshaped
+
 ## One entry per placed piece: {id, pos, angle, by, node}.
 var placed: Array = []
 
 var _zone: MeshInstance3D = null
+var _fit_cache := {}
 
 @onready var track: Track = get_parent()
 
@@ -46,6 +50,8 @@ func clamp_pos(pos: Vector2) -> Vector2:
 func can_place(id: String, pos: Vector2) -> bool:
 	if PieceCatalog.is_bomb(id):
 		return true
+	if PieceCatalog.is_track(id):
+		return _reshaped_layout(id, pos) != null
 	var r: float = PieceCatalog.info(id).radius
 	for p in placed:
 		var min_gap: float = (r + PieceCatalog.info(p.id).radius) * (1.0 - overlap_allowed)
@@ -75,6 +81,8 @@ func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 	if PieceCatalog.is_bomb(id):
 		explode(pos, PieceCatalog.info(id).radius)
 		return true
+	if PieceCatalog.is_track(id):
+		return _reshape(id, pos)
 	if not can_place(id, pos):
 		return false
 	var node: Node3D = load(PieceCatalog.info(id).scene).instantiate()
@@ -84,6 +92,76 @@ func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 	add_child(node)
 	placed.append({"id": id, "pos": pos, "angle": angle, "by": by_player, "node": node})
 	return true
+
+
+## The layout with track card `id` dropped at `pos`, or null if the track
+## would run into itself (or the track wasn't made from a layout).
+func _reshaped_layout(id: String, pos: Vector2) -> Variant:
+	if track.layout.is_empty():
+		return null
+	var key := "%s|%d|%d|%d" % [id, roundi(-pos.y), signi(roundi(pos.x * 10.0)), track.layout.hash()]
+	if _fit_cache.has(key):
+		return _fit_cache[key]
+	var seg := PieceCatalog.track_segment(id, pos.x)
+	var result = TrackGen.insert(track.layout, -pos.y, seg)
+	if not TrackGen.fits(result, track.start_xz):
+		result = null
+	if _fit_cache.size() > 200:
+		_fit_cache.clear()
+	_fit_cache[key] = result
+	return result
+
+
+func _reshape(id: String, pos: Vector2) -> bool:
+	var new_layout = _reshaped_layout(id, pos)
+	if new_layout == null:
+		return false
+	var added := TrackGen.total_length(new_layout) - TrackGen.total_length(track.layout)
+	var at := -pos.y
+	track.apply_layout(new_layout, track.start_xz)
+	# Pieces further down the track move along with it.
+	for p in placed:
+		if -p.pos.y > at:
+			p.pos.y -= added
+		p.node.transform = lane_xform(p.pos, PieceCatalog.info(p.id).base_rotation + p.angle)
+	_fit_cache.clear()
+	if _zone:
+		_zone.queue_free()
+		_zone = null
+		show_zone(true)
+	track_reshaped.emit()
+	return true
+
+
+## For a track card's ghost: the new shape of the track from where the
+## card would go, as a see-through ribbon. Empty if it doesn't fit.
+func reshape_preview(id: String, pos: Vector2) -> ArrayMesh:
+	var new_layout = _reshaped_layout(id, pos)
+	if new_layout == null:
+		return null
+	var at := clampf(-pos.y, 0.0, track.length())
+	var pts := TrackGen.points(new_layout, track.start_xz)
+	var i0 := clampi(roundi(at), 0, pts.size() - 1)
+	# Line the preview up with the real track where the card goes.
+	var shift := track.frame_at(at).origin - pts[i0]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hw := track.lane_width / 2.0
+	var pl := Vector3.ZERO
+	var pr := Vector3.ZERO
+	for i in range(i0, pts.size()):
+		var fwd := (pts[mini(i + 1, pts.size() - 1)] - pts[maxi(i - 1, 0)]).normalized()
+		var right := fwd.cross(Vector3.UP).normalized() * hw
+		var o := pts[i] + shift + Vector3.UP * 0.05
+		var l := o - right
+		var r := o + right
+		if i > i0:
+			for v in [pl, r, pr, pl, l, r]:
+				st.add_vertex(v)
+		pl = l
+		pr = r
+	st.generate_normals()
+	return st.commit()
 
 
 ## Remove every placed piece whose centre is within `radius` of `pos`.
@@ -125,6 +203,18 @@ func clear() -> void:
 ## A see-through copy of a piece that does nothing, for build cursors.
 ## Bombs also show a red disc for their blast radius.
 func make_ghost(id: String) -> Node3D:
+	if PieceCatalog.is_track(id):
+		var ribbon := MeshInstance3D.new()
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(1.0, 0.85, 0.2, 0.35)
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		ribbon.material_override = mat
+		ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ribbon.set_meta("track_card", id)
+		add_child(ribbon)
+		return ribbon
 	var ghost: Node3D = load(PieceCatalog.info(id).scene).instantiate()
 	ghost.process_mode = Node.PROCESS_MODE_DISABLED
 	_make_inert(ghost)

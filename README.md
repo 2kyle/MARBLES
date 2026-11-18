@@ -15,7 +15,7 @@ Each frame has four steps, like the design doc:
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as picture cards down the right side. Everyone grabs one at the same time. First to grab a piece gets it.
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Pieces stay on the lane for the rest of the match.
 3. **Roll (30 s max):** marbles drop together, crash into each other, and race to one shared rack of 21 pins. You can lean your marble, but the lane does most of the work.
-4. **Score:** pins are credited, the scoreboard updates, and the rack resets.
+4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
 
 A match is 10 frames. The lane starts empty except for a funnel in front of the pins.
 
@@ -56,6 +56,7 @@ A match is 10 frames. The lane starts empty except for a funnel in front of the 
 | Key | What it does |
 | --- | --- |
 | **Space** | Start the match / go to the next frame |
+| **Tab** (hold) | Show the scoreboard |
 | **R** | Re-roll this frame on the same lane |
 | **C** | Turn marble-vs-marble collision on or off |
 | **V** | Switch between the follow camera and an overhead view |

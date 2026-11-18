@@ -17,6 +17,7 @@ const GAME_KEYS := {
 	"restart_frame": [KEY_R],
 	"toggle_collision": [KEY_C],
 	"toggle_camera": [KEY_V],
+	"scoreboard": [KEY_TAB],
 	"quit": [KEY_ESCAPE],
 }
 

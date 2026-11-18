@@ -59,6 +59,8 @@ var marbles: Array[Marble] = []
 var arrival_order: Array = []
 var sweep_player := -1
 var last_result: Dictionary = {}
+## Points each player scored in each finished frame: frame_points[frame][player].
+var frame_points: Array = []
 
 var _countdown := 0.0
 var _phase_left := 0.0
@@ -94,6 +96,7 @@ func _new_match() -> void:
 	frame = 1
 	totals.resize(player_count)
 	totals.fill(0)
+	frame_points.clear()
 	last_result = {}
 	builder.clear()
 	_prepare_roll()
@@ -313,6 +316,7 @@ func _finish_frame() -> void:
 			rack.fallen_credits(), sweep_player, knockouts)
 	for i in player_count:
 		totals[i] += last_result.points[i]
+	frame_points.append(last_result.points.duplicate())
 	state = State.MATCH_OVER if frame >= frames_per_match else State.RESULTS
 
 

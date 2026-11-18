@@ -11,9 +11,9 @@ extends RigidBody3D
 ## Which player owns this marble (0-based).
 @export var player_id := 0
 ## Sideways lean force. Raise it for sharper steering.
-@export var lean_side_force := 3.8
+@export var lean_side_force := 5.5
 ## Forward/back lean force, weaker than sideways on purpose.
-@export var lean_forward_force := 1.7
+@export var lean_forward_force := 3.0
 ## Extra push when the marble hits a bumper post.
 @export var bumper_kick := 2.5
 
@@ -23,6 +23,9 @@ var lean := Vector2.ZERO
 ## Set by the game when the marble crosses the arrival line or falls out.
 var arrived := false
 var out := false
+## Player whose piece knocked this marble out (-1 = nobody, e.g. it just
+## rolled off the edge).
+var knocked_out_by := -1
 
 var color := Color.WHITE:
 	set(value):
@@ -43,6 +46,16 @@ func _physics_process(_delta: float) -> void:
 	# world space line up on the X and Z axes.
 	var force := Vector3(l.x * lean_side_force, 0.0, l.y * lean_forward_force)
 	apply_central_force(force * mass)
+
+
+## Take this marble out of the frame (fell in a gutter, for example).
+func knock_out(by_player: int) -> void:
+	if out or arrived:
+		return
+	out = true
+	knocked_out_by = by_player
+	set_deferred("freeze", true)
+	visible = false
 
 
 func set_marble_collision(enabled: bool) -> void:

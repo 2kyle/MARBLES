@@ -4,15 +4,29 @@ A party game where friends build a bowling lane together, then race physics marb
 
 ![Marbles rolling down the lane](docs/rolling.png)
 
-## Version 0.1: the roll
+![Placing pieces in the build phase](docs/build.png)
 
-This first prototype answers one question: **does rolling a marble into the pins feel good?** There's no build phase or online play yet.
+## What's in the prototype
 
-- A sloped wooden lane with fixed pieces: two bumper posts, a ramp jump, two angled rails and a funnel.
-- Two marbles (two players on one keyboard) that bump into each other.
-- Light steering: you can lean your marble, but the lane does most of the work.
-- One shared rack of 21 pins (six rows) and the scoring from the design doc.
-- A 10-frame match with a scoreboard.
+Each frame has four steps, like the design doc:
+
+1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras. Everyone grabs one at the same time. First to grab a piece gets it.
+2. **Build (30 s):** everyone places their piece on the grid at once. Pieces stay on the lane for the rest of the match.
+3. **Roll (30 s max):** marbles drop together, crash into each other, and race to one shared rack of 21 pins. You can lean your marble, but the lane does most of the work.
+4. **Score:** pins are credited, the scoreboard updates, and the rack resets.
+
+A match is 10 frames. The lane starts empty except for a funnel in front of the pins.
+
+### Pieces
+
+| Piece | What it does |
+| --- | --- |
+| Bumper post | Round post that kicks marbles sideways |
+| Angled rail | Short wall that turns a marble 45 degrees |
+| Ramp jump | Launches a marble into the air |
+| Carpet strip | Drains speed from anything rolling over it |
+| Booster pad | Fires a marble the way its arrow points (rotate it to aim) |
+| Gutter cut | A hole: fall in and your frame is over. Whoever placed it gets +2 |
 
 ## How to play it
 
@@ -24,12 +38,16 @@ This first prototype answers one question: **does rolling a marble into the pins
 
 ## Controls
 
+| | Player 1 | Player 2 |
+| --- | --- | --- |
+| Draft: choose / grab | W S / E | Up Down / Enter |
+| Build: move / rotate / place | W A S D / Q / E | Arrow keys / Right Shift / Enter |
+| Roll: lean | W A S D | Arrow keys |
+
 | Key | What it does |
 | --- | --- |
-| **W A S D** | Player 1 (pink marble) leans left, right, forward and back |
-| **Arrow keys** | Player 2 (yellow marble) leans |
-| **Space** | Start the roll / go to the next frame |
-| **R** | Reset the current frame |
+| **Space** | Start the match / go to the next frame |
+| **R** | Re-roll this frame on the same lane |
 | **C** | Turn marble-vs-marble collision on or off |
 | **V** | Switch between the follow camera and an overhead view |
 | **Esc** | Quit |
@@ -41,6 +59,7 @@ This first prototype answers one question: **does rolling a marble into the pins
 | Each pin your marble knocks down (a chain reaction counts for whoever started it) | 1 |
 | Clean sweep: you knock down the last pin standing | +5 |
 | First / second / third marble to reach the pins (yellow line) | +3 / +2 / +1 |
+| Your piece knocks another player's marble out (gutter cut) | +2 |
 
 If every marble reaches the pins, nobody gets the race bonus. If no marble reaches the pins in 30 seconds, nobody scores that frame.
 
@@ -55,8 +74,9 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | Bumper kick | `scenes/marble.tscn`, root node | Bumper Kick |
 | Pin weight and wobble | `scenes/pin.tscn`, root node | Mass, Center Of Mass |
 | Lane steepness | `scenes/course.tscn`, `Slope` node | Rotation X (more negative = steeper) |
-| Moving pieces around | `scenes/course.tscn`, `Slope/Pieces` | Drag them in the 3D view |
-| Players, frames, time limit, collision | `scenes/main.tscn`, `Main` node | Player Count, Frames Per Match, Roll Time Limit, Marbles Collide |
+| The fixed funnel | `scenes/course.tscn`, `Slope/Pieces/Funnel` | Drag it in the 3D view |
+| Players, frames, timers, crate size, collision | `scenes/main.tscn`, `Main` node | Player Count, Frames Per Match, Draft Time, Build Time, Crate Extra, Roll Time Limit, Marbles Collide |
+| Build grid size | `scenes/course.tscn`, `Slope/Placed` node | Columns, Rows, Cell Width, Cell Length |
 
 ## How the project is laid out
 
@@ -66,13 +86,17 @@ scenes/
   course.tscn        the lane, pin deck, and fixed pieces
   marble.tscn        a player's marble
   pin.tscn           one bowling pin
-  pieces/            bumper post, angled rail, ramp jump, funnel
+  pieces/            every lane piece, one scene each
 scripts/
   main.gd            runs frames and the match (the "referee")
   marble.gd          lean steering and bumper kicks
   pin.gd             knocked-down check and who gets credit
   rack.gd            sets up the 21 pins
   scoring.gd         the scoring rules, on their own
+  piece_catalog.gd   the list of draftable pieces (add new ones here)
+  draft_build.gd     draft and build rules
+  course_builder.gd  the build grid and placed pieces
+  booster_pad.gd, carpet_strip.gd, gutter_cut.gd   piece behaviour
   controls.gd        all the key bindings
   camera_rig.gd      follow camera
   hud.gd             scoreboard text
@@ -81,7 +105,7 @@ tests/
   sim_roll.gd        plays frames with no one at the keys and prints results
 ```
 
-The code is set up for online play later: `main.gd` makes every decision (physics, who arrived first, who gets each pin), and player input only reaches a marble through one function, `_gather_inputs()`. When online play arrives, the host runs `main.gd` and fills in each marble's lean from the network instead of the keyboard.
+The code is set up for online play later: `main.gd` makes every decision (physics, who arrived first, who gets each pin), and player input only reaches the game through two functions: `_gather_inputs()` for marble lean and `_gather_build_inputs()` for draft and build requests. When online play arrives, the host runs `main.gd` and fills those in from the network instead of the keyboard.
 
 ### Running the tests (optional)
 

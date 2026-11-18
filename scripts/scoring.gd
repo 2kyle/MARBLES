@@ -9,12 +9,14 @@ extends RefCounted
 ##       touched the first pin in the chain)
 ##   +5  clean sweep: you knocked down the last pin standing
 ##   +3 / +2 / +1  race bonus for 1st / 2nd / 3rd marble to reach the pins
+##   +2  your piece knocked another player's marble out (e.g. a gutter cut)
 ## Balance rules:
 ##   Too easy: if every marble reaches the pins, nobody gets the race bonus.
 ##   Too hard: if no marble reaches the pins, the frame scores nothing.
 
 const RACE_BONUS := [3, 2, 1]
 const SWEEP_BONUS := 5
+const KNOCKOUT_BONUS := 2
 
 
 ## player_count: number of marbles in the frame.
@@ -22,23 +24,31 @@ const SWEEP_BONUS := 5
 ## fallen_pin_credits: one entry per fallen pin, the player id credited
 ##     with it, or -1 if no marble is credited.
 ## sweep_player: player id that knocked down the last pin, or -1.
+## knockouts: one entry per marble knocked out by someone else's piece,
+##     the player id who placed that piece.
 ##
 ## Returns a Dictionary:
 ##   "points": Array[int], total frame points per player
 ##   "pins": Array[int], pin points per player
 ##   "race": Array[int], race bonus per player
 ##   "sweep": Array[int], sweep bonus per player
+##   "knockouts": Array[int], knockout bonus per player
 ##   "note": String, a short explanation for the scoreboard
 static func score_frame(player_count: int, arrival_order: Array,
-		fallen_pin_credits: Array, sweep_player: int) -> Dictionary:
+		fallen_pin_credits: Array, sweep_player: int, knockouts: Array = []) -> Dictionary:
 	var pins := _zeros(player_count)
 	var race := _zeros(player_count)
 	var sweep := _zeros(player_count)
+	var ko := _zeros(player_count)
 	var note := ""
 
 	if arrival_order.is_empty():
 		note = "Nobody reached the pins. No points this frame."
-		return _result(player_count, pins, race, sweep, note)
+		return _result(player_count, pins, race, sweep, ko, note)
+
+	for id in knockouts:
+		if id >= 0 and id < player_count:
+			ko[id] += KNOCKOUT_BONUS
 
 	for credit in fallen_pin_credits:
 		if credit >= 0 and credit < player_count:
@@ -55,15 +65,16 @@ static func score_frame(player_count: int, arrival_order: Array,
 			if id >= 0 and id < player_count:
 				race[id] = RACE_BONUS[i]
 
-	return _result(player_count, pins, race, sweep, note)
+	return _result(player_count, pins, race, sweep, ko, note)
 
 
 static func _result(player_count: int, pins: Array, race: Array,
-		sweep: Array, note: String) -> Dictionary:
+		sweep: Array, ko: Array, note: String) -> Dictionary:
 	var points := _zeros(player_count)
 	for i in player_count:
-		points[i] = pins[i] + race[i] + sweep[i]
-	return {"points": points, "pins": pins, "race": race, "sweep": sweep, "note": note}
+		points[i] = pins[i] + race[i] + sweep[i] + ko[i]
+	return {"points": points, "pins": pins, "race": race, "sweep": sweep,
+			"knockouts": ko, "note": note}
 
 
 static func _zeros(n: int) -> Array:

@@ -1,9 +1,7 @@
 [gd_scene load_steps=30 format=3]
 
-[ext_resource type="PackedScene" path="res://scenes/pieces/bumper_post.tscn" id="1_bumper"]
-[ext_resource type="PackedScene" path="res://scenes/pieces/ramp_jump.tscn" id="2_ramp"]
-[ext_resource type="PackedScene" path="res://scenes/pieces/angled_rail.tscn" id="3_rail"]
 [ext_resource type="PackedScene" path="res://scenes/pieces/funnel.tscn" id="4_funnel"]
+[ext_resource type="Script" path="res://scripts/course_builder.gd" id="5_builder"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_wood"]
 friction = 0.6
@@ -100,8 +98,8 @@ size = Vector2(120, 120)
 [node name="Course" type="Node3D"]
 
 [node name="Slope" type="Node3D" parent="."]
-position = Vector3(0, 6.869, 0)
-rotation = Vector3(-0.191986, 0, 0)
+position = Vector3(0, 8.098, 0)
+rotation = Vector3(-0.226893, 0, 0)
 
 [node name="LaneFloor" type="StaticBody3D" parent="Slope"]
 physics_material_override = SubResource("PhysicsMaterial_wood")
@@ -157,25 +155,11 @@ position = Vector3(0.5, 0.32, -1)
 
 [node name="Pieces" type="Node3D" parent="Slope"]
 
-[node name="BumperPost1" parent="Slope/Pieces" instance=ExtResource("1_bumper")]
-position = Vector3(-0.8, 0, -9)
-
-[node name="BumperPost2" parent="Slope/Pieces" instance=ExtResource("1_bumper")]
-position = Vector3(1.4, 0, -13)
-
-[node name="RampJump" parent="Slope/Pieces" instance=ExtResource("2_ramp")]
-position = Vector3(-1.2, 0, -17)
-
-[node name="AngledRailRight" parent="Slope/Pieces" instance=ExtResource("3_rail")]
-position = Vector3(1.75, 0, -21.5)
-rotation = Vector3(0, 0.436332, 0)
-
-[node name="AngledRailLeft" parent="Slope/Pieces" instance=ExtResource("3_rail")]
-position = Vector3(-1.75, 0, -25.5)
-rotation = Vector3(0, -0.436332, 0)
-
 [node name="Funnel" parent="Slope/Pieces" instance=ExtResource("4_funnel")]
 position = Vector3(0, 0, -31.5)
+
+[node name="Placed" type="Node3D" parent="Slope"]
+script = ExtResource("5_builder")
 
 [node name="PinDeck" type="StaticBody3D" parent="."]
 physics_material_override = SubResource("PhysicsMaterial_wood")

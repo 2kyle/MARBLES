@@ -1,15 +1,17 @@
 extends Node3D
-## Runs a local match: spawns marbles, runs each frame (countdown, roll,
-## score), and keeps the scoreboard.
+## Runs a local match. Each frame goes:
+##   Draft (pick a piece from the crate) -> Build (place it on the lane)
+##   -> Countdown -> Roll -> Results
+## Placed pieces stay on the lane for the rest of the match.
 ##
-## Built with online play in mind: this script is the "referee". Everything
-## that decides an outcome (physics, arrival order, pin credit, scoring)
-## happens here and in the nodes it owns. Player input only ever reaches a
-## marble through `_gather_inputs()`. When online play arrives, the host runs
-## this script, and `_gather_inputs()` reads each player's lean from the
-## network instead of the keyboard.
+## Built with online play in mind: this script (with DraftBuild) is the
+## "referee". Everything that decides an outcome happens here. Player input
+## only reaches the game through `_gather_inputs()` (marble lean) and
+## `_gather_build_inputs()` (draft and build requests). When online play
+## arrives, the host runs this script and those two functions read each
+## player's input from the network instead of the keyboard.
 
-enum State { WAITING, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER }
+enum State { WAITING, DRAFT, BUILD, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER }
 
 const PLAYER_COLORS := [
 	Color(0.95, 0.3, 0.55),  # pink
@@ -25,6 +27,12 @@ const PLAYER_NAMES := ["Player 1", "Player 2", "Player 3", "Player 4"]
 @export var marbles_collide := true
 ## Frames in a match.
 @export var frames_per_match := 10
+## Seconds to pick a piece from the crate.
+@export var draft_time := 15.0
+## Seconds to place it on the lane.
+@export var build_time := 30.0
+## Extra pieces in the crate beyond one per player.
+@export var crate_extra := 2
 ## Longest a roll can last, in seconds.
 @export var roll_time_limit := 30.0
 ## After the last marble reaches the pins (or falls out), wait this long
@@ -46,24 +54,31 @@ var sweep_player := -1
 var last_result: Dictionary = {}
 
 var _countdown := 0.0
+var _phase_left := 0.0
 var _roll_time := 0.0
 var _settle_left := 0.0
 var _settling := false
 var _overhead_camera := false
 var _last_arrival_time := -100.0
+var _rng := RandomNumberGenerator.new()
+var _repeat := {}  # held-key repeat timers for build cursors
 
 @onready var course: Node3D = $Course
 @onready var rack: Rack = $Rack
 @onready var camera: CameraRig = $Camera
 @onready var hud: Hud = $Hud
 @onready var arrival_line: Area3D = $Course/ArrivalLine
+@onready var builder: CourseBuilder = $Course/Slope/Placed
+@onready var draft_build: DraftBuild = $DraftBuild
 
 
 func _ready() -> void:
 	Controls.setup()
+	_rng.randomize()
 	rack.global_position = ($Course/RackSpot as Node3D).global_position
 	rack.swept.connect(_on_rack_swept)
 	arrival_line.body_entered.connect(_on_arrival_line_body_entered)
+	draft_build.setup(builder, player_count, PLAYER_COLORS)
 	_new_match()
 
 
@@ -72,10 +87,12 @@ func _new_match() -> void:
 	totals.resize(player_count)
 	totals.fill(0)
 	last_result = {}
-	_prepare_frame()
+	builder.clear()
+	_prepare_roll()
+	state = State.WAITING
 
 
-func _prepare_frame() -> void:
+func _prepare_roll() -> void:
 	## Put fresh marbles at the start gate (frozen) and a fresh rack of pins.
 	for m in marbles:
 		remove_child(m)
@@ -100,7 +117,28 @@ func _prepare_frame() -> void:
 
 	rack.reset()
 	camera.snap_to(_marbles_center())
-	state = State.WAITING
+
+
+# ------------------------------------------------------------ Phases
+
+func _start_draft() -> void:
+	draft_build.start_draft(player_count + crate_extra, _rng)
+	_phase_left = draft_time
+	state = State.DRAFT
+
+
+func _start_build() -> void:
+	draft_build.auto_pick_remaining()
+	draft_build.start_build()
+	_phase_left = build_time
+	_repeat.clear()
+	state = State.BUILD
+
+
+func _end_build() -> void:
+	draft_build.auto_place_remaining()
+	draft_build.end_build()
+	_start_countdown()
 
 
 func _start_countdown() -> void:
@@ -114,13 +152,23 @@ func _release_marbles() -> void:
 	state = State.ROLLING
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if state == State.DRAFT or state == State.BUILD:
+		_gather_build_inputs(delta)
 	_update_camera()
 	hud.refresh(self)
 
 
 func _physics_process(delta: float) -> void:
 	match state:
+		State.DRAFT:
+			_phase_left -= delta
+			if _phase_left <= 0.0 or draft_build.all_picked():
+				_start_build()
+		State.BUILD:
+			_phase_left -= delta
+			if _phase_left <= 0.0 or draft_build.all_placed():
+				_end_build()
 		State.COUNTDOWN:
 			_countdown -= delta
 			if _countdown <= 0.0:
@@ -130,6 +178,8 @@ func _physics_process(delta: float) -> void:
 			_update_roll(delta)
 
 
+# ------------------------------------------------------------ Input
+
 func _gather_inputs() -> void:
 	## The only place player input reaches the marbles.
 	## Online play: replace Controls.read_lean(i) with the lean the host
@@ -137,6 +187,81 @@ func _gather_inputs() -> void:
 	for m in marbles:
 		m.lean = Controls.read_lean(m.player_id)
 
+
+func _gather_build_inputs(delta: float) -> void:
+	## The only place player input reaches the draft and build.
+	## Online play: each player's game sends these requests to the host.
+	for p in player_count:
+		var fwd := Controls.action_name(p, "forward")
+		var back := Controls.action_name(p, "back")
+		var left := Controls.action_name(p, "left")
+		var right := Controls.action_name(p, "right")
+		if state == State.DRAFT:
+			if _pressed_or_repeat(fwd, delta):
+				draft_build.request_draft_move(p, -1)
+			if _pressed_or_repeat(back, delta):
+				draft_build.request_draft_move(p, 1)
+			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+				draft_build.request_pick(p)
+		else:
+			var move := Vector2i.ZERO
+			if _pressed_or_repeat(left, delta):
+				move.x -= 1
+			if _pressed_or_repeat(right, delta):
+				move.x += 1
+			if _pressed_or_repeat(fwd, delta):
+				move.y += 1  # toward the pins
+			if _pressed_or_repeat(back, delta):
+				move.y -= 1  # toward the start
+			if move != Vector2i.ZERO:
+				draft_build.request_cursor_move(p, move)
+			if Input.is_action_just_pressed(Controls.action_name(p, "rotate")):
+				draft_build.request_rotate(p)
+			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+				draft_build.request_place(p)
+
+
+func _pressed_or_repeat(action: String, delta: float) -> bool:
+	## True on the first press, then repeatedly while held, so a cursor can
+	## glide down the lane.
+	if Input.is_action_just_pressed(action):
+		_repeat[action] = 0.3
+		return true
+	if Input.is_action_pressed(action):
+		_repeat[action] = _repeat.get(action, 0.3) - delta
+		if _repeat[action] <= 0.0:
+			_repeat[action] = 0.09
+			return true
+	return false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("quit"):
+		get_tree().quit()
+	elif event.is_action_pressed("toggle_collision"):
+		marbles_collide = not marbles_collide
+		for m in marbles:
+			m.set_marble_collision(marbles_collide)
+	elif event.is_action_pressed("toggle_camera"):
+		_overhead_camera = not _overhead_camera
+	elif event.is_action_pressed("restart_frame"):
+		# Re-roll this frame on the same lane (handy for testing a layout).
+		if state in [State.COUNTDOWN, State.ROLLING, State.RESULTS]:
+			_prepare_roll()
+			_start_countdown()
+	elif event.is_action_pressed("roll"):
+		match state:
+			State.WAITING:
+				_start_draft()
+			State.RESULTS:
+				frame += 1
+				_prepare_roll()
+				_start_draft()
+			State.MATCH_OVER:
+				_new_match()
+
+
+# ------------------------------------------------------------ Roll
 
 func _update_roll(delta: float) -> void:
 	_roll_time += delta
@@ -162,10 +287,13 @@ func _update_roll(delta: float) -> void:
 
 
 func _finish_frame() -> void:
+	var knockouts := []
 	for m in marbles:
 		m.lean = Vector2.ZERO
+		if m.out and m.knocked_out_by != -1 and m.knocked_out_by != m.player_id:
+			knockouts.append(m.knocked_out_by)
 	last_result = Scoring.score_frame(player_count, arrival_order,
-			rack.fallen_credits(), sweep_player)
+			rack.fallen_credits(), sweep_player, knockouts)
 	for i in player_count:
 		totals[i] += last_result.points[i]
 	state = State.MATCH_OVER if frame >= frames_per_match else State.RESULTS
@@ -185,29 +313,7 @@ func _on_rack_swept(player_id: int) -> void:
 		sweep_player = player_id
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("quit"):
-		get_tree().quit()
-	elif event.is_action_pressed("toggle_collision"):
-		marbles_collide = not marbles_collide
-		for m in marbles:
-			m.set_marble_collision(marbles_collide)
-	elif event.is_action_pressed("toggle_camera"):
-		_overhead_camera = not _overhead_camera
-	elif event.is_action_pressed("restart_frame"):
-		if state != State.MATCH_OVER:
-			_prepare_frame()
-	elif event.is_action_pressed("roll"):
-		match state:
-			State.WAITING:
-				_start_countdown()
-			State.RESULTS:
-				frame += 1
-				_prepare_frame()
-				_start_countdown()
-			State.MATCH_OVER:
-				_new_match()
-
+# ------------------------------------------------------------ Camera
 
 func _marbles_center() -> Vector3:
 	var sum := Vector3.ZERO
@@ -222,10 +328,11 @@ func _marbles_center() -> Vector3:
 
 
 func _update_camera() -> void:
-	if _overhead_camera:
-		camera.follow_offset = Vector3(0, 30, 6)
+	if _overhead_camera or state in [State.WAITING, State.DRAFT, State.BUILD]:
+		# Whole lane from above, for building.
+		camera.follow_offset = Vector3(0, 19, 8)
 		camera.look_ahead = Vector3(0, 0, -0.1)
-		camera.target = Vector3(0, 0, -24)
+		camera.target = Vector3(0, 2, -15)
 		return
 	var pin_cam := state == State.RESULTS or state == State.MATCH_OVER
 	if state == State.ROLLING:
@@ -248,10 +355,14 @@ func _no_marbles_rolling() -> bool:
 	return true
 
 
-# Helpers the HUD reads.
+# ------------------------------------------------------------ HUD helpers
 
 func time_left() -> float:
 	return maxf(0.0, roll_time_limit - _roll_time)
+
+
+func phase_time_left() -> int:
+	return ceili(maxf(0.0, _phase_left))
 
 
 func countdown_value() -> int:

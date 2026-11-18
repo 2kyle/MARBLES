@@ -6,6 +6,7 @@ var _top: Label
 var _scores: Label
 var _center: Label
 var _help: Label
+var _side: Label
 
 
 func _ready() -> void:
@@ -24,6 +25,14 @@ func _ready() -> void:
 	panel.set_corner_radius_all(12)
 	panel.set_content_margin_all(20)
 	_center.add_theme_stylebox_override("normal", panel)
+	_side = _make_label(24, Control.PRESET_CENTER_RIGHT, HORIZONTAL_ALIGNMENT_LEFT)
+	_side.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_side.offset_right = -24
+	var side_panel := StyleBoxFlat.new()
+	side_panel.bg_color = Color(0, 0, 0, 0.55)
+	side_panel.set_corner_radius_all(12)
+	side_panel.set_content_margin_all(18)
+	_side.add_theme_stylebox_override("normal", side_panel)
 	_help = _make_label(18, Control.PRESET_BOTTOM_LEFT, HORIZONTAL_ALIGNMENT_LEFT)
 	_help.grow_horizontal = Control.GROW_DIRECTION_END
 	_help.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -51,9 +60,16 @@ func refresh(game) -> void:
 		lines.append("%s: %d%s" % [game.PLAYER_NAMES[i], game.totals[i], tag])
 	_scores.text = "\n".join(lines)
 
+	_side.text = ""
 	match game.state:
 		game.State.WAITING:
-			_center.text = "Press Space to roll"
+			_center.text = "Press Space to start the first frame"
+		game.State.DRAFT:
+			_center.text = ""
+			_side.text = _draft_text(game)
+		game.State.BUILD:
+			_center.text = ""
+			_side.text = _build_text(game)
 		game.State.COUNTDOWN:
 			_center.text = str(game.countdown_value())
 		game.State.ROLLING:
@@ -64,10 +80,51 @@ func refresh(game) -> void:
 			_center.text = _results_text(game) + "\n\n" + _winner_text(game) \
 					+ "\nPress Space to play again"
 	_center.visible = _center.text != ""
+	_side.visible = _side.text != ""
 
-	_help.text = ("P1: W A S D    P2: arrow keys    lean your marble\n"
-			+ "Space: roll    R: reset frame    C: marble collision %s    V: camera    Esc: quit") \
+	_help.text = ("Rolling: P1 leans with W A S D, P2 with the arrow keys\n"
+			+ "Space: next    R: re-roll this frame    C: marble collision %s    V: camera    Esc: quit") \
 			% ("ON" if game.marbles_collide else "OFF")
+
+
+func _draft_text(game) -> String:
+	var db: DraftBuild = game.draft_build
+	var lines := ["DRAFT   %ds" % game.phase_time_left(), "Everyone grab one piece!", ""]
+	for slot in db.crate.size():
+		var line := "  " + PieceCatalog.display_name(db.crate[slot])
+		if db.taken_by[slot] != -1:
+			line += "   [taken by P%d]" % (db.taken_by[slot] + 1)
+		for p in game.player_count:
+			if db.picks[p] == "" and db.draft_cursor[p] == slot:
+				line += "   < P%d" % (p + 1)
+		lines.append(line)
+	lines.append("")
+	for p in game.player_count:
+		var status: String = PieceCatalog.display_name(db.picks[p]) if db.picks[p] != "" else _draft_keys(p)
+		if db.message[p] != "":
+			status = db.message[p]
+		lines.append("P%d: %s" % [p + 1, status])
+	return "\n".join(lines)
+
+
+func _build_text(game) -> String:
+	var db: DraftBuild = game.draft_build
+	var lines := ["BUILD   %ds" % game.phase_time_left(), "Place your piece on the lane", ""]
+	for p in game.player_count:
+		var piece := PieceCatalog.display_name(db.picks[p])
+		var status := "placed" if db.has_placed[p] else Controls.describe(p)
+		if db.message[p] != "" and not db.has_placed[p]:
+			status = db.message[p]
+		lines.append("P%d %s: %s" % [p + 1, piece, status])
+	return "\n".join(lines)
+
+
+func _draft_keys(p: int) -> String:
+	match p:
+		0: return "W / S choose, E grab"
+		1: return "Up / Down choose, Enter grab"
+		2: return "I / K choose, O grab"
+		_: return "Num 8 / 5 choose, Num 9 grab"
 
 
 func _results_text(game) -> String:
@@ -81,6 +138,8 @@ func _results_text(game) -> String:
 			parts.append("+%d race" % r.race[i])
 		if r.sweep[i] > 0:
 			parts.append("+%d sweep" % r.sweep[i])
+		if r.knockouts[i] > 0:
+			parts.append("+%d knockout" % r.knockouts[i])
 		lines.append("%s: %d  (%s)" % [game.PLAYER_NAMES[i], r.points[i], ", ".join(parts)])
 	if r.note != "":
 		lines.append(r.note)

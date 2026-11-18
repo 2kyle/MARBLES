@@ -34,6 +34,14 @@ func _init() -> void:
 	r = Scoring.score_frame(4, [2, 0, 3], [], -1)
 	_check("3/2/1 race bonus", r.points, [2, 0, 3, 1])
 
+	# Knockout bonus: P1's gutter knocked out P0, P1 also arrived.
+	r = Scoring.score_frame(2, [1], [1, 1], -1, [1])
+	_check("knockout bonus", r.points, [0, 2 + 3 + 2])
+
+	# Knockouts count for nothing if nobody reaches the pins.
+	r = Scoring.score_frame(2, [], [], -1, [0, 1])
+	_check("knockouts but nobody arrives", r.points, [0, 0])
+
 	if _failures > 0:
 		print("%d test(s) failed" % _failures)
 		quit(1)

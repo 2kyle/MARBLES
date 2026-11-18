@@ -2,7 +2,10 @@ extends SceneTree
 ## Plays frames with no human input and prints what happened. Useful for
 ## checking physics changes quickly:
 ##   godot --headless --fixed-fps 120 --script res://tests/sim_roll.gd
+## Nobody drafts or builds, so each frame the timers run out and the game
+## auto-picks and auto-places pieces (draft and build timers are shortened).
 ## Optional: pass "-- lean" to have player 1 hold left the whole time.
+## Optional: pass "-- empty" to roll on the bare lane, skipping draft/build.
 
 var game: Node
 var _frames_played := 0
@@ -10,24 +13,32 @@ var _was_rolling := false
 var _ticks := 0
 var _lean := false
 var _pintest_x = null
+var _empty := false
 
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	_lean = "lean" in args
+	_empty = "empty" in args
 	for a in args:
 		if a.begins_with("pins="):
 			_pintest_x = float(a.substr(5))
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
+	game.draft_time = 0.5
+	game.build_time = 0.5
 
 
 func _process(_delta: float) -> bool:
 	_ticks += 1
 	if game.state == game.State.WAITING and _ticks > 5:
-		game._start_countdown()
 		if _pintest_x != null:
+			game._start_countdown()
 			_launch_at_pins()
+		elif _empty:
+			game._start_countdown()
+		else:
+			game._start_draft()
 		if _lean:
 			Input.action_press("p1_left")
 	var rolling: bool = game.state == game.State.ROLLING
@@ -46,11 +57,18 @@ func _process(_delta: float) -> bool:
 				game.rack.pin_count() - game.rack.standing_count(),
 				game.rack.fallen_credits(), game.sweep_player])
 		print("  points %s  note: %s" % [r.points, r.note])
+		var lane := []
+		for p in game.builder.placed:
+			lane.append("%s@%s by P%d" % [p.id, p.cell, p.by + 1])
+		print("  lane: ", ", ".join(lane) if lane else "(empty)")
 		if _frames_played >= 3:
 			return true
 		game.frame += 1
-		game._prepare_frame()
-		game._start_countdown()
+		game._prepare_roll()
+		if _empty or _pintest_x != null:
+			game._start_countdown()
+		else:
+			game._start_draft()
 	_was_rolling = rolling
 	return false
 

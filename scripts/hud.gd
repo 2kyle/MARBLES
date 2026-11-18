@@ -19,6 +19,8 @@ var _phase: Label          # "DRAFT 12s" / "BUILD 24s" box, top right
 var _cards_box: VBoxContainer
 var _cards: Array = []     # one Dictionary per crate slot
 var _crate_shown: Array = []
+var _locker: HBoxContainer
+var _locker_title: Label
 
 
 func _ready() -> void:
@@ -74,6 +76,19 @@ func _ready() -> void:
 	_help.offset_bottom = -10
 	_help.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
 
+	_locker = HBoxContainer.new()
+	_locker.add_theme_constant_override("separation", 16)
+	_locker.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_locker.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_locker.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_locker.offset_bottom = -40
+	add_child(_locker)
+	_locker_title = _make_label(18, Control.PRESET_CENTER_TOP, HORIZONTAL_ALIGNMENT_CENTER)
+	_locker_title.grow_vertical = Control.GROW_DIRECTION_END
+	_locker_title.offset_top = 44
+	_locker_title.add_theme_stylebox_override("normal", _panel_style(10))
+	_locker_title.text = "LOCKER & STORE   Pick your marble's look. Spend coins to unlock new ones.\nPress Space to start the match"
+
 	_cards_box = VBoxContainer.new()
 	_cards_box.add_theme_constant_override("separation", 6)
 	_cards_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
@@ -111,13 +126,13 @@ func refresh(game) -> void:
 	for i in lines.size():
 		var l: Label = _scores.get_child(i)
 		l.text = lines[i]
-		l.add_theme_color_override("font_color", game.PLAYER_COLORS[i].lightened(0.3))
+		l.add_theme_color_override("font_color", game.player_colors[i].lightened(0.3))
 
 	_phase.text = ""
 	_center.text = ""
 	match game.state:
 		game.State.WAITING:
-			_center.text = "Press Space to start"
+			pass
 		game.State.DRAFT:
 			_phase.text = _draft_status(game)
 		game.State.BUILD:
@@ -133,6 +148,7 @@ func refresh(game) -> void:
 	_phase.visible = _phase.text != ""
 
 	_update_cards(game)
+	_update_locker(game)
 	_help.text = _help_text(game)
 
 
@@ -155,11 +171,11 @@ func _update_cards(game) -> void:
 				hovering.append(p)
 		var style: StyleBoxFlat = card.style
 		if owner != -1:
-			style.border_color = game.PLAYER_COLORS[owner]
+			style.border_color = game.player_colors[owner]
 			card.panel.modulate = Color(1, 1, 1, 0.45)
 			card.tag.text = "P%d" % (owner + 1)
 		elif hovering.size() > 0:
-			style.border_color = game.PLAYER_COLORS[hovering[0]]
+			style.border_color = game.player_colors[hovering[0]]
 			card.panel.modulate = Color.WHITE
 			var tags := []
 			for p in hovering:
@@ -246,6 +262,8 @@ func _help_text(game) -> String:
 		game.State.COUNTDOWN, game.State.ROLLING:
 			return "Lean: P1 WASD, P2 arrows      Tab scores   R re-roll   C collision %s   V camera" \
 					% ("on" if game.marbles_collide else "off")
+	if game.state == game.State.WAITING:
+		return "P1: W/S row, A/D change, E buy      P2: Up/Down row, Left/Right change, Enter buy      Space start   V whole track"
 	return "Space next   Tab scores   R re-roll   C collision %s   V camera   Esc quit" \
 			% ("on" if game.marbles_collide else "off")
 
@@ -278,7 +296,7 @@ func _fill_board(game) -> void:
 			leader = p
 	for p in game.player_count:
 		var row: int = (p + 1) * cols
-		var color: Color = game.PLAYER_COLORS[p].lightened(0.3)
+		var color: Color = game.player_colors[p].lightened(0.3)
 		cells[row].text = "P%d" % (p + 1)
 		cells[row].add_theme_color_override("font_color", color)
 		for f in frames:
@@ -294,10 +312,10 @@ func _fill_board(game) -> void:
 	match game.state:
 		game.State.RESULTS:
 			_board_title.text = _frame_summary(game)
-			_board_footer.text = "Space: next frame"
+			_board_footer.text = _coins_text(game, false) + "\nSpace: next frame"
 		game.State.MATCH_OVER:
 			_board_title.text = _winner_text(game)
-			_board_footer.text = "Space: play again"
+			_board_footer.text = _coins_text(game, true) + "\nSpace: back to the locker"
 		_:
 			_board_title.text = "Scoreboard"
 			_board_footer.text = ""
@@ -322,6 +340,58 @@ func _frame_summary(game) -> String:
 	if r.note != "":
 		text += "\n" + r.note
 	return text
+
+
+func _coins_text(game, whole_match: bool) -> String:
+	var parts := []
+	for i in game.player_count:
+		var got: int = game.match_coins[i] if whole_match else game.coins_earned[i]
+		parts.append("P%d +%d (%d total)" % [i + 1, got, game.profiles.coins(i)])
+	return ("Coins this match:   " if whole_match else "Coins:   ") + "     ".join(parts)
+
+
+# ------------------------------------------------------------ Locker
+
+func _update_locker(game) -> void:
+	var show: bool = game.state == game.State.WAITING
+	_locker.visible = show
+	_locker_title.visible = show
+	if not show:
+		return
+	while _locker.get_child_count() < game.player_count:
+		var panel := PanelContainer.new()
+		panel.add_theme_stylebox_override("panel", _panel_style(12))
+		var l := Label.new()
+		l.add_theme_font_size_override("font_size", 16)
+		l.custom_minimum_size = Vector2(330, 0)
+		panel.add_child(l)
+		_locker.add_child(panel)
+	for p in game.player_count:
+		var panel: PanelContainer = _locker.get_child(p)
+		var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
+		style.border_color = game.player_colors[p]
+		style.set_border_width_all(2)
+		var l: Label = panel.get_child(0)
+		var lines := ["%s      %d coins" % [game.PLAYER_NAMES[p], game.profiles.coins(p)]]
+		for r in Cosmetics.SLOTS.size():
+			var slot: String = Cosmetics.SLOTS[r]
+			var id: String = game.locker_browse[p].get(slot, game.profiles.equipped(p, slot))
+			var item := Cosmetics.find(slot, id)
+			var arrow := ">" if game.locker_row[p] == r else "  "
+			var line := "%s %s   < %s >" % [arrow, slot.capitalize(), item.name]
+			if not game.profiles.owns(p, slot, id):
+				line += "   %d coins" % item.price
+			lines.append(line)
+		var slot_now: String = Cosmetics.SLOTS[game.locker_row[p]]
+		var id_now: String = game.locker_browse[p].get(slot_now, "")
+		var hint := ""
+		if game.locker_message[p] != "":
+			hint = game.locker_message[p]
+		elif id_now != "" and not game.profiles.owns(p, slot_now, id_now):
+			var keys: Array = Controls.PLAYER_KEYS[p]
+			hint = "Press %s to buy" % ("Enter" if p == 1 else OS.get_keycode_string(keys[5]))
+		lines.append(hint)
+		l.text = "\n".join(lines)
 
 
 func _winner_text(game) -> String:

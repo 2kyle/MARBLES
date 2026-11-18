@@ -34,16 +34,48 @@ var out := false
 var knocked_out_by := -1
 ## Seconds this marble has been nearly still (the game nudges stuck marbles).
 var still_time := 0.0
+## Furthest the marble has got down the track, and when (the game rescues
+## marbles that stop making progress).
+var best_distance := 0.0
+var best_time := 0.0
 
 var color := Color.WHITE:
 	set(value):
 		color = value
-		_apply_color()
+		_apply_look()
+
+## The player's chosen look: {color, style, trail} entries from Cosmetics.
+## Empty = plain glossy ball in `color`.
+var look: Dictionary = {}:
+	set(value):
+		look = value
+		if look.has("color"):
+			color = look.color.color  # also re-applies the look
+		else:
+			_apply_look()
+## Spin slowly in place and show the trail (locker screen preview).
+var preview := false:
+	set(value):
+		preview = value
+		if _trail:
+			_trail.preview = value
+
+var _trail: MarbleTrail
+
+const MARBLE_SHADER := preload("res://shaders/marble.gdshader")
 
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
-	_apply_color()
+	_apply_look()
+
+
+func _process(delta: float) -> void:
+	if preview:
+		var mesh := get_node_or_null("Mesh") as Node3D
+		if mesh:
+			mesh.rotate_y(delta * 1.2)
+			mesh.rotate_x(delta * 0.5)
 
 
 func _physics_process(_delta: float) -> void:
@@ -87,13 +119,34 @@ func _on_body_entered(body: Node) -> void:
 		apply_central_impulse(lane_basis.x * dir * bumper_kick * mass)
 
 
-func _apply_color() -> void:
+func _apply_look() -> void:
 	var mesh := get_node_or_null("Mesh") as MeshInstance3D
 	if mesh == null:
 		return
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.metallic = 0.1
-	mat.roughness = 0.15
-	mat.clearcoat_enabled = true
-	mesh.material_override = mat
+	var style: Dictionary = look.get("style", Cosmetics.STYLES[0])
+	if style.pattern < 0:
+		# Glass: see-through, so it uses a plain material.
+		var glass := StandardMaterial3D.new()
+		glass.albedo_color = Color(color.r, color.g, color.b, 0.35)
+		glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		glass.roughness = 0.02
+		glass.metallic_specular = 1.0
+		glass.rim_enabled = true
+		glass.rim = 0.8
+		glass.clearcoat_enabled = true
+		mesh.material_override = glass
+	else:
+		var mat := ShaderMaterial.new()
+		mat.shader = MARBLE_SHADER
+		mat.set_shader_parameter("base_color", color)
+		mat.set_shader_parameter("pattern", style.pattern)
+		mat.set_shader_parameter("metallic_amount", style.metallic)
+		mat.set_shader_parameter("roughness_amount", style.roughness)
+		mat.set_shader_parameter("glow", style.glow)
+		mesh.material_override = mat
+	var trail_id: String = look.get("trail", {"id": "none"}).id
+	if _trail == null:
+		_trail = MarbleTrail.new()
+		add_child(_trail)
+	_trail.setup(trail_id, color)
+	_trail.preview = preview

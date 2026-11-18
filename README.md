@@ -14,7 +14,7 @@ A party game where friends build a bowling lane together, then race physics marb
 
 ## What's in the prototype
 
-Each frame has four steps, like the design doc:
+Before each match, everyone picks their marble's look in the **Locker & Store** (see below). Then each frame has four steps, like the design doc:
 
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as picture cards down the right side. Everyone grabs one at the same time. First to grab a piece gets it.
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Pieces stay on the lane for the rest of the match.
@@ -22,6 +22,17 @@ Each frame has four steps, like the design doc:
 4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
 
 A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. It starts empty except for a funnel in front of the pins. A marble that flies off the track splashes into the water and is out for that frame.
+
+### Locker & Store
+
+![The locker and store](docs/locker.png)
+
+Before each match the camera sits behind the marbles and each player gets a panel. Move up and down to pick a row (Color, Style, Trail) and left and right to flip through looks. Looks you own go on your marble straight away. Looks you don't own show their price, and your place key (E for P1, Enter for P2) buys them.
+
+- **Styles:** Gloss, Stripes, Chrome, Checkers, Swirl, Neon, Glass, Lava, Galaxy. Patterns are painted on the ball, so you can see it roll.
+- **Trails:** Ribbon, Sparkles, Bubbles, Flame, Rainbow.
+- **Coins:** you get 1 coin per point you score each frame. At the end of a match everyone gets +20 and the winner gets +50 more. New players start with 150. Coins and purchases are saved on this computer for each player seat (P1, P2 and so on).
+- Prices and looks live in `scripts/cosmetics.gd`, and coin amounts in `scripts/profiles.gd`.
 
 ### Pieces
 
@@ -88,6 +99,7 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 
 | What | Where | Setting |
 | --- | --- | --- |
+| Rescuing stuck marbles | `scenes/main.tscn`, `Main` node | Stuck Time, Rescue Time |
 | Steering strength | `scenes/marble.tscn`, root node | Lean Side Force, Lean Forward Force |
 | How heavy the marble is | `scenes/marble.tscn`, root node | Mass (heavier scatters pins harder) |
 | Bumper kick | `scenes/marble.tscn`, root node | Bumper Kick |
@@ -131,6 +143,9 @@ scripts/
   scoring.gd         the scoring rules, on their own
   piece_catalog.gd   the list of draftable pieces (add new ones here)
   draft_build.gd     draft and build rules
+  cosmetics.gd       every marble look and its price
+  profiles.gd        each seat's coins, purchases and equipped look (saved)
+  marble_trail.gd    marble trails (ribbon, sparkles, flame and so on)
   track_gen.gd       makes random track layouts and applies track cards
   track.gd           builds the track's floor, walls and posts from the curve
   course_builder.gd  the build area, placed pieces, and the bomb
@@ -140,6 +155,7 @@ scripts/
   camera_rig.gd      follow camera
   hud.gd             scoreboard text
 shaders/
+  marble.gdshader    marble patterns (stripes, swirl, galaxy, lava...)
   sky.gdshader       the sky, clouds and distant hills
   water.gdshader     the moving water
 tests/

@@ -1,5 +1,7 @@
 extends Node3D
 ## Runs a local match. Each frame goes:
+## Before a match, everyone picks their marble's look in the locker (and
+## can buy new looks with coins). Then each frame goes:
 ##   Draft (pick a piece from the crate) -> Build (place it on the lane)
 ##   -> Countdown -> Roll -> Results
 ## Placed pieces stay on the lane for the rest of the match.
@@ -54,10 +56,25 @@ const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 ## A marble that barely moves for this many seconds (wedged in a corner)
 ## gets a little hop down the lane.
 @export var stuck_time := 2.0
+## A marble that hasn't got any further down the track for this many
+## seconds is lifted out and put back a little further on.
+@export var rescue_time := 6.0
 
 @export var marble_scene: PackedScene = preload("res://scenes/marble.tscn")
 
 var state := State.WAITING
+## Coins, bought looks and equipped looks for each seat (saved to disk).
+var profiles := Profiles.new()
+## Each player's marble colour this match (from their locker choice).
+var player_colors: Array = PLAYER_COLORS.duplicate()
+## Locker screen: which row (color/style/trail) each player is on, and the
+## item they're looking at in that row (may not be bought yet).
+var locker_row: Array = [0, 0, 0, 0]
+var locker_browse: Array = [{}, {}, {}, {}]
+var locker_message: Array = ["", "", "", ""]
+## Coins each player earned in the last frame / match, for the scoreboard.
+var coins_earned: Array = [0, 0, 0, 0]
+var match_coins: Array = [0, 0, 0, 0]
 var frame := 1
 var totals: Array = []
 var marbles: Array[Marble] = []
@@ -94,7 +111,8 @@ func _ready() -> void:
 	builder.track_reshaped.connect(_on_track_reshaped)
 	rack.swept.connect(_on_rack_swept)
 	arrival_line.body_entered.connect(_on_arrival_line_body_entered)
-	draft_build.setup(builder, player_count, PLAYER_COLORS)
+	profiles.load_from_disk()
+	draft_build.setup(builder, player_count, player_colors)
 	hud.thumbnails = $Thumbnails
 	_new_match()
 
@@ -109,8 +127,16 @@ func _new_match() -> void:
 	if random_track:
 		_new_track()
 	_place_deck()
-	_prepare_roll()
 	state = State.WAITING
+	match_coins = [0, 0, 0, 0]
+	for p in player_count:
+		locker_row[p] = 0
+		locker_message[p] = ""
+		locker_browse[p] = {}
+		for slot in Cosmetics.SLOTS:
+			locker_browse[p][slot] = profiles.equipped(p, slot)
+	_refresh_colors()
+	_prepare_roll()
 
 
 ## A fresh random track, centred over the water.
@@ -162,7 +188,8 @@ func _prepare_roll() -> void:
 	for i in player_count:
 		var m: Marble = marble_scene.instantiate()
 		m.player_id = i
-		m.color = PLAYER_COLORS[i]
+		m.look = profiles.look(i)
+		m.preview = state == State.WAITING
 		m.freeze = true
 		add_child(m)
 		m.set_marble_collision(marbles_collide)
@@ -210,6 +237,8 @@ func _release_marbles() -> void:
 func _process(delta: float) -> void:
 	if state == State.DRAFT or state == State.BUILD:
 		_gather_build_inputs(delta)
+	elif state == State.WAITING:
+		_gather_locker_inputs()
 	_update_camera()
 	hud.refresh(self)
 
@@ -269,6 +298,74 @@ func _gather_build_inputs(delta: float) -> void:
 				draft_build.request_place(p)
 
 
+func _gather_locker_inputs() -> void:
+	## Locker and store. Up/down picks a row, left/right flips through looks,
+	## place key buys the one you're looking at (or wears it if you own it).
+	for p in player_count:
+		if Input.is_action_just_pressed(Controls.action_name(p, "forward")):
+			locker_row[p] = wrapi(locker_row[p] - 1, 0, Cosmetics.SLOTS.size())
+		if Input.is_action_just_pressed(Controls.action_name(p, "back")):
+			locker_row[p] = wrapi(locker_row[p] + 1, 0, Cosmetics.SLOTS.size())
+		var step := 0
+		if Input.is_action_just_pressed(Controls.action_name(p, "left")):
+			step = -1
+		if Input.is_action_just_pressed(Controls.action_name(p, "right")):
+			step = 1
+		if step != 0:
+			request_locker_browse(p, step)
+		if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+			request_locker_buy(p)
+
+
+## Show the next/previous look in the player's current row. Owned looks are
+## worn straight away; others are shown with their price until bought.
+func request_locker_browse(p: int, step: int) -> void:
+	var slot: String = Cosmetics.SLOTS[locker_row[p]]
+	var list := Cosmetics.items(slot)
+	var i := wrapi(Cosmetics.index_of(slot, locker_browse[p][slot]) + step, 0, list.size())
+	var id: String = list[i].id
+	locker_browse[p][slot] = id
+	locker_message[p] = ""
+	if profiles.owns(p, slot, id):
+		profiles.equip(p, slot, id)
+	_preview_look(p)
+
+
+func request_locker_buy(p: int) -> void:
+	var slot: String = Cosmetics.SLOTS[locker_row[p]]
+	var id: String = locker_browse[p][slot]
+	if profiles.owns(p, slot, id):
+		locker_message[p] = "You already own this"
+		return
+	var item := Cosmetics.find(slot, id)
+	if not profiles.buy(p, slot, id):
+		locker_message[p] = "Need %d more coins" % (item.price - profiles.coins(p))
+		return
+	profiles.equip(p, slot, id)
+	profiles.save_to_disk()
+	locker_message[p] = "Bought %s!" % item.name
+	_preview_look(p)
+
+
+## The look a player is browsing (even if not bought), shown on their marble.
+func _preview_look(p: int) -> void:
+	var look := profiles.look(p)
+	for slot in Cosmetics.SLOTS:
+		look[slot] = Cosmetics.find(slot, locker_browse[p][slot])
+	if p < marbles.size():
+		marbles[p].look = look
+		marbles[p].preview = true
+	_refresh_colors()
+
+
+func _refresh_colors() -> void:
+	for p in player_count:
+		var id: String = locker_browse[p].get("color", profiles.equipped(p, "color")) \
+				if state == State.WAITING else profiles.equipped(p, "color")
+		player_colors[p] = Cosmetics.find("color", id).color
+	draft_build.colors = player_colors
+
+
 func _pressed_or_repeat(action: String, delta: float, rate := 0.09) -> bool:
 	## True on the first press, then repeatedly while held, so a cursor can
 	## glide down the lane.
@@ -300,7 +397,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("roll"):
 		match state:
 			State.WAITING:
+				# Anything browsed but not bought goes back to what's worn.
+				for p in player_count:
+					for slot in Cosmetics.SLOTS:
+						locker_browse[p][slot] = profiles.equipped(p, slot)
+					marbles[p].look = profiles.look(p)
+					marbles[p].preview = false
+				profiles.save_to_disk()
 				_start_draft()
+				_refresh_colors()
 			State.RESULTS:
 				frame += 1
 				_prepare_roll()
@@ -344,6 +449,20 @@ func _unstick(m: Marble, delta: float) -> void:
 		m.still_time += delta
 	else:
 		m.still_time = 0.0
+	# Wedged for good (stuck in a piece, or rocking in a dip): after a few
+	# seconds with no progress down the track, put it back on a bit further.
+	var d := track.distance_of(m.global_position)
+	if d > m.best_distance + 0.5:
+		m.best_distance = d
+		m.best_time = _roll_time
+	elif _roll_time - m.best_time > rescue_time and d < track.length() - 2.0:
+		var spot := track.world_frame_at(m.best_distance + 3.0)
+		m.global_position = spot.origin + spot.basis.y * 0.5
+		m.linear_velocity = -spot.basis.z * 3.0
+		m.angular_velocity = Vector3.ZERO
+		m.best_time = _roll_time
+		m.still_time = 0.0
+		return
 	if m.still_time >= stuck_time:
 		m.still_time = 0.0
 		# Up, toward the middle of the lane, and on toward the pins.
@@ -366,6 +485,21 @@ func _finish_frame() -> void:
 		totals[i] += last_result.points[i]
 	frame_points.append(last_result.points.duplicate())
 	state = State.MATCH_OVER if frame >= frames_per_match else State.RESULTS
+	_award_coins()
+
+
+## Coins: one per point each frame. At the end of a match everyone gets a
+## bonus for playing and the winner (or winners, on a tie) gets more.
+func _award_coins() -> void:
+	for i in player_count:
+		coins_earned[i] = last_result.points[i]
+		if state == State.MATCH_OVER:
+			coins_earned[i] += Profiles.COINS_PER_MATCH
+			if totals[i] == totals.max():
+				coins_earned[i] += Profiles.COINS_FOR_WIN
+		profiles.add_coins(i, coins_earned[i])
+		match_coins[i] += coins_earned[i]
+	profiles.save_to_disk()
 
 
 func _on_arrival_line_body_entered(body: Node) -> void:
@@ -436,6 +570,14 @@ func _marbles_center() -> Vector3:
 
 
 func _update_camera() -> void:
+	if state == State.WAITING and not _overhead_camera:
+		# Locker: up close behind the marbles, looking down the track.
+		var gate := track.world_frame_at(1.0)
+		camera.heading = -gate.basis.z
+		camera.follow_offset = Vector3(0, 2.9, 1.3)
+		camera.look_ahead = Vector3(0, -0.4, -1.1)
+		camera.target = gate.origin + gate.basis.y * 0.3
+		return
 	if _overhead_camera or state in [State.WAITING, State.DRAFT]:
 		# The whole track from high up.
 		var box := _course_box()

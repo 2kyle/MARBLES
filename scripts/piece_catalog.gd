@@ -54,6 +54,36 @@ const PIECES := {
 		"scene": "res://scenes/pieces/gutter_cut.tscn",
 		"kind": "piece", "radius": 0.6, "base_rotation": 0.0,
 	},
+	"curve": {
+		"name": "Bend",
+		"about": "Curved wall that swings marbles across the lane",
+		"scene": "res://scenes/pieces/curve.tscn",
+		"kind": "piece", "radius": 0.9, "base_rotation": 0.0,
+	},
+	"drop_step": {
+		"name": "Drop step",
+		"about": "Ramp up onto a ledge, then a sudden drop",
+		"scene": "res://scenes/pieces/drop_step.tscn",
+		"kind": "piece", "radius": 1.2, "base_rotation": 0.0,
+	},
+	"hump": {
+		"name": "Hump",
+		"about": "Smooth hill across the lane that tosses marbles up",
+		"scene": "res://scenes/pieces/hump.tscn",
+		"kind": "piece", "radius": 1.0, "base_rotation": 0.0,
+	},
+	"washboard": {
+		"name": "Washboard",
+		"about": "Row of little bumps that make marbles hop and skid",
+		"scene": "res://scenes/pieces/washboard.tscn",
+		"kind": "piece", "radius": 1.1, "base_rotation": 0.0,
+	},
+	"tilt_table": {
+		"name": "Tilt table",
+		"about": "A square of lane that rocks side to side",
+		"scene": "res://scenes/pieces/tilt_table.tscn",
+		"kind": "piece", "radius": 1.2, "base_rotation": 0.0,
+	},
 	"bomb": {
 		"name": "Bomb",
 		"about": "Blows up every piece near where you drop it",

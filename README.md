@@ -30,6 +30,11 @@ A match is 10 frames. The lane starts empty except for a funnel in front of the 
 | Booster pad | Fires a marble the way its arrow points (rotate it to aim) |
 | Spinner | A paddle that never stops turning and swats marbles around |
 | Gutter cut | A hole: fall in and your frame is over. Whoever placed it gets +2 |
+| Bend | Curved wall that swings marbles across the lane |
+| Drop step | Ramp up onto a ledge, then a sudden drop |
+| Hump | Smooth hill across the lane that tosses marbles up |
+| Washboard | Row of little bumps that make marbles hop and skid |
+| Tilt table | A square of lane that rocks side to side |
 | Bomb (item) | Drop it on the lane to blow up every piece inside the red circle. It doesn't stay |
 
 ## How to play it
@@ -102,7 +107,7 @@ scripts/
   draft_build.gd     draft and build rules
   course_builder.gd  the build area, placed pieces, and the bomb
   thumbnails.gd      live pictures of each piece for the draft cards
-  booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd   piece behaviour
+  booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd, tilt_table.gd   piece behaviour
   controls.gd        all the key bindings
   camera_rig.gd      follow camera
   hud.gd             scoreboard text

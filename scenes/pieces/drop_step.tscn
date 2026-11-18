@@ -1,0 +1,56 @@
+[gd_scene format=3]
+
+[sub_resource type="PhysicsMaterial" id="Phys"]
+friction = 0.5
+bounce = 0.15
+
+[sub_resource type="StandardMaterial3D" id="Mat"]
+albedo_color = Color(0.15, 0.55, 0.6, 1)
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="MatEdge"]
+albedo_color = Color(0.95, 0.75, 0.2, 1)
+roughness = 0.5
+
+[sub_resource type="BoxShape3D" id="RampShape"]
+size = Vector3(1.8, 0.2, 2.2)
+
+[sub_resource type="BoxMesh" id="RampMesh"]
+material = SubResource("Mat")
+size = Vector3(1.8, 0.2, 2.2)
+
+[sub_resource type="BoxShape3D" id="LedgeShape"]
+size = Vector3(1.8, 0.532, 0.9)
+
+[sub_resource type="BoxMesh" id="LedgeMesh"]
+material = SubResource("Mat")
+size = Vector3(1.8, 0.532, 0.9)
+
+[sub_resource type="BoxMesh" id="EdgeMesh"]
+material = SubResource("MatEdge")
+size = Vector3(1.82, 0.03, 0.08)
+
+[node name="DropStep" type="StaticBody3D"]
+physics_material_override = SubResource("Phys")
+
+[node name="RampShape" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.1691, 0.426)
+rotation = Vector3(0.24435, 0, 0)
+shape = SubResource("RampShape")
+
+[node name="RampMesh" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.1691, 0.426)
+rotation = Vector3(0.24435, 0, 0)
+mesh = SubResource("RampMesh")
+
+[node name="LedgeShape" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.2661, -1.067)
+shape = SubResource("LedgeShape")
+
+[node name="LedgeMesh" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.2661, -1.067)
+mesh = SubResource("LedgeMesh")
+
+[node name="Edge" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.5422, -1.477)
+mesh = SubResource("EdgeMesh")

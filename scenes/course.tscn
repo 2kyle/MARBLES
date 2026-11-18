@@ -156,7 +156,7 @@ position = Vector3(0.5, 0.32, -1)
 [node name="Pieces" type="Node3D" parent="Slope"]
 
 [node name="Funnel" parent="Slope/Pieces" instance=ExtResource("4_funnel")]
-position = Vector3(0, 0, -31.5)
+position = Vector3(0, 0, -31)
 
 [node name="Placed" type="Node3D" parent="Slope"]
 script = ExtResource("5_builder")

@@ -46,6 +46,9 @@ const PLAYER_NAMES := ["Player 1", "Player 2", "Player 3", "Player 4"]
 @export var out_of_bounds_y := -6.0
 ## Seconds the camera watches the pins after a marble reaches them.
 @export var pin_cam_time := 2.5
+## A marble that barely moves for this many seconds (wedged in a corner)
+## gets a little hop down the lane.
+@export var stuck_time := 2.0
 
 @export var marble_scene: PackedScene = preload("res://scenes/marble.tscn")
 
@@ -267,6 +270,7 @@ func _update_roll(delta: float) -> void:
 		if not m.out and not m.arrived and m.global_position.y < out_of_bounds_y:
 			m.out = true
 			m.freeze = true
+		_unstick(m, delta)
 
 	var all_done := true
 	for m in marbles:
@@ -281,6 +285,22 @@ func _update_roll(delta: float) -> void:
 
 	if _roll_time >= roll_time_limit or (_settling and _settle_left <= 0.0):
 		_finish_frame()
+
+
+func _unstick(m: Marble, delta: float) -> void:
+	if m.out or m.arrived or m.freeze:
+		m.still_time = 0.0
+		return
+	if m.linear_velocity.length() < 0.3:
+		m.still_time += delta
+	else:
+		m.still_time = 0.0
+	if m.still_time >= stuck_time:
+		m.still_time = 0.0
+		# Up, toward the middle of the lane, and on toward the pins.
+		var side := -signf(m.global_position.x) * _rng.randf_range(1.5, 3.0)
+		var hop := Vector3(side, 4.0, -3.0)
+		m.apply_central_impulse(hop * m.mass)
 
 
 func _finish_frame() -> void:

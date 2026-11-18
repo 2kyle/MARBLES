@@ -29,6 +29,8 @@ var out := false
 ## Player whose piece knocked this marble out (-1 = nobody, e.g. it just
 ## rolled off the edge).
 var knocked_out_by := -1
+## Seconds this marble has been nearly still (the game nudges stuck marbles).
+var still_time := 0.0
 
 var color := Color.WHITE:
 	set(value):

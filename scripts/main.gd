@@ -236,8 +236,8 @@ func _update_camera() -> void:
 		camera.look_ahead = Vector3(0, -1.0, -3.0)
 		camera.target = rack.global_position + Vector3(0, 0, 1.0)
 	else:
-		camera.follow_offset = Vector3(0, 5.5, 9.0)
-		camera.look_ahead = Vector3(0, -0.5, -6.0)
+		camera.follow_offset = Vector3(0, 8.0, 7.0)
+		camera.look_ahead = Vector3(0, -2.0, -10.0)
 		camera.target = _marbles_center()
 
 

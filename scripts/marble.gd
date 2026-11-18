@@ -11,9 +11,9 @@ extends RigidBody3D
 ## Which player owns this marble (0-based).
 @export var player_id := 0
 ## Sideways lean force. Raise it for sharper steering.
-@export var lean_side_force := 2.6
+@export var lean_side_force := 3.8
 ## Forward/back lean force, weaker than sideways on purpose.
-@export var lean_forward_force := 1.2
+@export var lean_forward_force := 1.7
 ## Extra push when the marble hits a bumper post.
 @export var bumper_kick := 2.5
 

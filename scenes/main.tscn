@@ -41,7 +41,7 @@ script = ExtResource("3_rack")
 
 [node name="Camera" type="Camera3D" parent="."]
 position = Vector3(0, 10, 10)
-fov = 65.0
+fov = 70.0
 far = 300.0
 script = ExtResource("4_camera")
 

@@ -3,8 +3,8 @@ extends Camera3D
 ## Smoothly follows a point chosen by the game (usually the middle of the
 ## marbles still rolling) from behind and above, looking down the lane.
 
-@export var follow_offset := Vector3(0, 5.5, 9.0)
-@export var look_ahead := Vector3(0, -0.5, -6.0)
+@export var follow_offset := Vector3(0, 8.0, 7.0)
+@export var look_ahead := Vector3(0, -2.0, -10.0)
 @export var smoothing := 3.0
 
 var target := Vector3.ZERO

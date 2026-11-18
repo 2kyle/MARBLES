@@ -26,6 +26,7 @@ A match is 10 frames. The lane starts empty except for a funnel in front of the 
 | Ramp jump | Launches a marble into the air |
 | Carpet strip | Drains speed from anything rolling over it |
 | Booster pad | Fires a marble the way its arrow points (rotate it to aim) |
+| Spinner | A paddle that never stops turning and swats marbles around |
 | Gutter cut | A hole: fall in and your frame is over. Whoever placed it gets +2 |
 
 ## How to play it

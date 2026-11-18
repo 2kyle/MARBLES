@@ -37,6 +37,12 @@ const PIECES := {
 		"scene": "res://scenes/pieces/booster_pad.tscn",
 		"base_rotation": 0.0,
 	},
+	"spinner": {
+		"name": "Spinner",
+		"about": "Paddle that never stops turning and swats marbles",
+		"scene": "res://scenes/pieces/spinner.tscn",
+		"base_rotation": 0.0,
+	},
 	"gutter_cut": {
 		"name": "Gutter cut",
 		"about": "A hole: fall in and your frame is over",

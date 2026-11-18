@@ -4,13 +4,15 @@ A party game where friends build a bowling lane together, then race physics marb
 
 ![Marbles rolling down the lane](docs/rolling.png)
 
+![Drafting pieces](docs/draft.png)
+
 ![Placing pieces in the build phase](docs/build.png)
 
 ## What's in the prototype
 
 Each frame has four steps, like the design doc:
 
-1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras. Everyone grabs one at the same time. First to grab a piece gets it.
+1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as picture cards down the right side. Everyone grabs one at the same time. First to grab a piece gets it.
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Pieces stay on the lane for the rest of the match.
 3. **Roll (30 s max):** marbles drop together, crash into each other, and race to one shared rack of 21 pins. You can lean your marble, but the lane does most of the work.
 4. **Score:** pins are credited, the scoreboard updates, and the rack resets.
@@ -99,6 +101,7 @@ scripts/
   piece_catalog.gd   the list of draftable pieces (add new ones here)
   draft_build.gd     draft and build rules
   course_builder.gd  the build area, placed pieces, and the bomb
+  thumbnails.gd      live pictures of each piece for the draft cards
   booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd   piece behaviour
   controls.gd        all the key bindings
   camera_rig.gd      follow camera

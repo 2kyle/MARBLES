@@ -83,6 +83,7 @@ func _ready() -> void:
 	rack.swept.connect(_on_rack_swept)
 	arrival_line.body_entered.connect(_on_arrival_line_body_entered)
 	draft_build.setup(builder, player_count, PLAYER_COLORS)
+	hud.thumbnails = $Thumbnails
 	_new_match()
 
 

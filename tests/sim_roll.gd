@@ -59,7 +59,7 @@ func _process(_delta: float) -> bool:
 		print("  points %s  note: %s" % [r.points, r.note])
 		var lane := []
 		for p in game.builder.placed:
-			lane.append("%s@%s by P%d" % [p.id, p.cell, p.by + 1])
+			lane.append("%s@(%.1f, %.1f) by P%d" % [p.id, p.pos.x, p.pos.y, p.by + 1])
 		print("  lane: ", ", ".join(lane) if lane else "(empty)")
 		if _frames_played >= 3:
 			return true

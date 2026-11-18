@@ -1,0 +1,54 @@
+[gd_scene load_steps=8 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Mat_bomb"]
+albedo_color = Color(0.12, 0.12, 0.14, 1)
+metallic = 0.4
+roughness = 0.35
+
+[sub_resource type="SphereMesh" id="Mesh_bomb"]
+material = SubResource("Mat_bomb")
+radius = 0.4
+height = 0.8
+
+[sub_resource type="CylinderMesh" id="Mesh_cap"]
+material = SubResource("Mat_bomb")
+top_radius = 0.1
+bottom_radius = 0.12
+height = 0.12
+
+[sub_resource type="StandardMaterial3D" id="Mat_fuse"]
+albedo_color = Color(0.75, 0.6, 0.4, 1)
+
+[sub_resource type="CylinderMesh" id="Mesh_fuse"]
+material = SubResource("Mat_fuse")
+top_radius = 0.025
+bottom_radius = 0.025
+height = 0.25
+
+[sub_resource type="StandardMaterial3D" id="Mat_spark"]
+shading_mode = 0
+albedo_color = Color(1, 0.75, 0.2, 1)
+
+[sub_resource type="SphereMesh" id="Mesh_spark"]
+material = SubResource("Mat_spark")
+radius = 0.06
+height = 0.12
+
+[node name="Bomb" type="Node3D"]
+
+[node name="Body" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.4, 0)
+mesh = SubResource("Mesh_bomb")
+
+[node name="Cap" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.82, 0)
+mesh = SubResource("Mesh_cap")
+
+[node name="Fuse" type="MeshInstance3D" parent="."]
+position = Vector3(0.05, 0.98, 0)
+rotation = Vector3(0, 0, -0.4)
+mesh = SubResource("Mesh_fuse")
+
+[node name="Spark" type="MeshInstance3D" parent="."]
+position = Vector3(0.1, 1.1, 0)
+mesh = SubResource("Mesh_spark")

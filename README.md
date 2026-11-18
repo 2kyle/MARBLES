@@ -11,7 +11,7 @@ A party game where friends build a bowling lane together, then race physics marb
 Each frame has four steps, like the design doc:
 
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras. Everyone grabs one at the same time. First to grab a piece gets it.
-2. **Build (30 s):** everyone places their piece on the grid at once. Pieces stay on the lane for the rest of the match.
+2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Pieces stay on the lane for the rest of the match.
 3. **Roll (30 s max):** marbles drop together, crash into each other, and race to one shared rack of 21 pins. You can lean your marble, but the lane does most of the work.
 4. **Score:** pins are credited, the scoreboard updates, and the rack resets.
 
@@ -28,6 +28,7 @@ A match is 10 frames. The lane starts empty except for a funnel in front of the 
 | Booster pad | Fires a marble the way its arrow points (rotate it to aim) |
 | Spinner | A paddle that never stops turning and swats marbles around |
 | Gutter cut | A hole: fall in and your frame is over. Whoever placed it gets +2 |
+| Bomb (item) | Drop it on the lane to blow up every piece inside the red circle. It doesn't stay |
 
 ## How to play it
 
@@ -77,7 +78,8 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | Lane steepness | `scenes/course.tscn`, `Slope` node | Rotation X (more negative = steeper) |
 | The fixed funnel | `scenes/course.tscn`, `Slope/Pieces/Funnel` | Drag it in the 3D view |
 | Players, frames, timers, crate size, collision | `scenes/main.tscn`, `Main` node | Player Count, Frames Per Match, Draft Time, Build Time, Crate Extra, Roll Time Limit, Marbles Collide |
-| Build grid size | `scenes/course.tscn`, `Slope/Placed` node | Columns, Rows, Cell Width, Cell Length |
+| Build area and how close pieces can go | `scenes/course.tscn`, `Slope/Placed` node | Half Width, Top Z, Bottom Z, Overlap Allowed |
+| Build cursor speed and rotate step | `scenes/main.tscn`, `Main` node | Cursor Speed, Rotate Step |
 
 ## How the project is laid out
 
@@ -96,8 +98,8 @@ scripts/
   scoring.gd         the scoring rules, on their own
   piece_catalog.gd   the list of draftable pieces (add new ones here)
   draft_build.gd     draft and build rules
-  course_builder.gd  the build grid and placed pieces
-  booster_pad.gd, carpet_strip.gd, gutter_cut.gd   piece behaviour
+  course_builder.gd  the build area, placed pieces, and the bomb
+  booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd   piece behaviour
   controls.gd        all the key bindings
   camera_rig.gd      follow camera
   hud.gd             scoreboard text

@@ -31,6 +31,10 @@ const PLAYER_NAMES := ["Player 1", "Player 2", "Player 3", "Player 4"]
 @export var draft_time := 15.0
 ## Seconds to place it on the lane.
 @export var build_time := 30.0
+## How fast build cursors glide, metres per second.
+@export var cursor_speed := 7.0
+## Degrees per rotate tap (hold to keep turning).
+@export var rotate_step := 15.0
 ## Extra pieces in the crate beyond one per player.
 @export var crate_extra := 2
 ## Longest a roll can last, in seconds.
@@ -194,8 +198,6 @@ func _gather_build_inputs(delta: float) -> void:
 	for p in player_count:
 		var fwd := Controls.action_name(p, "forward")
 		var back := Controls.action_name(p, "back")
-		var left := Controls.action_name(p, "left")
-		var right := Controls.action_name(p, "right")
 		if state == State.DRAFT:
 			if _pressed_or_repeat(fwd, delta):
 				draft_build.request_draft_move(p, -1)
@@ -204,24 +206,18 @@ func _gather_build_inputs(delta: float) -> void:
 			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
 				draft_build.request_pick(p)
 		else:
-			var move := Vector2i.ZERO
-			if _pressed_or_repeat(left, delta):
-				move.x -= 1
-			if _pressed_or_repeat(right, delta):
-				move.x += 1
-			if _pressed_or_repeat(fwd, delta):
-				move.y += 1  # toward the pins
-			if _pressed_or_repeat(back, delta):
-				move.y -= 1  # toward the start
-			if move != Vector2i.ZERO:
-				draft_build.request_cursor_move(p, move)
-			if Input.is_action_just_pressed(Controls.action_name(p, "rotate")):
-				draft_build.request_rotate(p)
+			# Glide the cursor while keys are held (lean keys double as
+			# cursor keys: forward moves toward the pins).
+			var dir := Controls.read_lean(p)
+			if dir != Vector2.ZERO:
+				draft_build.request_cursor_move(p, dir * cursor_speed * delta)
+			if _pressed_or_repeat(Controls.action_name(p, "rotate"), delta, 0.04):
+				draft_build.request_rotate(p, rotate_step)
 			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
 				draft_build.request_place(p)
 
 
-func _pressed_or_repeat(action: String, delta: float) -> bool:
+func _pressed_or_repeat(action: String, delta: float, rate := 0.09) -> bool:
 	## True on the first press, then repeatedly while held, so a cursor can
 	## glide down the lane.
 	if Input.is_action_just_pressed(action):
@@ -230,7 +226,7 @@ func _pressed_or_repeat(action: String, delta: float) -> bool:
 	if Input.is_action_pressed(action):
 		_repeat[action] = _repeat.get(action, 0.3) - delta
 		if _repeat[action] <= 0.0:
-			_repeat[action] = 0.09
+			_repeat[action] = rate
 			return true
 	return false
 

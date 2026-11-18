@@ -20,6 +20,8 @@ const PLAYER_COLORS := [
 	Color(0.6, 0.95, 0.3),   # lime
 ]
 const PLAYER_NAMES := ["Player 1", "Player 2", "Player 3", "Player 4"]
+## Where each marble starts across the lane, metres from the centre.
+const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 
 ## Marbles in the match (1 to 4). Each extra player uses the next key set.
 @export_range(1, 4) var player_count := 2
@@ -38,12 +40,12 @@ const PLAYER_NAMES := ["Player 1", "Player 2", "Player 3", "Player 4"]
 ## Extra pieces in the crate beyond one per player.
 @export var crate_extra := 2
 ## Longest a roll can last, in seconds.
-@export var roll_time_limit := 30.0
+@export var roll_time_limit := 45.0
 ## After the last marble reaches the pins (or falls out), wait this long
 ## for pins to finish falling before scoring.
 @export var settle_time := 4.0
-## A marble below this height has fallen off the course.
-@export var out_of_bounds_y := -6.0
+## A marble below this height has fallen off the course (into the water).
+@export var out_of_bounds_y := -3.7
 ## Seconds the camera watches the pins after a marble reaches them.
 @export var pin_cam_time := 2.5
 ## A marble that barely moves for this many seconds (wedged in a corner)
@@ -77,7 +79,8 @@ var _repeat := {}  # held-key repeat timers for build cursors
 @onready var camera: CameraRig = $Camera
 @onready var hud: Hud = $Hud
 @onready var arrival_line: Area3D = $Course/ArrivalLine
-@onready var builder: CourseBuilder = $Course/Slope/Placed
+@onready var track: Track = $Course/Track
+@onready var builder: CourseBuilder = $Course/Track/Placed
 @onready var draft_build: DraftBuild = $DraftBuild
 
 
@@ -115,19 +118,20 @@ func _prepare_roll() -> void:
 	_settling = false
 	_last_arrival_time = -100.0
 
-	var spawns := $Course/Slope/StartGate.get_children()
 	for i in player_count:
 		var m: Marble = marble_scene.instantiate()
 		m.player_id = i
 		m.color = PLAYER_COLORS[i]
 		m.freeze = true
 		add_child(m)
-		m.global_position = (spawns[i] as Node3D).global_position
+		var gate := track.world_frame_at(1.0, SPAWN_X[i])
+		m.global_position = gate.origin + gate.basis.y * 0.32
 		m.set_marble_collision(marbles_collide)
 		marbles.append(m)
 
 	rack.reset()
-	camera.snap_to(_marbles_center())
+	_update_camera()
+	camera.snap_to(camera.target)
 
 
 # ------------------------------------------------------------ Phases
@@ -197,6 +201,7 @@ func _gather_inputs() -> void:
 	## last received from player i.
 	for m in marbles:
 		m.lean = Controls.read_lean(m.player_id)
+		m.lane_basis = _lane_frame(m.global_position).basis
 
 
 func _gather_build_inputs(delta: float) -> void:
@@ -273,6 +278,7 @@ func _update_roll(delta: float) -> void:
 		if not m.out and not m.arrived and m.global_position.y < out_of_bounds_y:
 			m.out = true
 			m.freeze = true
+			_splash(m.global_position, m.color)
 		_unstick(m, delta)
 
 	var all_done := true
@@ -301,8 +307,10 @@ func _unstick(m: Marble, delta: float) -> void:
 	if m.still_time >= stuck_time:
 		m.still_time = 0.0
 		# Up, toward the middle of the lane, and on toward the pins.
-		var side := -signf(m.global_position.x) * _rng.randf_range(1.5, 3.0)
-		var hop := Vector3(side, 4.0, -3.0)
+		var lane := _lane_frame(m.global_position)
+		var across := lane.basis.x.dot(m.global_position - lane.origin)
+		var side := -signf(across) * _rng.randf_range(1.5, 3.0)
+		var hop := lane.basis.x * side + Vector3.UP * 4.0 - lane.basis.z * 3.0
 		m.apply_central_impulse(hop * m.mass)
 
 
@@ -334,6 +342,45 @@ func _on_rack_swept(player_id: int) -> void:
 		sweep_player = player_id
 
 
+## Track frame (world space) at the point of the track nearest `pos`.
+## Past the end of the track (on the pin deck) it's the frame at the end.
+func _lane_frame(pos: Vector3) -> Transform3D:
+	return track.world_frame_at(track.distance_of(pos))
+
+
+## A burst of spray where a marble hits the water.
+func _splash(at: Vector3, color: Color) -> void:
+	var p := CPUParticles3D.new()
+	p.one_shot = true
+	p.emitting = false
+	p.amount = 40
+	p.lifetime = 1.1
+	p.explosiveness = 0.95
+	p.direction = Vector3.UP
+	p.spread = 35.0
+	p.initial_velocity_min = 3.0
+	p.initial_velocity_max = 6.5
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.2
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.08
+	mesh.height = 0.16
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.85, 0.95, 1.0).lerp(color, 0.15)
+	mat.roughness = 0.1
+	mesh.material = mat
+	p.mesh = mesh
+	add_child(p)
+	p.global_position = Vector3(at.x, _water_level(), at.z)
+	p.emitting = true
+	get_tree().create_timer(2.0).timeout.connect(p.queue_free)
+
+
+func _water_level() -> float:
+	var water := get_node_or_null("Course/Water") as Node3D
+	return water.global_position.y if water else out_of_bounds_y
+
+
 # ------------------------------------------------------------ Camera
 
 func _marbles_center() -> Vector3:
@@ -349,17 +396,35 @@ func _marbles_center() -> Vector3:
 
 
 func _update_camera() -> void:
-	if _overhead_camera or state in [State.WAITING, State.DRAFT, State.BUILD]:
-		# Whole lane from above, for building.
-		camera.follow_offset = Vector3(0, 19, 8)
-		camera.look_ahead = Vector3(0, 0, -0.1)
-		camera.target = Vector3(0, 2, -15)
+	if _overhead_camera or state in [State.WAITING, State.DRAFT]:
+		# The whole track from high up.
+		camera.heading = Vector3.FORWARD
+		camera.follow_offset = Vector3(0, 40, 30)
+		camera.look_ahead = Vector3(0, 0, -6)
+		camera.target = Vector3(1, 4, -2)
+		return
+	if state == State.BUILD:
+		# Follow the build cursors, facing down the track where they are.
+		var cursors := draft_build.cursor_world_positions()
+		var center := Vector3.ZERO
+		for c in cursors:
+			center += c
+		center /= maxf(cursors.size(), 1)
+		var spread := 0.0
+		for c in cursors:
+			spread = maxf(spread, c.distance_to(center))
+		var d := track.distance_of(center)
+		camera.heading = -track.world_frame_at(d + 2.0).basis.z
+		camera.follow_offset = Vector3(0, 12.0 + spread * 0.9, 7.0 + spread * 0.6)
+		camera.look_ahead = Vector3(0, 0, -2.5)
+		camera.target = center
 		return
 	var pin_cam := state == State.RESULTS or state == State.MATCH_OVER
 	if state == State.ROLLING:
 		# Swing to the pins for each impact, then back to anyone still rolling.
 		pin_cam = _no_marbles_rolling() or _roll_time - _last_arrival_time < pin_cam_time
 	if pin_cam:
+		camera.heading = Vector3.FORWARD
 		camera.follow_offset = Vector3(0, 3.2, 6.5)
 		camera.look_ahead = Vector3(0, -1.0, -3.0)
 		camera.target = rack.global_position + Vector3(0, 0, 1.0)
@@ -367,6 +432,11 @@ func _update_camera() -> void:
 		camera.follow_offset = Vector3(0, 8.0, 7.0)
 		camera.look_ahead = Vector3(0, -2.0, -10.0)
 		camera.target = _marbles_center()
+		var d := track.distance_of(camera.target)
+		if d < track.length() - 1.0:
+			camera.heading = -track.world_frame_at(d + 4.0).basis.z
+		else:
+			camera.heading = Vector3.FORWARD
 
 
 func _no_marbles_rolling() -> bool:

@@ -163,6 +163,14 @@ func end_build() -> void:
 	builder.show_zone(false)
 
 
+## Where each player's build cursor is in the world (for the camera).
+func cursor_world_positions() -> Array:
+	var out := []
+	for p in player_count:
+		out.append(builder.to_global(builder.lane_xform(cursor_pos[p]).origin))
+	return out
+
+
 func cursor_blocked(player: int) -> bool:
 	return not has_placed[player] and not builder.can_place(picks[player], cursor_pos[player])
 
@@ -173,12 +181,12 @@ func _update_visuals() -> void:
 	for p in player_count:
 		if p >= _ghosts.size() or _ghosts[p] == null:
 			continue
-		var pos := builder.to_local3(cursor_pos[p])
 		var ghost: Node3D = _ghosts[p]
-		ghost.position = pos + Vector3(0, 0.02, 0)
-		ghost.rotation.y = deg_to_rad(PieceCatalog.info(picks[p]).base_rotation + cursor_angle[p])
+		ghost.transform = builder.lane_xform(cursor_pos[p],
+				PieceCatalog.info(picks[p]).base_rotation + cursor_angle[p], 0.02)
 		var marker: MeshInstance3D = _markers[p]
-		marker.position = pos + Vector3(0, 0.012 + 0.004 * p, 0)
+		marker.transform = builder.lane_xform(cursor_pos[p], 0.0, 0.012 + 0.004 * p) \
+				* Transform3D(Basis.from_scale(Vector3(1, 0.15, 1)), Vector3.ZERO)
 		var blocked := cursor_blocked(p)
 		var mat: StandardMaterial3D = marker.mesh.material
 		mat.albedo_color = Color(0.9, 0.1, 0.1) if blocked else colors[p]

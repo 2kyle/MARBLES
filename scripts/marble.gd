@@ -23,6 +23,9 @@ extends RigidBody3D
 ## Lean input in lane space: x = left/right (-1..1), y = forward/back
 ## (-1 = forward, toward the pins).
 var lean := Vector2.ZERO
+## Which way the lane runs under the marble right now (the game updates it
+## every tick from the track): x = lane's right, z = back up the lane.
+var lane_basis := Basis.IDENTITY
 ## Set by the game when the marble crosses the arrival line or falls out.
 var arrived := false
 var out := false
@@ -47,9 +50,9 @@ func _physics_process(_delta: float) -> void:
 	if freeze or out:
 		return
 	var l := lean.limit_length(1.0)
-	# The lane runs along -Z and is not rotated sideways, so lane space and
-	# world space line up on the X and Z axes.
-	var force := Vector3(l.x * lean_side_force, 0.0, l.y * lean_forward_force)
+	# Lean is relative to the lane, so "left" always means the lane's left
+	# even when the track bends.
+	var force := lane_basis.x * l.x * lean_side_force + lane_basis.z * l.y * lean_forward_force
 	apply_central_force(force * mass)
 	if linear_velocity.length() > max_speed:
 		linear_velocity = linear_velocity.limit_length(max_speed)
@@ -79,9 +82,9 @@ func _on_body_entered(body: Node) -> void:
 	elif body.is_in_group("bumper"):
 		# Kick sideways only, so bumpers scatter marbles across the lane
 		# instead of sending them back up the hill.
-		var side: float = global_position.x - (body as Node3D).global_position.x
+		var side: float = lane_basis.x.dot(global_position - (body as Node3D).global_position)
 		var dir := signf(side) if absf(side) > 0.02 else (1.0 if randf() < 0.5 else -1.0)
-		apply_central_impulse(Vector3(dir * bumper_kick * mass, 0.0, 0.0))
+		apply_central_impulse(lane_basis.x * dir * bumper_kick * mass)
 
 
 func _apply_color() -> void:

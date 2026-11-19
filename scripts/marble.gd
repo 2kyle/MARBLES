@@ -19,6 +19,14 @@ extends RigidBody3D
 @export var max_speed := 11.0
 ## Extra push when the marble hits a bumper post.
 @export var bumper_kick := 2.5
+## How hard a hop pushes off the floor (metres per second). 3.4 is a small
+## hop: about half a metre high, enough to clear a gap if timed well.
+@export var hop_speed := 3.4
+## Seconds before the marble can hop again.
+@export var hop_cooldown := 0.8
+
+## Fired when the marble hops (for the puff effect and sound later).
+signal hopped
 
 ## Lean input in lane space: x = left/right (-1..1), y = forward/back
 ## (-1 = forward, toward the pins).
@@ -38,6 +46,10 @@ var still_time := 0.0
 ## marbles that stop making progress).
 var best_distance := 0.0
 var best_time := 0.0
+## Seconds left sitting still after missing a jump (the game sets it).
+var hold_time := 0.0
+
+var _hop_wait := 0.0
 
 var color := Color.WHITE:
 	set(value):
@@ -78,8 +90,14 @@ func _process(delta: float) -> void:
 			mesh.rotate_x(delta * 0.5)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if freeze or out:
+		return
+	_hop_wait = maxf(_hop_wait - delta, 0.0)
+	if hold_time > 0.0:
+		hold_time -= delta
+		linear_velocity = Vector3.ZERO
+		angular_velocity = Vector3.ZERO
 		return
 	var l := lean.limit_length(1.0)
 	# Lean is relative to the lane, so "left" always means the lane's left
@@ -88,6 +106,67 @@ func _physics_process(_delta: float) -> void:
 	apply_central_force(force * mass)
 	if linear_velocity.length() > max_speed:
 		linear_velocity = linear_velocity.limit_length(max_speed)
+
+
+## Hop off the floor. Only works when touching the ground and not too soon
+## after the last hop, so there's no flying. Returns true if it hopped.
+## Like `lean`, the game calls this when the player presses the hop key.
+func request_hop() -> bool:
+	if freeze or out or arrived or hold_time > 0.0 or _hop_wait > 0.0:
+		return false
+	var normal := floor_normal()
+	if normal == Vector3.ZERO:
+		return false
+	# Cancel any speed into the floor, then push off it.
+	var into := linear_velocity.dot(normal)
+	if into < 0.0:
+		linear_velocity -= normal * into
+	linear_velocity += normal * hop_speed
+	_hop_wait = hop_cooldown
+	hopped.emit()
+	_hop_puff()
+	return true
+
+
+## The floor's up direction under the marble, or zero if it's in the air.
+func floor_normal() -> Vector3:
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(global_position,
+			global_position + Vector3.DOWN * 0.48, 1)
+	q.exclude = [get_rid()]
+	var hit := space.intersect_ray(q)
+	if hit.is_empty():
+		return Vector3.ZERO
+	return hit.normal
+
+
+## A little ring of dust where the marble pushed off.
+func _hop_puff() -> void:
+	var puff := CPUParticles3D.new()
+	puff.one_shot = true
+	puff.emitting = false
+	puff.amount = 14
+	puff.lifetime = 0.45
+	puff.explosiveness = 1.0
+	puff.direction = Vector3.UP
+	puff.spread = 80.0
+	puff.initial_velocity_min = 1.0
+	puff.initial_velocity_max = 2.2
+	puff.gravity = Vector3(0, -3, 0)
+	puff.scale_amount_min = 0.6
+	puff.scale_amount_max = 1.0
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.06
+	mesh.height = 0.12
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color.lightened(0.5)
+	mesh.material = mat
+	puff.mesh = mesh
+	get_parent().add_child(puff)
+	puff.global_position = global_position + Vector3.DOWN * 0.25
+	puff.emitting = true
+	get_tree().create_timer(1.0).timeout.connect(puff.queue_free)
 
 
 ## Take this marble out of the frame (fell in a gutter, for example).

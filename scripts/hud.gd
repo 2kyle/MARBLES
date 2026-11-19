@@ -167,6 +167,8 @@ func _update_scores(game) -> void:
 			var m: Marble = game.marbles[i]
 			if m.out:
 				status = "OUT"
+			elif m.hold_time > 0.0 or (i < game.missed_jumps.size() and game._roll_time - game.missed_jumps[i] < 2.0):
+				status = "MISSED!"
 			elif m.arrived:
 				status = _ordinal(game.arrival_order.find(i) + 1)
 		row.get_child(2).text = status
@@ -373,6 +375,8 @@ func _update_chips(game) -> void:
 		style.border_color = game.player_colors[p]
 		style.border_width_bottom = 4
 		var piece := PieceCatalog.display_name(db.picks[p])
+		if PieceCatalog.turns(db.picks[p]):
+			piece += "  < LEFT" if PieceCatalog.turns_left(db.cursor_angle[p]) else "  RIGHT >"
 		var state := ""
 		if db.has_placed[p]:
 			state = "DONE"
@@ -637,11 +641,18 @@ func _update_hints(game) -> void:
 		game.State.BUILD:
 			for p in n:
 				var k := _key_names(p)
-				items += [[k.move, "P%d" % (p + 1)], [k.rotate, "Turn"], [k.confirm, "Drop"], "|"]
+				var turn := "Turn"
+				if PieceCatalog.is_track(game.draft_build.picks[p]):
+					turn = "Flip" if PieceCatalog.turns(game.draft_build.picks[p]) else ""
+				items += [[k.move, "P%d" % (p + 1)]]
+				if turn != "":
+					items += [[k.rotate, turn]]
+				items += [[k.confirm, "Drop"], "|"]
 		game.State.COUNTDOWN, game.State.ROLLING:
 			for p in n:
-				items += [[_key_names(p).move, "P%d Lean" % (p + 1)]]
-			items += ["|", ["TAB", "Scores"], ["R", "Retry"], ["V", "Camera"],
+				var k := _key_names(p)
+				items += [[k.move, "P%d Lean" % (p + 1)], [k.confirm, "Hop"], "|"]
+			items += [["TAB", "Scores"], ["R", "Retry"], ["V", "Camera"],
 					["C", "Bumping " + ("on" if game.marbles_collide else "off")]]
 		_:
 			items += [["SPACE", "Next"], ["TAB", "Scores"], ["R", "Retry"]]

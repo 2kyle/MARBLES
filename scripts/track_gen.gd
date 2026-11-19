@@ -8,6 +8,7 @@ extends RefCounted
 ##   len:   length in metres (measured along the ground)
 ##   turn:  degrees the track turns over the segment (+ = left, - = right)
 ##   grade: how steep it is (0.25 = drops 0.25 m every metre)
+##   gap:   (optional) true = no floor here, marbles have to hop or fly over
 ## The first segment is where marbles start; the last one is the straight
 ## run into the funnel and pins, and is never changed.
 ##
@@ -72,6 +73,8 @@ static func _random_segment(rng: RandomNumberGenerator, last_sign: float, drops:
 		return [{"len": 3.0, "turn": 0.0, "grade": 0.15}, drop()]
 	if r < 0.82:
 		return [hairpin(sign)]
+	if r < 0.9:
+		return [{"len": 4.0, "turn": 0.0, "grade": 0.3}, gap(), {"len": 4.0, "turn": 0.0, "grade": 0.25}]
 	return [{"len": rng.randf_range(5.0, 10.0), "turn": 0.0, "grade": rng.randf_range(0.22, 0.32)}]
 
 
@@ -87,6 +90,24 @@ static func drop() -> Dictionary:
 static func hairpin(sign: float) -> Dictionary:
 	var turn := 165.0 * sign
 	return {"len": deg_to_rad(165.0) * (MIN_RADIUS + 0.6), "turn": turn, "grade": 0.13}
+
+
+## A short hole in the track. Fast marbles fly over; a hop makes it safe.
+static func gap() -> Dictionary:
+	return {"len": 2.2, "turn": 0.0, "grade": 0.4, "gap": true}
+
+
+## Where the gaps are, as [start, end] metres from the start (measured
+## along the ground, like points()).
+static func gap_ranges(layout: Array) -> Array:
+	var out := []
+	var t := 0.0
+	for s in layout:
+		var n := float(maxi(1, roundi(s.len)))
+		if s.get("gap", false):
+			out.append([t, t + n])
+		t += n
+	return out
 
 
 static func total_length(layout: Array) -> float:

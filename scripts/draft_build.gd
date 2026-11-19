@@ -31,6 +31,9 @@ var message: Array = []        # per player: short status text for the HUD
 
 var _ghosts: Array = []
 var _markers: Array = []
+var _tags: Array = []      # per player: floating name + flow arrow
+
+const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
 
 const START_X := [-1.2, 1.2, -0.4, 0.4]
 
@@ -118,15 +121,24 @@ func start_build() -> void:
 	message = _filled(player_count, "")
 	_ghosts = []
 	_markers = []
+	_tags = []
 	for p in player_count:
-		cursor_pos.append(Vector2(START_X[p % START_X.size()], -12.0))
+		var x: float = START_X[p % START_X.size()]
+		if PieceCatalog.is_track(picks[p]):
+			x = 0.0  # track cards change the whole width of the track
+		cursor_pos.append(Vector2(x, -12.0 - 1.5 * p))
 		if picks[p] == "":
 			has_placed[p] = true
 			_ghosts.append(null)
 			_markers.append(null)
+			_tags.append(null)
 			continue
 		_ghosts.append(builder.make_ghost(picks[p]))
-		_markers.append(_make_marker(colors[p], PieceCatalog.info(picks[p]).radius))
+		if PieceCatalog.is_track(picks[p]):
+			_markers.append(_make_bar(colors[p]))
+		else:
+			_markers.append(_make_marker(colors[p], PieceCatalog.info(picks[p]).radius))
+		_tags.append(_make_tag(p))
 	builder.show_zone(true)
 	_update_visuals()
 
@@ -136,16 +148,39 @@ func start_build() -> void:
 func request_cursor_move(player: int, delta: Vector2) -> void:
 	if has_placed[player]:
 		return
+	if PieceCatalog.is_track(picks[player]):
+		delta.x = 0.0  # track cards only slide up and down the track
 	cursor_pos[player] = builder.clamp_pos(cursor_pos[player] + delta)
 	message[player] = ""
 	_update_visuals()
 
 
+## Turn a piece. Track cards that bend only flip between left (0) and
+## right (180); other track cards can't turn.
 func request_rotate(player: int, degrees: float) -> void:
 	if has_placed[player]:
 		return
-	cursor_angle[player] = fposmod(cursor_angle[player] + degrees, 360.0)
+	var id: String = picks[player]
+	if PieceCatalog.is_track(id):
+		if not PieceCatalog.turns(id):
+			return
+		cursor_angle[player] = 180.0 if PieceCatalog.turns_left(cursor_angle[player]) else 0.0
+	else:
+		cursor_angle[player] = fposmod(cursor_angle[player] + degrees, 360.0)
+	message[player] = ""
 	_update_visuals()
+
+
+## What a player's piece will do, in a few words for the floating tag and
+## the HUD, e.g. "TRACK BEND  < LEFT".
+func describe(player: int) -> String:
+	var id: String = picks[player]
+	if id == "":
+		return ""
+	var name := PieceCatalog.display_name(id).to_upper()
+	if PieceCatalog.turns(id):
+		return name + ("  < LEFT" if PieceCatalog.turns_left(cursor_angle[player]) else "  RIGHT >")
+	return name
 
 
 func request_place(player: int) -> bool:
@@ -172,7 +207,7 @@ func auto_place_remaining() -> void:
 	for p in player_count:
 		if has_placed[p]:
 			continue
-		var spot = builder.nearest_free(picks[p], cursor_pos[p])
+		var spot = builder.nearest_free(picks[p], cursor_pos[p], cursor_angle[p])
 		if spot == null:
 			continue
 		cursor_pos[p] = spot
@@ -194,7 +229,7 @@ func cursor_world_positions() -> Array:
 
 
 func cursor_blocked(player: int) -> bool:
-	return not has_placed[player] and not builder.can_place(picks[player], cursor_pos[player])
+	return not has_placed[player] and not builder.can_place(picks[player], cursor_pos[player], cursor_angle[player])
 
 
 # ---------------------------------------------------------------- Visuals
@@ -206,16 +241,23 @@ func _update_visuals() -> void:
 		var ghost: Node3D = _ghosts[p]
 		if ghost.has_meta("track_card"):
 			# Track cards show the new track shape from the cursor onward.
-			(ghost as MeshInstance3D).mesh = builder.reshape_preview(picks[p], cursor_pos[p])
+			(ghost as MeshInstance3D).mesh = builder.reshape_preview(picks[p], cursor_pos[p], cursor_angle[p])
 		else:
 			ghost.transform = builder.lane_xform(cursor_pos[p],
 				PieceCatalog.info(picks[p]).base_rotation + cursor_angle[p], 0.02)
 		var marker: MeshInstance3D = _markers[p]
-		marker.transform = builder.lane_xform(cursor_pos[p], 0.0, 0.012 + 0.004 * p) \
-				* Transform3D(Basis.from_scale(Vector3(1, 0.15, 1)), Vector3.ZERO)
 		var blocked := cursor_blocked(p)
+		var floor_xf := builder.lane_xform(cursor_pos[p], 0.0, 0.012 + 0.004 * p)
+		marker.transform = floor_xf * Transform3D(Basis.from_scale(Vector3(1, 0.15, 1)), Vector3.ZERO)
 		var mat: StandardMaterial3D = marker.mesh.material
 		mat.albedo_color = Color(0.9, 0.1, 0.1) if blocked else colors[p]
+		var tag: Node3D = _tags[p]
+		tag.transform = floor_xf
+		var label: Label3D = tag.get_node("Name")
+		label.text = describe(p) + ("\nBLOCKED" if blocked else "")
+		label.modulate = Color(1.0, 0.35, 0.3) if blocked else Color.WHITE
+		var arrow: Node3D = tag.get_node("Arrow")
+		arrow.visible = not ghost.has_meta("track_card")
 	changed.emit()
 
 
@@ -237,6 +279,69 @@ func _make_marker(color: Color, radius: float) -> MeshInstance3D:
 	return marker
 
 
+## A bar across the track for track cards: the new stretch starts here.
+func _make_bar(color: Color) -> MeshInstance3D:
+	var marker := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(builder.track.lane_width + 0.3, 2.4, 0.25)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	mesh.material = mat
+	marker.mesh = mesh
+	marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	builder.add_child(marker)
+	return marker
+
+
+## A floating label with the piece's name (and which way it bends), plus an
+## arrow on the floor showing which way the marbles roll through it.
+func _make_tag(player: int) -> Node3D:
+	var tag := Node3D.new()
+	var label := Label3D.new()
+	label.name = "Name"
+	label.font = TITLE_FONT
+	label.font_size = 72
+	label.pixel_size = 0.009
+	label.outline_size = 18
+	label.outline_modulate = Color(0.06, 0.05, 0.12)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.fixed_size = false
+	label.position = Vector3(0, 2.7, 0)
+	tag.add_child(label)
+
+	# Three chevrons pointing down the track (lane -z), like road markings.
+	var arrow := MeshInstance3D.new()
+	arrow.name = "Arrow"
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var r: float = PieceCatalog.info(picks[player]).radius
+	for k in 3:
+		var z := -r - 0.3 - 0.5 * k
+		var a := Vector3(-0.45, 0, z + 0.32)
+		var tip := Vector3(0, 0, z)
+		var b := Vector3(0.45, 0, z + 0.32)
+		var a2 := a + Vector3(0, 0, -0.2)
+		var tip2 := tip + Vector3(0, 0, -0.2)
+		var b2 := b + Vector3(0, 0, -0.2)
+		for v in [a, tip, tip2, a, tip2, a2, tip, b, b2, tip, b2, tip2]:
+			st.add_vertex(v)
+	arrow.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = colors[player]
+	mat.no_depth_test = true
+	mat.render_priority = 1
+	arrow.material_override = mat
+	arrow.position.y = 0.03
+	arrow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	tag.add_child(arrow)
+	builder.add_child(tag)
+	return tag
+
+
 func _free_cursor(player: int) -> void:
 	if player < _ghosts.size() and _ghosts[player] != null:
 		_ghosts[player].queue_free()
@@ -244,6 +349,9 @@ func _free_cursor(player: int) -> void:
 	if player < _markers.size() and _markers[player] != null:
 		_markers[player].queue_free()
 		_markers[player] = null
+	if player < _tags.size() and _tags[player] != null:
+		_tags[player].queue_free()
+		_tags[player] = null
 
 
 func _filled(n: int, value) -> Array:

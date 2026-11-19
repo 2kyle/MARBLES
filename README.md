@@ -17,11 +17,15 @@ A party game where friends build a bowling lane together, then race physics marb
 Before each match, everyone picks their marble's look in the **Locker & Store** (see below). Then each frame has four steps, like the design doc:
 
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as big picture cards in the middle of the screen. Each player steers their own pointer onto a card and grabs it. First to grab a piece gets it.
-2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Pieces stay on the lane for the rest of the match.
-3. **Roll (45 s max):** marbles drop together, crash into each other, and race to one shared rack of 21 pins. You can lean your marble, but the lane does most of the work.
+2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Your piece's name floats above it, and coloured arrows on the floor show which way marbles will roll through it. Pieces stay on the lane for the rest of the match.
+3. **Roll (45 s max):** marbles drop through the START arch together, crash into each other, and race to one shared rack of 21 pins. You can lean your marble and give it a small **hop** (your place key), but the lane does most of the work.
 4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
 
-A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. It starts empty except for a funnel in front of the pins. A marble that flies off the track splashes into the water and is out for that frame.
+A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. Some tracks also have a gap. It starts empty except for a funnel in front of the pins. A marble that flies off the track splashes into the water and is out for that frame.
+
+### Hopping and gaps
+
+While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about half a metre, and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble is fished out and set down just past the gap, where it has to sit still for 1.5 seconds while everyone else rolls on. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
 
 ### Locker & Store
 
@@ -36,7 +40,14 @@ Before each match the camera sits behind the marbles and each player gets a pane
 
 ### Pieces
 
-Every crate has at least one track card. While you place a track card, a yellow see-through track shows the new shape from your cursor onward. The ring turns red where the new shape would run into the track or the pin deck. Pieces further down the track move with it, and the pins move to the new end.
+Every crate has at least one track card (their names are gold on the cards). Track cards work a little differently from pieces:
+
+- A coloured bar goes across the whole track. You only slide it up and down the track, not side to side.
+- The new stretch of track it adds shows as a striped yellow ribbon with little rails, starting at the bar. The rest of the track after it shows faintly, so you can see where everything ends up. A gap shows as a red patch.
+- For bends and hairpins, your rotate key flips the turn between **LEFT** and **RIGHT**. The floating label and your chip at the bottom of the screen say which way it's set.
+- The label says **BLOCKED** (and the bar turns red) where the new shape would run into the track or the pin deck.
+
+Pieces further down the track move with it, and the pins move to the new end.
 
 | Piece | What it does |
 | --- | --- |
@@ -47,14 +58,15 @@ Every crate has at least one track card. While you place a track card, a yellow 
 | Booster pad | Fires a marble the way its arrow points (rotate it to aim) |
 | Spinner | A paddle that never stops turning and swats marbles around |
 | Gutter cut | A hole: fall in and your frame is over. Whoever placed it gets +2 |
-| Bend | Curved wall that swings marbles across the lane |
-| Drop step | Ramp up onto a ledge, then a sudden drop |
+| Curve wall | Curved wall that swings marbles across the lane |
+| Ledge | Ramp up onto a ledge, then a sudden drop |
 | Hump | Smooth hill across the lane that tosses marbles up |
 | Washboard | Row of little bumps that make marbles hop and skid |
 | Tilt table | A square of lane that rocks side to side |
-| Track: bend | Changes the track itself: adds a bend where you drop it, turning toward the side you drop it on |
-| Track: cliff drop | Changes the track itself: adds a steep drop where you drop it |
-| Track: hairpin | Changes the track itself: adds a tight U-turn, toward the side you drop it on |
+| Track Bend | Changes the track itself: adds a bend, left or right (rotate key flips it) |
+| Cliff Drop | Changes the track itself: adds a steep drop |
+| Hairpin | Changes the track itself: adds a tight U-turn, left or right (rotate key flips it) |
+| Gap Jump | Changes the track itself: adds a short gap that marbles have to hop over |
 | Bomb (item) | Drop it on the lane to blow up every piece inside the red circle. It doesn't stay |
 
 ## How to play it
@@ -70,8 +82,8 @@ Every crate has at least one track card. While you place a track card, a yellow 
 | | Player 1 | Player 2 |
 | --- | --- | --- |
 | Draft: move pointer / grab | W A S D / E | Arrows / Enter |
-| Build: move / rotate / place | W A S D / Q / E | Arrow keys / Right Shift / Enter |
-| Roll: lean | W A S D | Arrow keys |
+| Build: move / rotate (flip for track cards) / place | W A S D / Q / E | Arrow keys / Right Shift / Enter |
+| Roll: lean / hop | W A S D / E | Arrow keys / Enter |
 
 | Key | What it does |
 | --- | --- |
@@ -103,6 +115,10 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | Steering strength | `scenes/marble.tscn`, root node | Lean Side Force, Lean Forward Force |
 | How heavy the marble is | `scenes/marble.tscn`, root node | Mass (heavier scatters pins harder) |
 | Bumper kick | `scenes/marble.tscn`, root node | Bumper Kick |
+| Hop height and how often | `scenes/marble.tscn`, root node | Hop Speed, Hop Cooldown |
+| How long a marble waits after missing a gap | `scenes/main.tscn`, `Main` node | Missed Jump Wait |
+| Lanterns, rocks, islands, buoys | `scenes/course.tscn`, `Decor` node | Lantern Lights, Lantern Spacing, Rock Count, Island Count, Buoy Count |
+| Glow, fog and sunlight | `scenes/main.tscn`, `WorldEnvironment` and `Sun` nodes | Glow, Fog, Light Color |
 | Pin weight and wobble | `scenes/pin.tscn`, root node | Mass, Center Of Mass |
 | The shape of the track | `scenes/course.tscn`, `Track/Path` node | See "Reshaping the track" below |
 | Track width, wall height, how much corners bank | `scenes/course.tscn`, `Track` node | Lane Width, Wall Height, Bank Speed, Max Bank Deg |
@@ -155,6 +171,7 @@ scripts/
   track_gen.gd       makes random track layouts and applies track cards
   track.gd           builds the track's floor, walls and posts from the curve
   course_builder.gd  the build area, placed pieces, and the bomb
+  decor.gd           start/finish arches, lanterns, braces, rocks, islands, buoys
   thumbnails.gd      live pictures of each piece for the draft cards
   booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd, tilt_table.gd   piece behaviour
   controls.gd        all the key bindings
@@ -169,6 +186,7 @@ shaders/
 tests/
   test_scoring.gd    checks the scoring rules
   sim_roll.gd        plays frames with no one at the keys and prints results
+  sim_gap.gd         rolls over a gap, with or without well-timed hops
 ```
 
 The code is set up for online play later: `main.gd` makes every decision (physics, who arrived first, who gets each pin), and player input only reaches the game through two functions: `_gather_inputs()` for marble lean and `_gather_build_inputs()` for draft and build requests. When online play arrives, the host runs `main.gd` and fills those in from the network instead of the keyboard.
@@ -180,4 +198,5 @@ From the project folder in a terminal, with `godot` being the path to your Godot
 ```
 godot --headless --script res://tests/test_scoring.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_roll.gd
+godot --headless --fixed-fps 120 --script res://tests/sim_gap.gd -- hop
 ```

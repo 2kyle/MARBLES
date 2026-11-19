@@ -61,6 +61,11 @@ const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 ## A marble that hasn't got any further down the track for this many
 ## seconds is lifted out and put back a little further on.
 @export var rescue_time := 6.0
+## Seconds a marble sits still after falling into a gap in the track.
+@export var missed_jump_wait := 1.5
+
+## When each player last missed a jump (roll time), for the HUD.
+var missed_jumps: Array = []
 
 @export var marble_scene: PackedScene = preload("res://scenes/marble.tscn")
 
@@ -150,6 +155,7 @@ func _new_track() -> void:
 	for p in pts:
 		lo = lo.min(Vector2(p.x, p.z))
 		hi = hi.max(Vector2(p.x, p.z))
+	($Course/Decor as TrackDecor).seed = _rng.randi()
 	track.apply_layout(layout, -(lo + hi) / 2.0)
 
 
@@ -173,6 +179,7 @@ func _place_deck() -> void:
 	var end := track.global_transform * track.end_transform()
 	deck.global_transform = Transform3D(end.basis, end.origin + Vector3(0, -TrackGen.END_Y, 0))
 	rack.global_transform = ($Course/Deck/RackSpot as Node3D).global_transform
+	($Course/Decor as TrackDecor).rebuild(track, deck)
 
 
 func _prepare_roll() -> void:
@@ -184,6 +191,9 @@ func _prepare_roll() -> void:
 	arrival_order.clear()
 	sweep_player = -1
 	_roll_time = 0.0
+	missed_jumps = []
+	for i in player_count:
+		missed_jumps.append(-10.0)
 	_settling = false
 	_last_arrival_time = -100.0
 
@@ -273,6 +283,9 @@ func _gather_inputs() -> void:
 	for m in marbles:
 		m.lean = Controls.read_lean(m.player_id)
 		m.lane_basis = _lane_frame(m.global_position).basis
+		# The place key doubles as hop while rolling.
+		if Input.is_action_just_pressed(Controls.action_name(m.player_id, "confirm")):
+			m.request_hop()
 
 
 func _gather_build_inputs(delta: float) -> void:
@@ -292,7 +305,12 @@ func _gather_build_inputs(delta: float) -> void:
 			var dir := Controls.read_lean(p)
 			if dir != Vector2.ZERO:
 				draft_build.request_cursor_move(p, dir * cursor_speed * delta)
-			if _pressed_or_repeat(Controls.action_name(p, "rotate"), delta, 0.04):
+			var rotate := Controls.action_name(p, "rotate")
+			if PieceCatalog.is_track(draft_build.picks[p]):
+				# Track cards flip left/right: one flip per tap.
+				if Input.is_action_just_pressed(rotate):
+					draft_build.request_rotate(p, 180.0)
+			elif _pressed_or_repeat(rotate, delta, 0.04):
 				draft_build.request_rotate(p, rotate_step)
 			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
 				draft_build.request_place(p)
@@ -424,6 +442,7 @@ func _update_roll(delta: float) -> void:
 			m.out = true
 			m.freeze = true
 			_splash(m.global_position, m.color)
+		_check_missed_jump(m)
 		_unstick(m, delta)
 
 	var all_done := true
@@ -441,7 +460,34 @@ func _update_roll(delta: float) -> void:
 		_finish_frame()
 
 
+## A marble that drops into a gap in the track is fished out and put down
+## just past the gap, where it sits still for a moment. That lost time is
+## the price of missing the jump.
+func _check_missed_jump(m: Marble) -> void:
+	if m.out or m.arrived or m.freeze or m.hold_time > 0.0 or track.gaps.is_empty():
+		return
+	var d := track.distance_of(m.global_position)
+	for g in track.gaps:
+		if d < g[0] - 1.5 or d > g[1] + 1.5:
+			continue
+		var f := track.world_frame_at(d)
+		if f.basis.y.dot(m.global_position - f.origin) > -1.0:
+			return
+		_splash(m.global_position, m.color)
+		var spot := track.world_frame_at(g[1] + 1.2)
+		m.global_position = spot.origin + spot.basis.y * 0.35
+		m.linear_velocity = Vector3.ZERO
+		m.angular_velocity = Vector3.ZERO
+		m.hold_time = missed_jump_wait
+		m.best_distance = g[1] + 1.2
+		m.best_time = _roll_time + missed_jump_wait
+		missed_jumps[m.player_id] = _roll_time
+		return
+
+
 func _unstick(m: Marble, delta: float) -> void:
+	if m.hold_time > 0.0:
+		return
 	if m.out or m.arrived or m.freeze:
 		m.still_time = 0.0
 		return
@@ -456,7 +502,11 @@ func _unstick(m: Marble, delta: float) -> void:
 		m.best_distance = d
 		m.best_time = _roll_time
 	elif _roll_time - m.best_time > rescue_time and d < track.length() - 2.0:
-		var spot := track.world_frame_at(m.best_distance + 3.0)
+		var to := m.best_distance + 3.0
+		for g in track.gaps:
+			if to > g[0] - 1.0 and to < g[1] + 1.0:
+				to = g[1] + 1.2
+		var spot := track.world_frame_at(to)
 		m.global_position = spot.origin + spot.basis.y * 0.5
 		m.linear_velocity = -spot.basis.z * 3.0
 		m.angular_velocity = Vector3.ZERO

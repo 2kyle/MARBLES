@@ -1,9 +1,10 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/pieces/funnel.tscn" id="4_funnel"]
 [ext_resource type="Script" path="res://scripts/course_builder.gd" id="5_builder"]
 [ext_resource type="Script" path="res://scripts/track.gd" id="6_track"]
 [ext_resource type="Shader" path="res://shaders/water.gdshader" id="7_water"]
+[ext_resource type="Script" path="res://scripts/decor.gd" id="8_decor"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_wood"]
 friction = 0.6
@@ -192,3 +193,5 @@ mesh = SubResource("Mesh_post")
 position = Vector3(2.4, -2.4, -9.7)
 mesh = SubResource("Mesh_post")
 
+[node name="Decor" type="Node3D" parent="."]
+script = ExtResource("8_decor")

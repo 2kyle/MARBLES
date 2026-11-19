@@ -47,11 +47,13 @@ func clamp_pos(pos: Vector2) -> Vector2:
 
 
 ## True if a piece `id` could go at `pos` without sitting on another piece.
-func can_place(id: String, pos: Vector2) -> bool:
+func can_place(id: String, pos: Vector2, angle := 0.0) -> bool:
 	if PieceCatalog.is_bomb(id):
 		return true
 	if PieceCatalog.is_track(id):
-		return _reshaped_layout(id, pos) != null
+		return _reshaped_layout(id, pos, angle) != null
+	if track.in_gap(-pos.y, 1.2):
+		return false
 	var r: float = PieceCatalog.info(id).radius
 	for p in placed:
 		var min_gap: float = (r + PieceCatalog.info(p.id).radius) * (1.0 - overlap_allowed)
@@ -62,15 +64,15 @@ func can_place(id: String, pos: Vector2) -> bool:
 
 ## The closest spot to `pos` where `id` fits, searching outward. Returns
 ## `pos` itself if it already fits, or null if nothing nearby fits.
-func nearest_free(id: String, pos: Vector2) -> Variant:
-	if can_place(id, pos):
+func nearest_free(id: String, pos: Vector2, angle := 0.0) -> Variant:
+	if can_place(id, pos, angle):
 		return pos
 	for ring in range(1, 16):
 		var dist := ring * 0.5
 		for step in 12:
 			var a := TAU * step / 12.0
 			var p := clamp_pos(pos + Vector2(cos(a), sin(a)) * dist)
-			if can_place(id, p):
+			if can_place(id, p, angle):
 				return p
 	return null
 
@@ -82,7 +84,7 @@ func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 		explode(pos, PieceCatalog.info(id).radius)
 		return true
 	if PieceCatalog.is_track(id):
-		return _reshape(id, pos)
+		return _reshape(id, pos, angle)
 	if not can_place(id, pos):
 		return false
 	var node: Node3D = load(PieceCatalog.info(id).scene).instantiate()
@@ -96,13 +98,14 @@ func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 
 ## The layout with track card `id` dropped at `pos`, or null if the track
 ## would run into itself (or the track wasn't made from a layout).
-func _reshaped_layout(id: String, pos: Vector2) -> Variant:
+func _reshaped_layout(id: String, pos: Vector2, angle: float) -> Variant:
 	if track.layout.is_empty():
 		return null
-	var key := "%s|%d|%d|%d" % [id, roundi(-pos.y), signi(roundi(pos.x * 10.0)), track.layout.hash()]
+	var left := PieceCatalog.turns_left(angle)
+	var key := "%s|%d|%s|%d" % [id, roundi(-pos.y), left, track.layout.hash()]
 	if _fit_cache.has(key):
 		return _fit_cache[key]
-	var seg := PieceCatalog.track_segment(id, pos.x)
+	var seg := PieceCatalog.track_segment(id, left)
 	var result = TrackGen.insert(track.layout, -pos.y, seg)
 	if not TrackGen.fits(result, track.start_xz):
 		result = null
@@ -112,8 +115,8 @@ func _reshaped_layout(id: String, pos: Vector2) -> Variant:
 	return result
 
 
-func _reshape(id: String, pos: Vector2) -> bool:
-	var new_layout = _reshaped_layout(id, pos)
+func _reshape(id: String, pos: Vector2, angle: float) -> bool:
+	var new_layout = _reshaped_layout(id, pos, angle)
 	if new_layout == null:
 		return false
 	var added := TrackGen.total_length(new_layout) - TrackGen.total_length(track.layout)
@@ -134,14 +137,30 @@ func _reshape(id: String, pos: Vector2) -> bool:
 
 
 ## For a track card's ghost: the new shape of the track from where the
-## card would go, as a see-through ribbon. Empty if it doesn't fit.
-func reshape_preview(id: String, pos: Vector2) -> ArrayMesh:
-	var new_layout = _reshaped_layout(id, pos)
+## card would go, as a see-through ribbon. The stretch the card adds is
+## bright and striped; the rest of the track after it is faint, and a gap
+## shows as a hole. Null if it doesn't fit.
+func reshape_preview(id: String, pos: Vector2, angle: float) -> ArrayMesh:
+	var new_layout = _reshaped_layout(id, pos, angle)
 	if new_layout == null:
 		return null
 	var at := clampf(-pos.y, 0.0, track.length())
 	var pts := TrackGen.points(new_layout, track.start_xz)
 	var i0 := clampi(roundi(at), 0, pts.size() - 1)
+	# Where the new stretch is (metres along the ground).
+	var seg := PieceCatalog.track_segment(id, PieceCatalog.turns_left(angle))
+	var new_from := 0.0
+	var new_to := 0.0
+	var best := INF
+	var t := 0.0
+	for s in new_layout:
+		var n := float(maxi(1, roundi(s.len)))
+		if s.hash() == seg.hash() and absf(t - at) < best:
+			best = absf(t - at)
+			new_from = t
+			new_to = t + n
+		t += n
+	var holes := TrackGen.gap_ranges(new_layout)
 	# Line the preview up with the real track where the card goes.
 	var shift := track.frame_at(at).origin - pts[i0]
 	var st := SurfaceTool.new()
@@ -149,6 +168,9 @@ func reshape_preview(id: String, pos: Vector2) -> ArrayMesh:
 	var hw := track.lane_width / 2.0
 	var pl := Vector3.ZERO
 	var pr := Vector3.ZERO
+	var new_col := Color(1.0, 0.82, 0.15, 0.75)
+	var stripe_col := Color(1.0, 0.95, 0.6, 0.85)
+	var rest_col := Color(1.0, 1.0, 1.0, 0.18)
 	for i in range(i0, pts.size()):
 		var fwd := (pts[mini(i + 1, pts.size() - 1)] - pts[maxi(i - 1, 0)]).normalized()
 		var right := fwd.cross(Vector3.UP).normalized() * hw
@@ -156,8 +178,29 @@ func reshape_preview(id: String, pos: Vector2) -> ArrayMesh:
 		var l := o - right
 		var r := o + right
 		if i > i0:
-			for v in [pl, r, pr, pl, l, r]:
-				st.add_vertex(v)
+			var mid := i - 0.5
+			var in_hole := false
+			for h in holes:
+				in_hole = in_hole or (mid >= h[0] and mid <= h[1])
+			if in_hole:
+				# A gap: drawn as a red warning patch where the floor will be missing.
+				st.set_color(Color(1.0, 0.2, 0.15, 0.55 if mid >= new_from and mid <= new_to else 0.25))
+				for v in [pl, r, pr, pl, l, r]:
+					st.add_vertex(v)
+			else:
+				var col := rest_col
+				if mid >= new_from and mid <= new_to:
+					col = stripe_col if i % 2 == 0 else new_col
+				st.set_color(col)
+				for v in [pl, r, pr, pl, l, r]:
+					st.add_vertex(v)
+				# Little rails along the new stretch so its shape reads
+				# from any camera angle.
+				if col != rest_col:
+					var up := Vector3.UP * 0.45
+					st.set_color(new_col)
+					for v in [pl, l, l + up, pl, l + up, pl + up, pr, pr + up, r + up, pr, r + up, r]:
+						st.add_vertex(v)
 		pl = l
 		pr = r
 	st.generate_normals()
@@ -208,7 +251,7 @@ func make_ghost(id: String) -> Node3D:
 		var mat := StandardMaterial3D.new()
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color = Color(1.0, 0.85, 0.2, 0.35)
+		mat.vertex_color_use_as_albedo = true
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		ribbon.material_override = mat
 		ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

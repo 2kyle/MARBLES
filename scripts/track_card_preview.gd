@@ -3,7 +3,7 @@ extends Node3D
 ## A little model of a track card's shape, for the draft card pictures:
 ## a short bit of track with the new part (bend, drop or hairpin) in yellow.
 
-@export_enum("bend", "drop", "hairpin") var shape := "bend":
+@export_enum("bend", "drop", "hairpin", "gap") var shape := "bend":
 	set(v):
 		shape = v
 		if is_inside_tree():
@@ -24,6 +24,7 @@ func _build() -> void:
 	match shape:
 		"drop": seg = TrackGen.drop()
 		"hairpin": seg = TrackGen.hairpin(1.0)
+		"gap": seg = TrackGen.gap()
 		_: seg = TrackGen.bend(75.0)
 	var lead := {"len": 6.0, "turn": 0.0, "grade": 0.12}
 	var layout := [lead, seg, lead.duplicate()]
@@ -38,7 +39,8 @@ func _build() -> void:
 	var a := int(lead.len)
 	var b := a + int(round(seg.len))
 	_add_strip(pts, 0, a, mid, Color(0.72, 0.55, 0.36))
-	_add_strip(pts, a, b, mid, Color(1.0, 0.82, 0.2))
+	if not seg.get("gap", false):
+		_add_strip(pts, a, b, mid, Color(1.0, 0.82, 0.2))
 	_add_strip(pts, b, pts.size() - 1, mid, Color(0.72, 0.55, 0.36))
 
 

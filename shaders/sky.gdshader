@@ -66,7 +66,9 @@ void sky() {
 
 	// The sea below the horizon.
 	if (h <= -0.02) {
-		col = mix(sea_color * 1.6, sea_color, smoothstep(-0.02, -0.25, h));
+		// Near the horizon the sea mirrors the sky, like the water plane does.
+		vec3 shine = mix(horizon_color * 0.8, sea_color * 1.6, smoothstep(-0.02, -0.12, h));
+		col = mix(shine, sea_color, smoothstep(-0.06, -0.35, h));
 	}
 	COLOR = col;
 }

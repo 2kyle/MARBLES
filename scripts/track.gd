@@ -94,6 +94,8 @@ var layout: Array = []
 ## Top-view position of the start, kept when the layout changes mid-match
 ## so the start stays put and the rest of the track swings round.
 var start_xz := Vector2.ZERO
+## Holes in the track, as [start, end] distances along it.
+var gaps: Array = []
 
 
 ## Replace the track with one built from a TrackGen layout.
@@ -101,6 +103,14 @@ func apply_layout(new_layout: Array, new_start_xz: Vector2) -> void:
 	layout = new_layout
 	start_xz = new_start_xz
 	var pts := TrackGen.points(layout, start_xz)
+	# Gap positions are in ground metres (= point index); turn them into
+	# distances along the sloping track.
+	var along := PackedFloat32Array([0.0])
+	for i in range(1, pts.size()):
+		along.append(along[i - 1] + pts[i].distance_to(pts[i - 1]))
+	gaps = []
+	for g in TrackGen.gap_ranges(layout):
+		gaps.append([along[clampi(int(g[0]), 0, pts.size() - 1)], along[clampi(int(g[1]), 0, pts.size() - 1)]])
 	var curve := Curve3D.new()
 	curve.bake_interval = 0.2
 	var keep := []
@@ -123,6 +133,14 @@ func apply_layout(new_layout: Array, new_start_xz: Vector2) -> void:
 	_path.curve = curve
 	_path.curve_changed.connect(_queue_rebuild)
 	rebuild()
+
+
+## True if `distance` is inside a gap (or within `margin` metres of one).
+func in_gap(distance: float, margin := 0.0) -> bool:
+	for g in gaps:
+		if distance > g[0] - margin and distance < g[1] + margin:
+			return true
+	return false
 
 
 ## Where the track ends (track-local) and which way it points, flattened.
@@ -266,6 +284,9 @@ func rebuild() -> void:
 	var prev := {}
 	for i in slices:
 		var d := len * i / float(slices - 1)
+		if in_gap(d):
+			prev = {}
+			continue
 		var xf := frame_at(d)
 		var o := xf.origin
 		var r := xf.basis.x
@@ -279,10 +300,10 @@ func rebuild() -> void:
 			"wlb": o - r * (hw + WALL_THICKNESS) - u * FLOOR_THICKNESS,
 			"wrb": o + r * (hw + WALL_THICKNESS) - u * FLOOR_THICKNESS,
 		}
-		if prev.is_empty():
+		if i == 0:
 			# Back wall behind the start gate.
 			_quad(wall_st, collision, s.wlb, s.wrb, s.wro, s.wlo)
-		else:
+		if not prev.is_empty():
 			# Rolling surface and underside.
 			_quad(floor_st, collision, prev.fl, prev.fr, s.fr, s.fl)
 			_quad(floor_st, null, prev.br, prev.bl, s.bl, s.br)

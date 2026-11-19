@@ -57,13 +57,13 @@ const PIECES := {
 		"kind": "piece", "radius": 0.6, "base_rotation": 0.0,
 	},
 	"curve": {
-		"name": "Bend",
+		"name": "Curve Wall",
 		"about": "Swings marbles across",
 		"scene": "res://scenes/pieces/curve.tscn",
 		"kind": "piece", "radius": 0.9, "base_rotation": 0.0,
 	},
 	"drop_step": {
-		"name": "Drop step",
+		"name": "Ledge",
 		"about": "Ledge with a drop",
 		"scene": "res://scenes/pieces/drop_step.tscn",
 		"kind": "piece", "radius": 1.2, "base_rotation": 0.0,
@@ -89,6 +89,7 @@ const PIECES := {
 	"track_bend": {
 		"name": "Track Bend",
 		"about": "Bends the track",
+		"turns": true,
 		"scene": "res://scenes/pieces/track_bend.tscn",
 		"kind": "track", "segment": "bend", "radius": 1.6, "base_rotation": 0.0,
 	},
@@ -101,8 +102,15 @@ const PIECES := {
 	"track_hairpin": {
 		"name": "Hairpin",
 		"about": "Adds a U-turn",
+		"turns": true,
 		"scene": "res://scenes/pieces/track_hairpin.tscn",
 		"kind": "track", "segment": "hairpin", "radius": 1.6, "base_rotation": 0.0,
+	},
+	"track_gap": {
+		"name": "Gap Jump",
+		"about": "A gap to hop over",
+		"scene": "res://scenes/pieces/track_gap.tscn",
+		"kind": "track", "segment": "gap", "radius": 1.6, "base_rotation": 0.0,
 	},
 	"bomb": {
 		"name": "Bomb",
@@ -129,17 +137,29 @@ static func is_bomb(id: String) -> bool:
 	return PIECES.has(id) and PIECES[id].kind == "bomb"
 
 
+## Track cards that bend left or right (the rotate key flips them).
+static func turns(id: String) -> bool:
+	return PIECES.has(id) and PIECES[id].get("turns", false)
+
+
+## Which way a turning track card goes for a cursor angle (0 = left,
+## 180 = right).
+static func turns_left(angle: float) -> bool:
+	return fposmod(angle, 360.0) < 90.0 or fposmod(angle, 360.0) >= 270.0
+
+
 static func is_track(id: String) -> bool:
 	return PIECES.has(id) and PIECES[id].kind == "track"
 
 
-## The new stretch of track a track card adds. `side` < 0 = left of the
-## centre line (turn left), > 0 = right.
-static func track_segment(id: String, side: float) -> Dictionary:
-	var sign := 1.0 if side < 0.0 else -1.0
+## The new stretch of track a track card adds, turning left or right.
+static func track_segment(id: String, turn_left: bool) -> Dictionary:
+	var sign := 1.0 if turn_left else -1.0
 	match PIECES[id].segment:
 		"drop":
 			return TrackGen.drop()
+		"gap":
+			return TrackGen.gap()
 		"hairpin":
 			return TrackGen.hairpin(sign)
 		_:

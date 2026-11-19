@@ -1,6 +1,6 @@
 extends Node3D
 ## Runs the game: the title menu, then local matches.
-## Before a match, everyone picks their marble's look in the locker (and
+## Before a match, everyone picks their marble's look on the Customize screen (and
 ## can buy new looks with coins). Then each frame goes:
 ##   Draft (pick a piece from the crate) -> Build (place it on the lane)
 ##   -> Countdown -> Roll -> Results
@@ -14,8 +14,8 @@ extends Node3D
 ## player's input from the network instead of the keyboard.
 
 ## MENU is the title screen (the camera slowly circles the island).
-## WAITING is the locker before a match.
-enum State { WAITING, DRAFT, BUILD, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER, MENU }
+## WAITING is the Customize screen before a match.
+enum State { WAITING, DRAFT, BUILD, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER, MENU, HUB }
 
 const PLAYER_COLORS := [
 	Color(0.95, 0.3, 0.55),  # pink
@@ -25,6 +25,8 @@ const PLAYER_COLORS := [
 ]
 const PLAYER_NAMES := ["Player 1", "Player 2", "Player 3", "Player 4"]
 ## Where each marble starts across the lane, metres from the centre.
+## Where the practice island floats (well away from the match island).
+const HUB_POSITION := Vector3(0, 40, 230)
 const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 
 ## Marbles in the match (1 to 4). Each extra player uses the next key set.
@@ -79,16 +81,20 @@ var state := State.MENU
 ## Screen, sound and match options (saved between sessions).
 var settings := GameSettings.new()
 var menu: MainMenu
+## The practice island (built the first time someone opens it).
+var hub: Hub
+## Players who have the Customize panel open on the practice island.
+var customize_open: Array = [false, false, false, false]
 var _menu_time := 0.0
 ## Coins, bought looks and equipped looks for each seat (saved to disk).
 var profiles := Profiles.new()
-## Each player's marble colour this match (from their locker choice).
+## Each player's marble colour this match (from their customize choice).
 var player_colors: Array = PLAYER_COLORS.duplicate()
-## Locker screen: which row (color/style/trail) each player is on, and the
+## Customize screen: which row (color/style/trail) each player is on, and the
 ## item they're looking at in that row (may not be bought yet).
-var locker_row: Array = [0, 0, 0, 0]
-var locker_browse: Array = [{}, {}, {}, {}]
-var locker_message: Array = ["", "", "", ""]
+var customize_row: Array = [0, 0, 0, 0]
+var customize_browse: Array = [{}, {}, {}, {}]
+var customize_message: Array = ["", "", "", ""]
 ## Coins each player earned in the last frame / match, for the scoreboard.
 var coins_earned: Array = [0, 0, 0, 0]
 var match_coins: Array = [0, 0, 0, 0]
@@ -143,7 +149,7 @@ func _ready() -> void:
 	menu.quit_to_menu_requested.connect(_on_quit_to_menu)
 	menu.quit_requested.connect(func(): get_tree().quit())
 	menu.settings_changed.connect(func(): camera_shake = settings.camera_shake)
-	# The practice hub will connect to menu.practice_requested here.
+	menu.practice_requested.connect(_enter_hub)
 	_new_match()
 	show_title()
 
@@ -153,13 +159,15 @@ func _ready() -> void:
 ## Back to the title screen, with the camera circling the island.
 func show_title() -> void:
 	get_tree().paused = false
+	if hub:
+		hub.stop()
 	state = State.MENU
 	_overhead_camera = false
 	menu.open_main()
 
 
 ## PLAY -> START: set up a local match from the menu's options and go to
-## the locker. The island shown behind the menu is the one you play on.
+## the Customize screen. The island shown behind the menu is the one you play on.
 func _on_play_requested() -> void:
 	player_count = settings.player_count
 	frames_per_match = settings.frames_per_match
@@ -168,6 +176,59 @@ func _on_play_requested() -> void:
 	draft_build.setup(builder, player_count, player_colors)
 	menu.close()
 	_new_match(false)
+
+
+## PRACTICE ISLAND: put everyone's marble on the floating hub island.
+func _enter_hub() -> void:
+	menu.close()
+	player_count = settings.player_count
+	camera_shake = settings.camera_shake
+	if hub == null:
+		hub = Hub.new()
+		hub.name = "Hub"
+		hub.position = HUB_POSITION
+		add_child(hub)
+		hub.customize_requested.connect(_on_hub_customize)
+		hub.play_requested.connect(_on_hub_play)
+	for p in player_count:
+		customize_row[p] = 0
+		customize_message[p] = ""
+		customize_browse[p] = {}
+		for slot in Cosmetics.SLOTS:
+			customize_browse[p][slot] = profiles.equipped(p, slot)
+	customize_open = [false, false, false, false]
+	hub.start(player_count, profiles, marble_scene)
+	state = State.HUB
+	_refresh_colors()
+	camera.snap_to(hub.to_global(Hub.SPAWN))
+
+
+## A marble rolled onto the Customize plate.
+func _on_hub_customize(p: int) -> void:
+	if p >= player_count:
+		return
+	customize_open[p] = true
+	customize_row[p] = 0
+	customize_message[p] = ""
+
+
+func _close_hub_customize(p: int) -> void:
+	customize_open[p] = false
+	for slot in Cosmetics.SLOTS:
+		customize_browse[p][slot] = profiles.equipped(p, slot)
+	profiles.save_to_disk()
+	if p < hub.marbles.size():
+		hub.marbles[p].look = profiles.look(p)
+	hub.release_from_plate(p)
+	_refresh_colors()
+
+
+## Someone rolled through the PLAY arch: start a real match.
+func _on_hub_play() -> void:
+	if state != State.HUB:
+		return
+	hub.stop.call_deferred()
+	_on_play_requested()
 
 
 func _pause() -> void:
@@ -182,7 +243,11 @@ func _resume() -> void:
 
 func _on_restart_frame_requested() -> void:
 	_resume()
-	if state in [State.COUNTDOWN, State.ROLLING, State.RESULTS]:
+	if state == State.HUB:
+		hub.stop_marbles()
+		hub.start(player_count, profiles, marble_scene)
+		customize_open = [false, false, false, false]
+	elif state in [State.COUNTDOWN, State.ROLLING, State.RESULTS]:
 		_prepare_roll()
 		_start_countdown()
 	else:
@@ -191,11 +256,13 @@ func _on_restart_frame_requested() -> void:
 
 func _on_quit_to_menu() -> void:
 	get_tree().paused = false
+	if hub:
+		hub.stop()
 	_new_match()
 	show_title()
 
 
-## Start a fresh match in the locker. `new_track` false keeps the island
+## Start a fresh match on the Customize screen. `new_track` false keeps the island
 ## that's already built (the one behind the title screen).
 func _new_match(new_track := true) -> void:
 	frame = 1
@@ -210,11 +277,11 @@ func _new_match(new_track := true) -> void:
 	state = State.WAITING
 	match_coins = [0, 0, 0, 0]
 	for p in player_count:
-		locker_row[p] = 0
-		locker_message[p] = ""
-		locker_browse[p] = {}
+		customize_row[p] = 0
+		customize_message[p] = ""
+		customize_browse[p] = {}
 		for slot in Cosmetics.SLOTS:
-			locker_browse[p][slot] = profiles.equipped(p, slot)
+			customize_browse[p][slot] = profiles.equipped(p, slot)
 	_refresh_colors()
 	_prepare_roll()
 
@@ -322,7 +389,9 @@ func _process(delta: float) -> void:
 	if state == State.DRAFT or state == State.BUILD:
 		_gather_build_inputs(delta)
 	elif state == State.WAITING:
-		_gather_locker_inputs()
+		_gather_customize_inputs()
+	elif state == State.HUB:
+		_gather_hub_inputs()
 	_update_camera()
 	hud.refresh(self)
 
@@ -344,6 +413,8 @@ func _physics_process(delta: float) -> void:
 		State.ROLLING:
 			_gather_inputs()
 			_update_roll(delta)
+		State.HUB:
+			hub.physics_update()
 
 
 # ------------------------------------------------------------ Input
@@ -388,52 +459,75 @@ func _gather_build_inputs(delta: float) -> void:
 				draft_build.request_place(p)
 
 
-func _gather_locker_inputs() -> void:
-	## Locker and store. Up/down picks a row, left/right flips through looks,
+func _gather_hub_inputs() -> void:
+	## Practice island: roll about and hop. Anyone on the Customize plate
+	## uses their keys for the Customize panel instead (rotate key = done).
+	var cam := camera.global_basis
+	var flat := Basis(Vector3.UP, atan2(cam.z.x, cam.z.z))
+	for m in hub.marbles:
+		var p := m.player_id
+		if customize_open[p]:
+			m.lean = Vector2.ZERO
+			_customize_keys(p)
+			if Input.is_action_just_pressed(Controls.action_name(p, "rotate")):
+				_close_hub_customize(p)
+			continue
+		m.lean = Controls.read_lean(p)
+		m.lane_basis = flat
+		if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+			m.request_hop()
+
+
+func _gather_customize_inputs() -> void:
+	## Customize and store. Up/down picks a row, left/right flips through looks,
 	## place key buys the one you're looking at (or wears it if you own it).
 	for p in player_count:
-		if Input.is_action_just_pressed(Controls.action_name(p, "forward")):
-			locker_row[p] = wrapi(locker_row[p] - 1, 0, Cosmetics.SLOTS.size())
-		if Input.is_action_just_pressed(Controls.action_name(p, "back")):
-			locker_row[p] = wrapi(locker_row[p] + 1, 0, Cosmetics.SLOTS.size())
-		var step := 0
-		if Input.is_action_just_pressed(Controls.action_name(p, "left")):
-			step = -1
-		if Input.is_action_just_pressed(Controls.action_name(p, "right")):
-			step = 1
-		if step != 0:
-			request_locker_browse(p, step)
-		if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
-			request_locker_buy(p)
+		_customize_keys(p)
+
+
+func _customize_keys(p: int) -> void:
+	if Input.is_action_just_pressed(Controls.action_name(p, "forward")):
+		customize_row[p] = wrapi(customize_row[p] - 1, 0, Cosmetics.SLOTS.size())
+	if Input.is_action_just_pressed(Controls.action_name(p, "back")):
+		customize_row[p] = wrapi(customize_row[p] + 1, 0, Cosmetics.SLOTS.size())
+	var step := 0
+	if Input.is_action_just_pressed(Controls.action_name(p, "left")):
+		step = -1
+	if Input.is_action_just_pressed(Controls.action_name(p, "right")):
+		step = 1
+	if step != 0:
+		request_customize_browse(p, step)
+	if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+		request_customize_buy(p)
 
 
 ## Show the next/previous look in the player's current row. Owned looks are
 ## worn straight away; others are shown with their price until bought.
-func request_locker_browse(p: int, step: int) -> void:
-	var slot: String = Cosmetics.SLOTS[locker_row[p]]
+func request_customize_browse(p: int, step: int) -> void:
+	var slot: String = Cosmetics.SLOTS[customize_row[p]]
 	var list := Cosmetics.items(slot)
-	var i := wrapi(Cosmetics.index_of(slot, locker_browse[p][slot]) + step, 0, list.size())
+	var i := wrapi(Cosmetics.index_of(slot, customize_browse[p][slot]) + step, 0, list.size())
 	var id: String = list[i].id
-	locker_browse[p][slot] = id
-	locker_message[p] = ""
+	customize_browse[p][slot] = id
+	customize_message[p] = ""
 	if profiles.owns(p, slot, id):
 		profiles.equip(p, slot, id)
 	_preview_look(p)
 
 
-func request_locker_buy(p: int) -> void:
-	var slot: String = Cosmetics.SLOTS[locker_row[p]]
-	var id: String = locker_browse[p][slot]
+func request_customize_buy(p: int) -> void:
+	var slot: String = Cosmetics.SLOTS[customize_row[p]]
+	var id: String = customize_browse[p][slot]
 	if profiles.owns(p, slot, id):
-		locker_message[p] = "Owned"
+		customize_message[p] = "Owned"
 		return
 	var item := Cosmetics.find(slot, id)
 	if not profiles.buy(p, slot, id):
-		locker_message[p] = "Need %d more" % (item.price - profiles.coins(p))
+		customize_message[p] = "Need %d more" % (item.price - profiles.coins(p))
 		return
 	profiles.equip(p, slot, id)
 	profiles.save_to_disk()
-	locker_message[p] = "Bought!"
+	customize_message[p] = "Bought!"
 	_preview_look(p)
 
 
@@ -441,17 +535,18 @@ func request_locker_buy(p: int) -> void:
 func _preview_look(p: int) -> void:
 	var look := profiles.look(p)
 	for slot in Cosmetics.SLOTS:
-		look[slot] = Cosmetics.find(slot, locker_browse[p][slot])
-	if p < marbles.size():
-		marbles[p].look = look
-		marbles[p].preview = true
+		look[slot] = Cosmetics.find(slot, customize_browse[p][slot])
+	var list := hub.marbles if state == State.HUB else marbles
+	if p < list.size():
+		list[p].look = look
+		list[p].preview = true
 	_refresh_colors()
 
 
 func _refresh_colors() -> void:
 	for p in player_count:
-		var id: String = locker_browse[p].get("color", profiles.equipped(p, "color")) \
-				if state == State.WAITING else profiles.equipped(p, "color")
+		var id: String = customize_browse[p].get("color", profiles.equipped(p, "color")) \
+				if state == State.WAITING or state == State.HUB else profiles.equipped(p, "color")
 		player_colors[p] = Cosmetics.find("color", id).color
 	draft_build.colors = player_colors
 
@@ -492,7 +587,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				# Anything browsed but not bought goes back to what's worn.
 				for p in player_count:
 					for slot in Cosmetics.SLOTS:
-						locker_browse[p][slot] = profiles.equipped(p, slot)
+						customize_browse[p][slot] = profiles.equipped(p, slot)
 					marbles[p].look = profiles.look(p)
 					marbles[p].preview = false
 				profiles.save_to_disk()
@@ -701,8 +796,20 @@ func _update_camera() -> void:
 		var right := Vector3(cos(a), 0, -sin(a))
 		camera.target = box.get_center() - right * size * 0.16
 		return
+	if state == State.HUB:
+		# Practice island: from behind and above, keeping every marble in view.
+		var sum := Vector3.ZERO
+		for m in hub.marbles:
+			sum += m.global_position
+			camera.frame_points.append(m.global_position)
+		camera.heading = Vector3.FORWARD
+		camera.follow_offset = Vector3(0, 7.5, 10.0)
+		camera.look_ahead = Vector3(0, -1.0, -6.0)
+		if not hub.marbles.is_empty():
+			camera.target = sum / hub.marbles.size()
+		return
 	if state == State.WAITING and not _overhead_camera:
-		# Locker: up close behind the marbles, looking down the track.
+		# Customize: up close behind the marbles, looking down the track.
 		var gate := track.world_frame_at(1.0)
 		camera.heading = -gate.basis.z
 		camera.follow_offset = Vector3(0, 2.9, 1.3)

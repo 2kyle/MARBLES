@@ -16,30 +16,45 @@ A party game where friends build a bowling lane together, then race physics marb
 
 The game opens on the **MARBLES 4P** title screen (a working title), with the camera slowly circling the island. From there:
 
-- **Play** picks the number of players (1 to 4), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match in the locker.
-- **Practice** and **Online** are placeholders marked "soon". Practice is where a small hub world for trying out items, hops and movement will plug in (`practice_requested` in `scripts/main_menu.gd`).
+- **Play** picks the number of players (1 to 4), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on the Customize screen.
+- **Practice Island** drops everyone onto a small floating island to roll about, hop and try things out (see below).
+- **Online** is a placeholder marked "soon".
 - **Settings** has fullscreen, vsync, volume, camera shake and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
 - **Controls**, **Credits** and **Quit**.
 
 During a match, **Esc** opens the pause menu.
 
+### Practice Island
 
-Before each match, everyone picks their marble's look in the **Locker & Store** (see below). Then each frame has four steps, like the design doc:
+![The practice island](docs/hub.png)
+
+A small floating island to warm up on. Roll with your lean keys (forward is away from the camera) and hop with your place key. Nothing here counts.
+
+- **Practice run:** a winding track down from the stone START tower, with a gap to hop and a steep drop. It ends on the plaza, where a big blue pad sends you straight back to the top. The **PRACTICE RUN** pad on the plaza takes you up too.
+- **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch. Your marble is parked on the plate and your Customize panel opens (same controls as before a match). Press your turn key (Q for P1) when you're done and you roll off.
+- **Hurdles** to practise hops, and a few real pieces (bumpers, a booster, a spinner, a jump ramp) to play with.
+- **PLAY arch:** roll through it to start a match with the options from the Play page.
+- Fall off the edge and you pop back on the plaza. **Esc** opens the pause menu, where Retry puts everyone back at the start.
+
+The island is built in code in `scripts/hub.gd`: windmill, pond and waterfall, trees, flowers, lanterns, butterflies, drifting clouds and little floating rocks.
+
+
+Before each match, everyone picks their marble's look in the **Customize & Store** (see below). Then each frame has four steps, like the design doc:
 
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as big picture cards in the middle of the screen. Each player steers their own pointer onto a card and grabs it. First to grab a piece gets it.
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Your piece's name floats above it, and coloured arrows on the floor show which way marbles will roll through it. Pieces stay on the lane for the rest of the match.
-3. **Roll (45 s max):** marbles drop through the START arch together, crash into each other, and race to one shared rack of 21 pins. You can lean your marble and give it a small **hop** (your place key), but the lane does most of the work.
+3. **Roll (45 s max):** marbles drop through the START arch together, crash into each other, and race to one shared rack of 28 pins. You can lean your marble and give it a small **hop** (your place key), but the lane does most of the work.
 4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
 
-A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. Some tracks also have a gap. It starts empty except for a funnel in front of the pins. A marble that flies off the track splashes into the water and is out for that frame.
+A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. Some tracks also have a gap. It starts empty. A marble that flies off the track splashes into the water and is out for that frame.
 
 ### Hopping and gaps
 
 While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m (not enough to clear the walls), and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
 
-### Locker & Store
+### Customize & Store
 
-![The locker and store](docs/locker.png)
+![The Customize screen and store](docs/customize.png)
 
 Before each match the camera sits behind the marbles and each player gets a panel. Move up and down to pick a row (Color, Style, Trail) and left and right to flip through looks. Looks you own go on your marble straight away. Looks you don't own show their price, and your place key (E for P1, Enter for P2) buys them.
 
@@ -140,7 +155,6 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | Pin weight and wobble | `scenes/pin.tscn`, root node | Mass, Center Of Mass |
 | The shape of the track | `scenes/course.tscn`, `Track/Path` node | See "Reshaping the track" below |
 | Track width, wall height, how much corners bank | `scenes/course.tscn`, `Track` node | Lane Width, Wall Height, Bank Speed, Max Bank Deg |
-| Where the funnel sits | `scenes/course.tscn`, `Track` node | Funnel From End |
 | Water and sky colours | `shaders/water.gdshader`, `shaders/sky.gdshader` | The `uniform` lines at the top |
 | Players, frames, timers, crate size, collision | `scenes/main.tscn`, `Main` node | Player Count, Frames Per Match, Draft Time, Build Time, Crate Extra, Roll Time Limit, Marbles Collide |
 | Build area and how close pieces can go | `scenes/course.tscn`, `Track/Placed` node | Half Width, Top Z, End Margin, Overlap Allowed |
@@ -156,7 +170,7 @@ To play on a track you've drawn yourself instead, click the **Main** node in `sc
 2. Orange dots appear along the track in the 3D view. Drag one and the floor, walls and posts follow it straight away. Drag a dot up or down to make that part steeper or flatter.
 3. To add a point, pick the **Add Point** button in the toolbar above the 3D view and click near the track. Use **Delete Point** to remove one.
 4. Each point also has little handles. Dragging them changes how sharply the track curves through that point.
-5. Keep the last stretch straight and lined up with the pin deck so the funnel sits flat, and keep the slope going downhill everywhere (about 10 to 20 degrees) so marbles never get stuck.
+5. Keep the last stretch straight and lined up with the pin deck so the pin deck lines up, and keep the slope going downhill everywhere (about 10 to 20 degrees) so marbles never get stuck.
 
 Tight corners send marbles over the wall, which is half the fun, but a corner sharper than about 4 m across will make the walls fold over each other.
 
@@ -171,7 +185,7 @@ Text uses two free fonts, both under the SIL Open Font License (the licence file
 ```
 scenes/
   main.tscn          the game: lane, rack, camera, scoreboard
-  course.tscn        the track curve, pin deck, water, and the funnel
+  course.tscn        the track curve, pin deck, and water
   marble.tscn        a player's marble
   pin.tscn           one bowling pin
   pieces/            every lane piece, one scene each
@@ -179,7 +193,7 @@ scripts/
   main.gd            runs frames and the match (the "referee")
   marble.gd          lean steering and bumper kicks
   pin.gd             knocked-down check and who gets credit
-  rack.gd            sets up the 21 pins
+  rack.gd            sets up the 28 pins
   scoring.gd         the scoring rules, on their own
   piece_catalog.gd   the list of draftable pieces (add new ones here)
   draft_build.gd     draft and build rules
@@ -191,6 +205,7 @@ scripts/
   course_builder.gd  the build area, placed pieces, and the bomb
   teleporter.gd      the two-part teleporter pad
   wind_fan.gd        the wind fan piece
+  hub.gd             the practice island (practice run, Customize plate, PLAY arch)
   main_menu.gd       title screen, Play/Settings/Controls/Credits pages, pause menu
   game_settings.gd   saved settings (screen, sound, camera, match options)
   decor.gd           start/finish arches, lanterns, braces, rocks, islands, buoys
@@ -198,7 +213,7 @@ scripts/
   booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd, tilt_table.gd   piece behaviour
   controls.gd        all the key bindings
   camera_rig.gd      follow camera
-  hud.gd             everything on screen: scores, draft cards, locker, scoreboard
+  hud.gd             everything on screen: scores, draft cards, Customize screen, scoreboard
 fonts/               the two fonts and their licences
 ui/theme.tres        default font and text size for all menus
 shaders/
@@ -210,6 +225,7 @@ tests/
   sim_roll.gd        plays frames with no one at the keys and prints results
   sim_items.gd       tries the teleporter, wind fan and Wall Breaker
   sim_gap.gd         rolls over a gap, with or without well-timed hops
+  sim_hub.gd         checks the practice island's teleports, Customize plate and PLAY arch
 ```
 
 The code is set up for online play later: `main.gd` makes every decision (physics, who arrived first, who gets each pin), and player input only reaches the game through two functions: `_gather_inputs()` for marble lean and `_gather_build_inputs()` for draft and build requests. When online play arrives, the host runs `main.gd` and fills those in from the network instead of the keyboard.

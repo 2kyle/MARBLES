@@ -1,0 +1,71 @@
+extends SceneTree
+## Checks the practice island: the practice run sends you back to the top,
+## the plaza lift takes you up, the Customize plate opens Customize, and the
+## PLAY arch starts a match.
+##   godot --headless --fixed-fps 120 --script res://tests/sim_hub.gd
+
+var game: Node
+var _ticks := 0
+var _last_y := {}
+var _lowest_d := {}
+var _done := false
+
+
+func _initialize() -> void:
+	game = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+
+
+func _process(_delta: float) -> bool:
+	_ticks += 1
+	if _ticks == 2:
+		game.settings.player_count = 4
+		game._enter_hub()
+		var hub: Hub = game.hub
+		var run: Track = hub._course
+		print("hub state: ", game.state == game.State.HUB, "  marbles: ", hub.marbles.size())
+		print("run length %.1f m, top y %.1f, end y %.1f" % [run.length(),
+				run.frame_at(0.0).origin.y, run.end_transform().origin.y])
+	if _ticks < 30:
+		return false
+	var hub: Hub = game.hub
+	if _ticks == 30:
+		# P1 starts at the top of the run, P2 drives onto the lift,
+		# P3 onto the Customize plate.
+		var m0: Marble = hub.marbles[0]
+		m0.global_position = hub._top.global_position + Vector3.UP * 0.4
+		m0.linear_velocity = -hub._top.global_basis.z * 1.0
+		hub.marbles[1].global_position = hub.to_global(Hub.LIFT_POS + Vector3(0, 0.4, 2.0))
+		hub.marbles[1].linear_velocity = hub.global_basis.z * -3.0
+		hub.marbles[2].global_position = hub.to_global(Hub.PLATE_POS + Vector3(0, 0.4, 2.0))
+		hub.marbles[2].linear_velocity = hub.global_basis.z * -3.0
+	if _ticks > 30 and game.state == game.State.HUB:
+		var run: Track = hub._course
+		for m in hub.marbles:
+			var p: int = m.player_id
+			var y: float = m.global_position.y
+			if _last_y.has(p) and y - _last_y[p] > 3.0:
+				print("  P%d jumped up %.1f m at %.1fs (teleport)" % [p + 1, y - _last_y[p], _ticks / 120.0])
+			_last_y[p] = y
+			if p == 0:
+				var d: float = run.distance_of(m.global_position)
+				if _ticks % 120 == 0:
+					print("  P1 t=%.0fs d=%.1f pos=%s" % [_ticks / 120.0, d, hub.to_local(m.global_position).snapped(Vector3.ONE * 0.1)])
+				# Hop the gap like a player would.
+				if run.in_gap(d + 1.2, 0.0):
+					m.request_hop()
+		if _ticks == 240:
+			print("customize open: ", game.customize_open, " plate: ", hub.on_plate)
+			game._customize_keys(2)
+			game.request_customize_browse(2, 1)
+			game._close_hub_customize(2)
+			print("after close: ", game.customize_open, " P3 frozen: ", hub.marbles[2].freeze)
+		if _ticks == 120 * 30:
+			var m3: Marble = hub.marbles[3]
+			m3.global_position = hub.to_global(Hub.PORTAL_POS + Vector3(0, 0.4, -1.5))
+			m3.linear_velocity = hub.global_basis.z * 4.0
+	if _ticks > 120 * 31 and not _done:
+		_done = true
+		print("after PLAY arch: state WAITING = ", game.state == game.State.WAITING, ", hub visible = ", hub.visible)
+		return true
+	return false

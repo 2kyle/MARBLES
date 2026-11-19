@@ -78,7 +78,7 @@ var look: Dictionary = {}:
 			color = look.color.color  # also re-applies the look
 		else:
 			_apply_look()
-## Spin slowly in place and show the trail (locker screen preview).
+## Spin slowly in place and show the trail (customize screen preview).
 var preview := false:
 	set(value):
 		preview = value

@@ -9,7 +9,7 @@ const RIBBON_WIDTH := 0.4
 
 var kind := "none"
 var color := Color.WHITE
-## Show the effect even when standing still (for the locker screen).
+## Show the effect even when standing still (for the customize screen).
 var preview := false
 
 var _points: Array = []   # [{pos, t}]

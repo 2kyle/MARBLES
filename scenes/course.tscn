@@ -1,6 +1,5 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=25 format=3]
 
-[ext_resource type="PackedScene" path="res://scenes/pieces/funnel.tscn" id="4_funnel"]
 [ext_resource type="Script" path="res://scripts/course_builder.gd" id="5_builder"]
 [ext_resource type="Script" path="res://scripts/track.gd" id="6_track"]
 [ext_resource type="Shader" path="res://shaders/water.gdshader" id="7_water"]
@@ -94,8 +93,6 @@ script = ExtResource("6_track")
 
 [node name="Path" type="Path3D" parent="Track"]
 curve = SubResource("Curve_track")
-
-[node name="Funnel" parent="Track" instance=ExtResource("4_funnel")]
 
 [node name="Placed" type="Node3D" parent="Track"]
 script = ExtResource("5_builder")

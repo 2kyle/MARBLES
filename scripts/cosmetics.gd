@@ -39,7 +39,7 @@ const TRAILS := [
 	{"id": "rainbow", "name": "Rainbow", "price": 350},
 ]
 
-## The rows on the locker screen, in order.
+## The rows on the customize screen, in order.
 const SLOTS := ["color", "style", "trail"]
 
 

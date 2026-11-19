@@ -5,8 +5,7 @@ extends CanvasLayer
 ##
 ## The menu never changes the game itself: it only emits signals, and
 ## main.gd decides what happens. That keeps it easy to add pages later.
-## The PRACTICE button is where the practice hub world will hook in: give
-## `practice_requested` a handler in main.gd that loads the hub scene.
+## PRACTICE takes everyone to the practice island (main.gd opens the hub).
 ##
 ## Keyboard: arrows (or W/S) move between buttons, Enter (or E) picks,
 ## left/right change a setting, Esc goes back. The mouse works too.
@@ -242,7 +241,7 @@ func toast(text: String) -> void:
 func _build_main_page() -> void:
 	var page := _page("main", "")
 	_button(page, "PLAY", func(): _push("play"), true)
-	_button(page, "PRACTICE", _on_practice, false, "SOON")
+	_button(page, "PRACTICE ISLAND", _on_practice)
 	_button(page, "ONLINE", _on_online, false, "SOON")
 	_button(page, "SETTINGS", func(): _push("settings"))
 	_button(page, "CONTROLS", func(): _push("controls"))
@@ -251,9 +250,7 @@ func _build_main_page() -> void:
 
 
 func _on_practice() -> void:
-	# The hub world will hook in here (main.gd listens for this signal).
 	practice_requested.emit()
-	toast("The practice hub is coming soon!")
 
 
 func _on_online() -> void:

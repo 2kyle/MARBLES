@@ -11,6 +11,9 @@ extends Area3D
 var placed_by := -1
 ## The other half (entry <-> exit). Set by the build code.
 var partner: Node3D = null
+## Practice pads can be used again and again (with a short pause per
+## marble). Match teleporters work once per marble per frame.
+var reusable := false
 ## True for the exit pad. Exits don't send marbles anywhere.
 var is_exit := false:
 	set(value):
@@ -132,9 +135,10 @@ func _on_body_entered(body: Node) -> void:
 	if is_exit or not body is Marble or not is_instance_valid(partner):
 		return
 	var id := body.get_instance_id()
-	if _used.has(id):
+	var now := Time.get_ticks_msec()
+	if _used.has(id) and (not reusable or now - _used[id] < 1000):
 		return
-	_used[id] = true
+	_used[id] = now
 	_send.call_deferred(body)
 
 
@@ -147,7 +151,8 @@ func _send(m: Marble) -> void:
 	var speed := maxf(m.linear_velocity.length(), 3.0)
 	_flash(global_position)
 	m.global_position = partner.global_position + partner.global_basis.y.normalized() * 0.4 + fwd * 0.5
-	m.linear_velocity = fwd * speed
+	m.linear_velocity = fwd * (2.0 if reusable else speed)
+	m.angular_velocity = Vector3.ZERO
 	_flash(partner.global_position)
 
 

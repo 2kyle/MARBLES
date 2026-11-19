@@ -7,10 +7,10 @@ extends Node3D
 signal swept(player_id: int)
 
 @export var pin_scene: PackedScene = preload("res://scenes/pin.tscn")
-## Rows of pins. 6 rows = 21 pins (regular bowling uses 4 rows = 10).
-@export_range(1, 8) var rows := 6
+## Rows of pins. 7 rows = 28 pins (regular bowling uses 4 rows = 10).
+@export_range(1, 8) var rows := 7
 ## Distance between neighbouring pins.
-@export var spacing := 0.75
+@export var spacing := 0.78
 
 var pins: Array[Pin] = []
 var last_fallen: Pin = null
@@ -27,7 +27,7 @@ func reset() -> void:
 		for i in row + 1:
 			var pin: Pin = pin_scene.instantiate()
 			var x := (i - row / 2.0) * spacing
-			pin.position = Vector3(x, 0.45, -row * row_depth)
+			pin.position = Vector3(x, 0.52, -row * row_depth)
 			pin.fell.connect(_on_pin_fell)
 			add_child(pin)
 			pins.append(pin)

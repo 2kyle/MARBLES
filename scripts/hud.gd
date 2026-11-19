@@ -1,7 +1,7 @@
 class_name Hud
 extends CanvasLayer
 ## Everything drawn on top of the game: scores, phase banners, the draft
-## cards and pointers, the locker, the scoreboard and key hints.
+## cards and pointers, the Customize screen, the scoreboard and key hints.
 ## Only reads game state, never changes it.
 ##
 ## Fonts: Fredoka for normal text (set for the whole project in
@@ -30,8 +30,8 @@ var _board_lines: Label
 var _hints: HBoxContainer
 var _hints_key := ""
 var _chips: HBoxContainer    # build-phase status, bottom centre
-var _locker: HBoxContainer
-var _locker_title: Label
+var _customize: HBoxContainer
+var _customize_title: Label
 
 var _draft_root: Control
 var _draft_dim: ColorRect
@@ -95,16 +95,16 @@ func _ready() -> void:
 
 	_build_board()
 
-	_locker = HBoxContainer.new()
-	_locker.add_theme_constant_override("separation", 18)
-	_locker.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	_locker.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_locker.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_locker.offset_bottom = -58
-	add_child(_locker)
-	_locker_title = _title_label(52, Control.PRESET_CENTER_TOP)
-	_locker_title.offset_top = 62
-	_locker_title.text = "LOCKER"
+	_customize = HBoxContainer.new()
+	_customize.add_theme_constant_override("separation", 18)
+	_customize.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_customize.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_customize.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_customize.offset_bottom = -58
+	add_child(_customize)
+	_customize_title = _title_label(52, Control.PRESET_CENTER_TOP)
+	_customize_title.offset_top = 62
+	_customize_title.text = "CUSTOMIZE"
 
 	_hints = HBoxContainer.new()
 	_hints.add_theme_constant_override("separation", 6)
@@ -120,15 +120,17 @@ func refresh(game) -> void:
 	visible = game.state != game.State.MENU
 	if not visible:
 		return
-	_update_scores(game)
+	_scores.visible = game.state != game.State.HUB
+	if _scores.visible:
+		_update_scores(game)
 	_update_top(game)
 	_update_countdown(game)
 	_update_draft(game)
 	_update_chips(game)
-	_update_locker(game)
+	_update_customize(game)
 
 	var show_board: bool = game.state in [game.State.RESULTS, game.State.MATCH_OVER] \
-			or (Input.is_action_pressed("scoreboard") and game.state != game.State.WAITING)
+			or (Input.is_action_pressed("scoreboard") and not game.state in [game.State.WAITING, game.State.HUB])
 	_board.visible = show_board
 	if show_board:
 		_fill_board(game)
@@ -185,7 +187,7 @@ func _update_top(game) -> void:
 	if game.state == game.State.ROLLING:
 		text += "      %ds" % ceili(game.time_left())
 	_badge.text = text
-	_badge.visible = game.state != game.State.WAITING
+	_badge.visible = not game.state in [game.State.WAITING, game.State.HUB]
 
 	var banner := ""
 	match game.state:
@@ -410,19 +412,25 @@ func _update_chips(game) -> void:
 		l.add_theme_color_override("font_color", Color(1, 0.45, 0.4) if state == "BLOCKED" else Color.WHITE)
 
 
-# ------------------------------------------------------------ Locker
+# ------------------------------------------------------------ Customize
 
-func _update_locker(game) -> void:
-	var show: bool = game.state == game.State.WAITING
-	_locker.visible = show
-	_locker_title.visible = show
+func _update_customize(game) -> void:
+	# Before a match everyone customizes; on the practice island only the
+	# players parked on the Customize plate do.
+	var in_hub: bool = game.state == game.State.HUB
+	var show: bool = game.state == game.State.WAITING or (in_hub and game.customize_open.has(true))
+	_customize.visible = show
+	_customize_title.visible = show
 	if not show:
 		return
-	while _locker.get_child_count() < game.player_count:
-		_locker.add_child(_make_locker_panel())
-	_show_first(_locker, game.player_count)
+	while _customize.get_child_count() < game.player_count:
+		_customize.add_child(_make_customize_panel())
+	_show_first(_customize, game.player_count)
+	if in_hub:
+		for p in game.player_count:
+			_customize.get_child(p).visible = game.customize_open[p]
 	for p in game.player_count:
-		var panel: PanelContainer = _locker.get_child(p)
+		var panel: PanelContainer = _customize.get_child(p)
 		var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
 		style.border_color = game.player_colors[p]
 		var box := panel.get_child(0)
@@ -432,10 +440,10 @@ func _update_locker(game) -> void:
 		head.get_child(2).text = "%d COINS" % game.profiles.coins(p)
 		for r in Cosmetics.SLOTS.size():
 			var slot: String = Cosmetics.SLOTS[r]
-			var id: String = game.locker_browse[p].get(slot, game.profiles.equipped(p, slot))
+			var id: String = game.customize_browse[p].get(slot, game.profiles.equipped(p, slot))
 			var item := Cosmetics.find(slot, id)
 			var row: PanelContainer = box.get_child(1 + r)
-			var selected: bool = game.locker_row[p] == r
+			var selected: bool = game.customize_row[p] == r
 			var row_style: StyleBoxFlat = row.get_theme_stylebox("panel")
 			row_style.bg_color = Color(1, 1, 1, 0.12) if selected else Color(0, 0, 0, 0)
 			var cols: HBoxContainer = row.get_child(0)
@@ -445,17 +453,17 @@ func _update_locker(game) -> void:
 			cols.get_child(2).text = "" if owned else str(item.price)
 			cols.get_child(2).visible = not owned
 		var foot: Label = box.get_child(1 + Cosmetics.SLOTS.size())
-		var slot_now: String = Cosmetics.SLOTS[game.locker_row[p]]
-		var id_now: String = game.locker_browse[p].get(slot_now, "")
-		if game.locker_message[p] != "":
-			foot.text = game.locker_message[p]
+		var slot_now: String = Cosmetics.SLOTS[game.customize_row[p]]
+		var id_now: String = game.customize_browse[p].get(slot_now, "")
+		if game.customize_message[p] != "":
+			foot.text = game.customize_message[p]
 		elif id_now != "" and not game.profiles.owns(p, slot_now, id_now):
 			foot.text = "%s  Buy" % _key_names(p).confirm
 		else:
 			foot.text = ""
 
 
-func _make_locker_panel() -> PanelContainer:
+func _make_customize_panel() -> PanelContainer:
 	var panel := PanelContainer.new()
 	var style := _pill(PANEL_BG, 14, 12)
 	style.border_width_top = 5
@@ -655,6 +663,14 @@ func _update_hints(game) -> void:
 				var k := _key_names(p)
 				items += [[k.move, "P%d" % (p + 1)], [k.confirm, "Buy"], "|"]
 			items += [["SPACE", "Start"], ["V", "Track"], ["ESC", "Pause"]]
+		game.State.HUB:
+			for p in n:
+				var k := _key_names(p)
+				if game.customize_open[p]:
+					items += [[k.move, "P%d Browse" % (p + 1)], [k.confirm, "Buy"], [k.rotate, "Done"], "|"]
+				else:
+					items += [[k.move, "P%d Roll" % (p + 1)], [k.confirm, "Hop"], "|"]
+			items += [["ESC", "Pause"]]
 		game.State.DRAFT:
 			for p in n:
 				var k := _key_names(p)

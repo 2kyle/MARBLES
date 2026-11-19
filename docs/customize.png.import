@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cr5u03aa8m5qa"
-path="res://.godot/imported/locker.png-0d7fd22f594c8d18a5ea7dcfcc32fc85.ctex"
+uid="uid://dluax3tik2i1s"
+path="res://.godot/imported/customize.png-f8887d1bec6a008e614935c4635e6d9e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/locker.png"
-dest_files=["res://.godot/imported/locker.png-0d7fd22f594c8d18a5ea7dcfcc32fc85.ctex"]
+source_file="res://docs/customize.png"
+dest_files=["res://.godot/imported/customize.png-f8887d1bec6a008e614935c4635e6d9e.ctex"]
 
 [params]
 

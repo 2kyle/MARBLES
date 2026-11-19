@@ -30,6 +30,7 @@ func _make(id: String) -> Texture2D:
 
 	var info := PieceCatalog.info(id)
 	var piece: Node3D = load(info.scene).instantiate()
+	PieceStyle.dress(piece, id)
 	piece.rotation.y = deg_to_rad(info.base_rotation)
 	piece.scale = Vector3.ONE * PieceCatalog.scale_of(id)
 	# A plain floor tile under the piece so flat pieces read clearly.

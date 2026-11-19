@@ -30,19 +30,31 @@ During a match, **Esc** opens the pause menu.
 
 A small floating island to warm up on. It's its own place, high above a sea of clouds with its own sky; the match lake and track are hidden while you're there. Roll with your lean keys (forward is away from the camera) and hop with your place key. Nothing here counts.
 
+Only people come to the island (no bots). The camera follows your marble, and with two or more players it pulls back to keep everyone in view. A coloured name tag (P1, P2...) with a little arrow floats over each marble so you can always find yourself, and it grows when the camera is far away.
+
 - **Practice run:** a winding track down from the stone START tower, with a gap to hop and a steep drop. It ends on the plaza, where a big blue pad sends you straight back to the top. The **PRACTICE RUN** pad on the plaza takes you up too.
 - **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch to open your **closet** (see below). One player at a time.
 - **Loot Crates plate** (by the welcome sign, under the floating crate): spend coins on loot crates to win new looks (see below).
 - **Golden Marble Trophy:** anyone who has pulled the ultra-rare trophy gets it on a little stand on the east side of the plaza.
 - **Marble Derby** (west lawn): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four marble "horses" (Frank, Trunk, Fatty and Jakob) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
 - **Your coins** show in the top right corner the whole time you're on the island.
-- An empty plot on the east lawn is saved for the next minigame.
+- **Sports island:** a wooden bridge off the east edge (follow the SPORTS sign) leads to a second island (see below).
 - A rope bridge off the north edge leads to a tiny lookout islet, and there's a cottage with a smoking chimney and a vegetable garden, benches, bunting over the plaza, hot-air balloons and flocks of birds.
 - **Hurdles** to practise hops, and a few real pieces (bumpers, a booster, a spinner, a jump ramp) to play with.
 - **PLAY arch:** roll through it to start a match with the options from the Play page.
 - Fall off the edge and you pop back on the plaza. **Esc** opens the pause menu, where Retry puts everyone back at the start.
 
 ![The Marble Derby](docs/derby.png)
+
+#### Sports island
+
+![Sinking a basket off the trampoline](docs/sports.png)
+
+- **Soccer:** a small pitch with a blue goal on the left and an orange goal on the right. Push the big ball into the orange goal to score for blue, and into the blue goal to score for orange. The scoreboard behind the pitch keeps count, everyone gets a GOAL! and confetti, and the ball goes back to the middle for kick-off. If the ball gets knocked off the pitch it comes back to the middle too.
+- **Hoops:** roll onto the trampoline set into the ground and it throws you at the basketball hoop. Most throws go in (not all!). A basket gets a SWISH!, a burst of confetti and adds one to the BASKETS count on the backboard.
+- Fall off the sports island and you come back on the sports island, not the main one.
+
+It's built in code in `scripts/sports_island.gd`.
 
 The island is built in code in `scripts/hub.gd` (the derby is `scripts/horse_race.gd`): windmill, pond and waterfall, trees, flowers, lanterns, butterflies, drifting clouds and little floating rocks.
 
@@ -62,7 +74,7 @@ While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small 
 
 ### Bots
 
-Bots fill empty seats and play by the same rules as people: they wander over to a card in the draft and grab it, slide their piece somewhere down the track and drop it, then roll down the middle of the lane, leaning forward and hopping gaps. They're good but not perfect (they wobble a little). On the practice island they potter about and hop now and then. Each bot gets its own random look, always with eyes. Their code is `scripts/bot.gd`: a bot just answers "which way is my stick, and which buttons did I press?" every frame, exactly like a controller, so the referee treats it like anyone else.
+Bots fill empty seats and play by the same rules as people: they wander over to a card in the draft and grab it, slide their piece somewhere down the track and drop it, then roll down the middle of the lane, leaning forward and hopping gaps. They're good but not perfect (they wobble a little). Each bot gets its own random look, always with eyes. Their code is `scripts/bot.gd`: a bot just answers "which way is my stick, and which buttons did I press?" every frame, exactly like a controller, so the referee treats it like anyone else.
 
 ### Online play
 
@@ -158,6 +170,10 @@ Pieces further down the track move with it, and the pins move to the new end.
 | TA: Wall Breaker | Takes the side walls off 10 m of track from where you drop it, without changing its shape. The stretch shows red and white stripes while you place it |
 | Bomb (item) | Drop it on the lane to blow up every piece inside the red circle. It doesn't stay |
 
+![The pieces in their painted-toy finish](docs/pieces.png)
+
+Every piece is painted like a wooden toy: candy-striped bumpers, chevrons pointing the way a booster or ramp pushes you, checks on the tilt table, wood grain on the spinner hub, hazard stripes on drops and holes. The paint is one shader (`shaders/toy_paint.gdshader`) and each piece's colours and pattern are a short entry in the `STYLES` list in `scripts/piece_style.gd`, so restyling a piece is just changing a few numbers there.
+
 ## How to play it
 
 1. **Install Godot.** Download **Godot 4.4 or newer, the standard version** (not ".NET") from <https://godotengine.org/download>. On Windows it's a zip file: unzip it anywhere and double-click the `Godot_v4...exe` inside. There's no installer.
@@ -215,7 +231,7 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | Rescuing stuck marbles | `scenes/main.tscn`, `Main` node | Stuck Time, Rescue Time |
 | Steering strength | `scenes/marble.tscn`, root node | Lean Side Force, Lean Forward Force |
 | How snappy steering feels | `scenes/marble.tscn`, root node | Lean Attack (how fast a lean builds up), Lean Release (how fast it dies away), Counter Steer Boost (extra push when you steer against a slide) |
-| Who the camera follows | `scenes/main.tscn`, `Main` node | Camera Follow: All Marbles keeps every rolling marble in shot; One Marble follows only Camera Player's marble (for online play later). Camera Shake sets how hard crashes shake the screen |
+| Who the camera follows | `scenes/main.tscn`, `Main` node | Camera Follow: All Marbles keeps every rolling marble in shot; One Marble follows only Camera Player's marble. Camera Shake sets how hard crashes shake the screen |
 | How far the camera may pull back | `scenes/main.tscn`, `Camera` node | Frame Margin, Max Zoom, Zoom Out Speed, Zoom In Speed |
 | How heavy the marble is | `scenes/marble.tscn`, root node | Mass (heavier scatters pins harder) |
 | Bumper kick | `scenes/marble.tscn`, root node | Bumper Kick |
@@ -286,7 +302,10 @@ scripts/
   course_builder.gd  the build area, placed pieces, and the bomb
   teleporter.gd      the two-part teleporter pad
   wind_fan.gd        the wind fan piece
-  hub.gd             the practice island (practice run, closet and crate plates, trophies, PLAY arch)
+  hub.gd             the practice island (practice run, closet and crate plates, trophies, PLAY arch, name tags)
+  sports_island.gd   the sports island: soccer pitch and scoreboard, trampoline and hoop
+  low_poly.gd        shared helpers for building simple shapes, labels and confetti in code
+  piece_style.gd     the painted-toy colours and patterns for every lane piece
   horse_race.gd      the Marble Derby betting minigame
   main_menu.gd       title screen, Play/Settings/Controls/Credits pages, pause menu
   game_settings.gd   saved settings (screen, sound, camera, match options)
@@ -304,6 +323,7 @@ ui/theme.tres        default font and text size for all menus
 shaders/
   marble.gdshader    marble patterns (stripes, swirl, galaxy, lava...)
   water.gdshader     the moving water
+  toy_paint.gdshader the painted-toy finish on the lane pieces
 tests/
   test_scoring.gd    checks the scoring rules
   test_controls.gd   presses fake keys and controller buttons through menus, settings and a match
@@ -313,6 +333,7 @@ tests/
   sim_hub.gd         checks the practice island's teleports, closet, a loot crate, derby bet and PLAY arch
   test_crates.gd     opens 100,000 crates and checks the odds (1% trophy and so on)
   sim_bots.gd        one idle person and three bots: checks bots draft, build and roll on their own
+  sim_sports.gd      checks people-only island, name tags, a trampoline basket and a soccer goal
   net_host.gd, net_client.gd, run_net_test.sh   plays an online match between two copies of the game
 ```
 
@@ -328,5 +349,6 @@ godot --headless --script res://tests/test_crates.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_roll.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_gap.gd -- hop
 godot --headless --fixed-fps 120 --script res://tests/sim_bots.gd
+godot --headless --fixed-fps 120 --script res://tests/sim_sports.gd
 GODOT=godot tests/run_net_test.sh
 ```

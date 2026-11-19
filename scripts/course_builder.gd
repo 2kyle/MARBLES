@@ -100,6 +100,7 @@ func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 	if not can_place(id, pos):
 		return false
 	var node: Node3D = load(PieceCatalog.info(id).scene).instantiate()
+	PieceStyle.dress(node, id)
 	node.transform = piece_xform(id, pos, angle)
 	if "placed_by" in node:
 		node.placed_by = by_player
@@ -289,6 +290,7 @@ func make_ghost(id: String) -> Node3D:
 		add_child(ribbon)
 		return ribbon
 	var ghost: Node3D = load(PieceCatalog.info(id).scene).instantiate()
+	PieceStyle.dress(ghost, id)
 	ghost.process_mode = Node.PROCESS_MODE_DISABLED
 	_make_inert(ghost)
 	if PieceCatalog.is_bomb(id):

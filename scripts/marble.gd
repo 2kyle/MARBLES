@@ -60,6 +60,9 @@ var best_distance := 0.0
 var best_time := 0.0
 
 var _hop_wait := 0.0
+## While above 0, leaning does nothing (counts down in seconds). Used when
+## something launches the marble, like the trampoline, so it flies true.
+var no_steer_time := 0.0
 var _lean_now := Vector2.ZERO
 var _air_time := 0.0
 var _fall_speed := 0.0
@@ -173,6 +176,10 @@ func _physics_process(delta: float) -> void:
 	if freeze or out:
 		return
 	_hop_wait = maxf(_hop_wait - delta, 0.0)
+	if no_steer_time > 0.0:
+		no_steer_time -= delta
+		_track_landing(delta)
+		return
 	if arrived:
 		# Past the finish line: no more steering, just the momentum it has.
 		_lean_now = Vector2.ZERO

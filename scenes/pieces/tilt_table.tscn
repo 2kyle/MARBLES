@@ -29,6 +29,7 @@ size = Vector3(0.08, 0.02, 2.2)
 script = ExtResource("1_tilt")
 
 [node name="Plate" type="AnimatableBody3D" parent="."]
+position = Vector3(0, 0.1, 0)
 physics_material_override = SubResource("Phys")
 
 [node name="Shape" type="CollisionShape3D" parent="Plate"]

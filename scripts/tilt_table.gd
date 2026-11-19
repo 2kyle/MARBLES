@@ -3,7 +3,7 @@ extends Node3D
 
 var placed_by := -1
 ## Biggest tilt, in degrees.
-@export var max_tilt := 11.0
+@export var max_tilt := 8.0
 ## Rocks back and forth this many times per second.
 @export var rocks_per_second := 0.35
 

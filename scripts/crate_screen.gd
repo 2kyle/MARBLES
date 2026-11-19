@@ -424,15 +424,15 @@ func _make_crate() -> Node3D:
 	var wood := Color(0.78, 0.52, 0.3)
 	var dark := Color(0.55, 0.34, 0.18)
 	var gold := Color(1.0, 0.78, 0.25)
-	_box(root, Vector3(1.4, 0.9, 1.0), Vector3(0, 0.45, 0), wood)
+	LowPoly.box(root, Vector3(1.4, 0.9, 1.0), Vector3(0, 0.45, 0), wood)
 	for y in [0.2, 0.45, 0.7]:
-		_box(root, Vector3(1.42, 0.05, 1.02), Vector3(0, y, 0), dark)
+		LowPoly.box(root, Vector3(1.42, 0.05, 1.02), Vector3(0, y, 0), dark)
 	for x in [-0.68, 0.68]:
 		for z in [-0.48, 0.48]:
-			_box(root, Vector3(0.1, 0.92, 0.1), Vector3(x, 0.46, z), gold)
+			LowPoly.box(root, Vector3(0.1, 0.92, 0.1), Vector3(x, 0.46, z), gold)
 	# The seam that glows while it shakes.
-	var seam := _box(root, Vector3(1.38, 0.1, 0.98), Vector3(0, 0.93, 0), Color(1, 0.95, 0.8))
-	_glow_mat = seam.material_override
+	var seam := LowPoly.box(root, Vector3(1.38, 0.1, 0.98), Vector3(0, 0.93, 0), Color(1, 0.95, 0.8))
+	_glow_mat = LowPoly.own_mat(seam)
 	_glow_mat.emission_enabled = true
 	_glow_mat.emission = Color(1, 0.95, 0.8)
 	_light = OmniLight3D.new()
@@ -442,24 +442,10 @@ func _make_crate() -> Node3D:
 	root.add_child(_light)
 	_lid = Node3D.new()
 	root.add_child(_lid)
-	_box(_lid, Vector3(1.5, 0.24, 1.1), Vector3(0, 0.5, 0), wood)
-	_box(_lid, Vector3(1.52, 0.06, 1.12), Vector3(0, 0.42, 0), gold)
-	_box(_lid, Vector3(0.3, 0.3, 0.08), Vector3(0, 0.38, 0.56), gold)
+	LowPoly.box(_lid, Vector3(1.5, 0.24, 1.1), Vector3(0, 0.5, 0), wood)
+	LowPoly.box(_lid, Vector3(1.52, 0.06, 1.12), Vector3(0, 0.42, 0), gold)
+	LowPoly.box(_lid, Vector3(0.3, 0.3, 0.08), Vector3(0, 0.38, 0.56), gold)
 	return root
-
-
-func _box(parent: Node3D, size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var b := BoxMesh.new()
-	b.size = size
-	mi.mesh = b
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = 0.85
-	mi.material_override = m
-	mi.position = pos
-	parent.add_child(mi)
-	return mi
 
 
 func _label(text: String, size: int, color: Color) -> Label:

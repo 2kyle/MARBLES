@@ -163,6 +163,7 @@ func _show_tab(t: int, animate: bool) -> void:
 	tab = t
 	var slot: String = Cosmetics.SLOTS[t]
 	for c in _grid.get_children():
+		_grid.remove_child(c)  # out of the layout now, not at the end of the frame
 		c.queue_free()
 	_cards.clear()
 	var owned := 0
@@ -178,8 +179,11 @@ func _show_tab(t: int, animate: bool) -> void:
 	for i in _tabs.size():
 		var label: Label = _tabs[i].get_child(0)
 		label.add_theme_color_override("font_color", Color.WHITE if i == t else Color(1, 1, 1, 0.45))
-	_select(Cosmetics.index_of(slot, profiles.equipped(player, slot)), false)
+	_select(Cosmetics.index_of(slot, profiles.equipped(player, slot)), false, false)
 	_refresh_cards()
+	# A new tab always starts scrolled to the top.
+	_scroll.scroll_vertical = 0
+	_scroll.set_deferred("scroll_vertical", 0)
 	# Slide the underline under the new tab once the row has laid out.
 	_move_underline.call_deferred(animate)
 	if animate:
@@ -206,15 +210,16 @@ func _move_underline(animate: bool) -> void:
 		_underline.size = to_size
 
 
-func _select(i: int, animate := true) -> void:
+func _select(i: int, animate := true, scroll := true) -> void:
 	var old := index
 	index = clampi(i, 0, _cards.size() - 1)
 	_highlight()
 	if animate and old != index:
 		_bounce_marble()
 	_try_on()
-	var card: Dictionary = _cards[index]
-	_ensure_visible.call_deferred(card.panel)
+	if scroll:
+		var card: Dictionary = _cards[index]
+		_ensure_visible.call_deferred(card.panel)
 
 
 func _ensure_visible(c: Control) -> void:

@@ -9,6 +9,8 @@ extends Node3D
 
 const INK := Color(0.08, 0.07, 0.1)
 const WHITE := Color(0.98, 0.98, 1.0)
+## How far every pair sits below the height it's drawn at in setup().
+const EYE_DROP := 0.08
 
 var kind := "classic"
 ## The marble's colour (for eyelids).
@@ -78,7 +80,7 @@ func setup(p_kind: String, p_color: Color) -> void:
 				_disc(e, 0.08, WHITE, Vector3(0.08, 0.08, -0.06))
 				_disc(e, 0.04, WHITE, Vector3(-0.07, -0.08, -0.06))
 		"cyclops":
-			var e := _eye(0.0, 0.0, 0.3)
+			var e := _eye(0.0, 0.0, 0.2)
 			_disc(e, 0.4, WHITE)
 			_disc(e, 0.2, Color(0.2, 0.55, 0.3), Vector3(0, -0.02, -0.08))
 			_disc(e, 0.1, INK, Vector3(0, -0.02, -0.12))
@@ -169,7 +171,9 @@ func wince(strength: float) -> void:
 
 ## One eye, sitting on the front of the ball. `side` -1 left, +1 right.
 func _eye(side: float, across: float, up: float) -> Node3D:
-	var out := Vector3(side * across, up, -1.0).normalized()
+	# A little below where the shapes were drawn, so hat brims and bands
+	# never cover them.
+	var out := Vector3(side * across, up - EYE_DROP, -1.0).normalized()
 	var holder := Node3D.new()
 	holder.basis = Basis.looking_at(out, Vector3.UP)
 	holder.position = out * 0.98

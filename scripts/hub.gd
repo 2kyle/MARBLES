@@ -38,6 +38,8 @@ const CRATE_POS := Vector3(-10, 0, 14.5)
 ## Where Golden Marble Trophies stand (one per player who's won one).
 const TROPHY_POS := Vector3(10.8, 0, 11.2)
 const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+## How high a player's name tag floats over their marble.
+const TAG_HEIGHT := 0.85
 const FLOWER_COLORS := [Color(1, 0.45, 0.6), Color(1, 0.85, 0.3), Color(0.7, 0.5, 1),
 		Color(1, 1, 1), Color(1, 0.55, 0.25)]
 
@@ -47,6 +49,8 @@ var built := false
 var on_plate: Array = [false, false, false, false]
 ## The horse race minigame.
 var derby: HorseRace
+## The sports island off the east edge (soccer and basketball).
+var sports: SportsIsland
 
 ## Which plate each player is parked on (its position).
 var _plate_of: Array = [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]
@@ -60,9 +64,9 @@ var _clouds: Array = []
 var _bobbers: Array = []
 var _time := 0.0
 var _rng := RandomNumberGenerator.new()
-var _mats := {}
 var _trophies: Array = []   # trophy nodes on the island right now
 var _crate_deco: Node3D
+var _tags: Array = []      # per marble: the floating "P1" tag over it
 
 
 func _process(delta: float) -> void:
@@ -85,6 +89,15 @@ func _process(delta: float) -> void:
 		_crate_deco.position.y = 1.6 + sin(_time * 1.8) * 0.12
 	for b in _bobbers:
 		(b.node as Node3D).position.y = b.y + sin(_time * b.speed + b.phase) * b.amount
+	var cam := get_viewport().get_camera_3d()
+	for i in mini(_tags.size(), marbles.size()):
+		var tag: Node3D = _tags[i]
+		var at := marbles[i].global_position
+		# Grow with distance so the tag stays readable when the camera
+		# pulls back to fit everyone in.
+		var grow := clampf(cam.global_position.distance_to(at) / 9.0, 1.0, 4.0) if cam else 1.0
+		tag.scale = Vector3.ONE * grow
+		tag.global_position = at + Vector3.UP * (TAG_HEIGHT + 0.25 * (grow - 1.0) + sin(_time * 3.0 + i) * 0.05)
 	for plate in _plates:
 		var pressed := false
 		for p in 4:
@@ -112,6 +125,9 @@ func start(count: int, looks: Array, marble_scene: PackedScene) -> void:
 		add_child(m)
 		m.global_position = spawn_point(p)
 		marbles.append(m)
+		var tag := _name_tag("P%d" % (p + 1), looks[p].color.color)
+		add_child(tag)
+		_tags.append(tag)
 	on_plate = [false, false, false, false]
 
 
@@ -130,6 +146,44 @@ func stop_marbles() -> void:
 	for m in marbles:
 		m.queue_free()
 	marbles.clear()
+	for t in _tags:
+		t.queue_free()
+	_tags.clear()
+
+
+## A floating "P1" with a little arrow pointing down at the marble, in the
+## player's colour. It always faces the camera and shows through walls.
+func _name_tag(text: String, color: Color) -> Node3D:
+	var tag := Node3D.new()
+	tag.top_level = true
+	var label := Label3D.new()
+	label.text = text
+	label.font = TITLE_FONT
+	label.font_size = 64
+	label.pixel_size = 0.006
+	label.outline_size = 18
+	label.modulate = color.lightened(0.15)
+	label.outline_modulate = Color(0.06, 0.05, 0.12)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.position.y = 0.32
+	tag.add_child(label)
+	var arrow := MeshInstance3D.new()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for v in [Vector3(-0.13, 0.1, 0), Vector3(0.13, 0.1, 0), Vector3(0, -0.08, 0)]:
+		st.add_vertex(v)
+	arrow.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.no_depth_test = true
+	mat.albedo_color = color.lightened(0.15)
+	arrow.material_override = mat
+	arrow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	tag.add_child(arrow)
+	return tag
 
 
 func spawn_point(p: int) -> Vector3:
@@ -139,9 +193,12 @@ func spawn_point(p: int) -> Vector3:
 ## Called every physics tick while the hub is open.
 func physics_update(delta: float) -> void:
 	derby.update(delta)
+	sports.update(delta)
 	for m in marbles:
 		if m.global_position.y < global_position.y - 8.0:
-			m.global_position = spawn_point(m.player_id) + Vector3.UP * 1.5
+			# Back onto whichever island they fell off.
+			var on_sports := to_local(m.global_position).x > ISLAND_RADIUS + 4.0
+			m.global_position = (sports.spawn_point() if on_sports else spawn_point(m.player_id)) + Vector3.UP * 1.5
 			_poof(m.global_position)
 			m.linear_velocity = Vector3.ZERO
 			m.angular_velocity = Vector3.ZERO
@@ -170,7 +227,7 @@ func _build() -> void:
 	_customize_plate()
 	_crate_plate()
 	_derby()
-	_coming_soon(Vector3(27, 0, 2))
+	_sports_island()
 	_play_portal()
 	_hurdles()
 	_playground()
@@ -204,23 +261,23 @@ func _island() -> void:
 	body.add_child(shape)
 	add_child(body)
 
-	_cyl(self, ISLAND_RADIUS, ISLAND_RADIUS - 0.3, 0.4, Vector3(0, -0.2, 0), Color(0.36, 0.66, 0.3), 40)
-	_cyl(self, ISLAND_RADIUS - 0.3, ISLAND_RADIUS - 2.0, 1.8, Vector3(0, -1.3, 0), Color(0.55, 0.38, 0.24), 40)
+	LowPoly.cyl(self, ISLAND_RADIUS, ISLAND_RADIUS - 0.3, 0.4, Vector3(0, -0.2, 0), Color(0.36, 0.66, 0.3), 40)
+	LowPoly.cyl(self, ISLAND_RADIUS - 0.3, ISLAND_RADIUS - 2.0, 1.8, Vector3(0, -1.3, 0), Color(0.55, 0.38, 0.24), 40)
 	# Rocky underside, a few low-poly layers getting narrower.
 	var rock := Color(0.48, 0.44, 0.42)
-	_cyl(self, ISLAND_RADIUS - 2.0, ISLAND_RADIUS * 0.55, 5.0, Vector3(0, -4.7, 0), rock, 11)
-	_cyl(self, ISLAND_RADIUS * 0.55, 3.0, 9.0, Vector3(0, -11.7, 0), rock.darkened(0.15), 9)
+	LowPoly.cyl(self, ISLAND_RADIUS - 2.0, ISLAND_RADIUS * 0.55, 5.0, Vector3(0, -4.7, 0), rock, 11)
+	LowPoly.cyl(self, ISLAND_RADIUS * 0.55, 3.0, 9.0, Vector3(0, -11.7, 0), rock.darkened(0.15), 9)
 	for i in 7:
 		var a := TAU * i / 7.0 + 0.4
 		var r := ISLAND_RADIUS * _rng.randf_range(0.35, 0.6)
 		var h := _rng.randf_range(3.0, 7.0)
-		_cyl(self, _rng.randf_range(1.5, 2.6), 0.3, h, Vector3(cos(a) * r, -7.2 - h / 2.0, sin(a) * r), rock.darkened(0.1), 6)
+		LowPoly.cyl(self, _rng.randf_range(1.5, 2.6), 0.3, h, Vector3(cos(a) * r, -7.2 - h / 2.0, sin(a) * r), rock.darkened(0.1), 6)
 	# Hanging vines.
 	for i in 24:
 		var a := _rng.randf() * TAU
 		var r := ISLAND_RADIUS - 1.2
 		var h := _rng.randf_range(1.5, 5.0)
-		_cyl(self, 0.06, 0.04, h, Vector3(cos(a) * r, -1.6 - h / 2.0, sin(a) * r), Color(0.3, 0.55, 0.25), 4)
+		LowPoly.cyl(self, 0.06, 0.04, h, Vector3(cos(a) * r, -1.6 - h / 2.0, sin(a) * r), Color(0.3, 0.55, 0.25), 4)
 
 
 func _fence() -> void:
@@ -235,15 +292,15 @@ func _fence() -> void:
 		var a1 := TAU * (i + 1) / n
 		var p0 := Vector3(cos(a0), 0, sin(a0)) * (ISLAND_RADIUS - 0.6)
 		var p1 := Vector3(cos(a1), 0, sin(a1)) * (ISLAND_RADIUS - 0.6)
-		if i == 53 or i == 54:
-			continue  # the opening for the bridge to the lookout
-		_box(self, Vector3(0.14, 0.7, 0.14), p0 + Vector3.UP * 0.35, wood, 0.0)
+		if i == 53 or i == 54 or i == 0 or i == 1:
+			continue  # openings for the bridges (lookout north, sports east)
+		LowPoly.box(self, Vector3(0.14, 0.7, 0.14), p0 + Vector3.UP * 0.35, wood, 0.0)
 		if i % 9 == 4:
 			continue  # a gap in the fence
 		var mid := (p0 + p1) / 2.0
 		var yaw := atan2(p1.x - p0.x, p1.z - p0.z)
 		var length := p0.distance_to(p1)
-		_box(self, Vector3(0.08, 0.1, length), mid + Vector3.UP * 0.5, wood.lightened(0.1), yaw)
+		LowPoly.box(self, Vector3(0.08, 0.1, length), mid + Vector3.UP * 0.5, wood.lightened(0.1), yaw)
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = Vector3(0.12, 0.55, length)
@@ -310,7 +367,7 @@ func _start_tower(start: Transform3D) -> void:
 	var at := Vector3(start.origin.x, 0, start.origin.z) + back * 2.2
 	var h := start.origin.y - 0.25
 	var stone := Color(0.78, 0.74, 0.68)
-	_cyl(self, 1.9, 2.3, h, at + Vector3.UP * h / 2.0, stone, 10)
+	LowPoly.cyl(self, 1.9, 2.3, h, at + Vector3.UP * h / 2.0, stone, 10)
 	var body := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
 	var cyl := CylinderShape3D.new()
@@ -322,68 +379,67 @@ func _start_tower(start: Transform3D) -> void:
 	add_child(body)
 	# Stripes of darker stone and little windows going up.
 	for k in int(h / 3.0):
-		_cyl(self, 1.95 + 0.03 * k, 1.95 + 0.03 * k, 0.25, at + Vector3.UP * (2.0 + k * 3.0), stone.darkened(0.15), 10)
+		LowPoly.cyl(self, 1.95 + 0.03 * k, 1.95 + 0.03 * k, 0.25, at + Vector3.UP * (2.0 + k * 3.0), stone.darkened(0.15), 10)
 		var a := k * 1.3
-		_box(self, Vector3(0.45, 0.7, 0.1), at + Vector3(sin(a), 0, cos(a)) * 2.1 + Vector3.UP * (1.2 + k * 3.0 + 1.3),
+		LowPoly.box(self, Vector3(0.45, 0.7, 0.1), at + Vector3(sin(a), 0, cos(a)) * 2.1 + Vector3.UP * (1.2 + k * 3.0 + 1.3),
 				Color(0.25, 0.2, 0.3), a)
 	# Battlements round the top.
 	for k in 10:
 		var a := TAU * k / 10.0
-		_box(self, Vector3(0.5, 0.5, 0.35), at + Vector3(sin(a), 0, cos(a)) * 1.75 + Vector3.UP * (h + 0.25),
+		LowPoly.box(self, Vector3(0.5, 0.5, 0.35), at + Vector3(sin(a), 0, cos(a)) * 1.75 + Vector3.UP * (h + 0.25),
 				stone.lightened(0.1), a)
 	# A flag that flaps (spins gently on its pole).
-	_cyl(self, 0.05, 0.05, 2.6, at + Vector3.UP * (h + 1.3), Color(0.4, 0.3, 0.2), 6)
+	LowPoly.cyl(self, 0.05, 0.05, 2.6, at + Vector3.UP * (h + 1.3), Color(0.4, 0.3, 0.2), 6)
 	var flag := Node3D.new()
 	flag.position = at + Vector3.UP * (h + 2.2)
 	add_child(flag)
-	_box(flag, Vector3(1.1, 0.6, 0.04), Vector3(0.6, 0, 0), Color(0.95, 0.35, 0.3), 0.0)
+	LowPoly.box(flag, Vector3(1.1, 0.6, 0.04), Vector3(0.6, 0, 0), Color(0.95, 0.35, 0.3), 0.0)
 	_bobbers.append({"node": flag, "y": flag.position.y, "speed": 2.0, "phase": 0.0, "amount": 0.05})
 	_spinners.append([flag, Vector3.UP, 0.4])
-	_label(Vector3(start.origin.x, start.origin.y + 2.4, start.origin.z) + back * 0.3, "START", 72,
+	LowPoly.label(self, Vector3(start.origin.x, start.origin.y + 2.4, start.origin.z) + back * 0.3, "START", 72,
 			Color(0.1, 0.3, 0.5), 0.0, true)
 
 
 func _customize_plate() -> void:
 	# A round pressure plate under a little wardrobe arch with a mirror.
-	_cyl(self, 1.3, 1.4, 0.12, PLATE_POS + Vector3.UP * 0.06, Color(0.25, 0.22, 0.3), 24)
+	LowPoly.cyl(self, 1.3, 1.4, 0.12, PLATE_POS + Vector3.UP * 0.06, Color(0.25, 0.22, 0.3), 24)
 	_pressure_plate(PLATE_POS, Color(0.85, 0.35, 0.9), func(p): customize_requested.emit(p))
 	var frame_col := Color(0.95, 0.9, 0.85)
-	_box(self, Vector3(0.25, 3.0, 0.25), PLATE_POS + Vector3(-1.8, 1.5, -0.6), frame_col, 0.0)
-	_box(self, Vector3(0.25, 3.0, 0.25), PLATE_POS + Vector3(1.8, 1.5, -0.6), frame_col, 0.0)
-	_box(self, Vector3(3.9, 0.5, 0.3), PLATE_POS + Vector3(0, 3.1, -0.6), Color(0.85, 0.35, 0.9), 0.0)
-	var mirror := _box(self, Vector3(1.2, 1.8, 0.06), PLATE_POS + Vector3(0, 1.3, -1.4), Color(0.75, 0.88, 0.95), 0.0)
-	var mm: StandardMaterial3D = mirror.material_override
+	LowPoly.box(self, Vector3(0.25, 3.0, 0.25), PLATE_POS + Vector3(-1.8, 1.5, -0.6), frame_col, 0.0)
+	LowPoly.box(self, Vector3(0.25, 3.0, 0.25), PLATE_POS + Vector3(1.8, 1.5, -0.6), frame_col, 0.0)
+	LowPoly.box(self, Vector3(3.9, 0.5, 0.3), PLATE_POS + Vector3(0, 3.1, -0.6), Color(0.85, 0.35, 0.9), 0.0)
+	var mirror := LowPoly.box(self, Vector3(1.2, 1.8, 0.06), PLATE_POS + Vector3(0, 1.3, -1.4), Color(0.75, 0.88, 0.95), 0.0)
+	var mm := LowPoly.own_mat(mirror)
 	mm.metallic = 1.0
 	mm.roughness = 0.05
-	_box(self, Vector3(1.4, 2.0, 0.05), PLATE_POS + Vector3(0, 1.3, -1.44), frame_col, 0.0)
-	_label(PLATE_POS + Vector3(0, 3.1, -0.42), "CUSTOMIZE", 64, Color(0.4, 0.1, 0.45))
+	LowPoly.box(self, Vector3(1.4, 2.0, 0.05), PLATE_POS + Vector3(0, 1.3, -1.44), frame_col, 0.0)
+	LowPoly.label(self, PLATE_POS + Vector3(0, 3.1, -0.42), "CUSTOMIZE", 64, Color(0.4, 0.1, 0.45))
 
 
 
 ## The LOOT CRATES plate, with a big crate floating over it.
 func _crate_plate() -> void:
 	var gold := Color(1.0, 0.78, 0.25)
-	_cyl(self, 1.3, 1.4, 0.12, CRATE_POS + Vector3.UP * 0.06, Color(0.3, 0.2, 0.12), 24)
+	LowPoly.cyl(self, 1.3, 1.4, 0.12, CRATE_POS + Vector3.UP * 0.06, Color(0.3, 0.2, 0.12), 24)
 	_pressure_plate(CRATE_POS, Color(1.0, 0.6, 0.2), func(p): crates_requested.emit(p))
 	_crate_deco = Node3D.new()
 	_crate_deco.position = CRATE_POS + Vector3(0, 1.6, -1.6)
 	add_child(_crate_deco)
 	var wood := Color(0.78, 0.52, 0.3)
-	_box(_crate_deco, Vector3(1.4, 0.9, 1.0), Vector3.ZERO, wood, 0.0)
-	_box(_crate_deco, Vector3(1.5, 0.24, 1.1), Vector3(0, 0.55, 0), wood, 0.0)
-	_box(_crate_deco, Vector3(1.52, 0.06, 1.12), Vector3(0, 0.45, 0), gold, 0.0)
-	_box(_crate_deco, Vector3(0.3, 0.3, 0.08), Vector3(0, 0.38, 0.56), gold, 0.0)
+	LowPoly.box(_crate_deco, Vector3(1.4, 0.9, 1.0), Vector3.ZERO, wood, 0.0)
+	LowPoly.box(_crate_deco, Vector3(1.5, 0.24, 1.1), Vector3(0, 0.55, 0), wood, 0.0)
+	LowPoly.box(_crate_deco, Vector3(1.52, 0.06, 1.12), Vector3(0, 0.45, 0), gold, 0.0)
+	LowPoly.box(_crate_deco, Vector3(0.3, 0.3, 0.08), Vector3(0, 0.38, 0.56), gold, 0.0)
 	for x in [-0.68, 0.68]:
 		for z in [-0.48, 0.48]:
-			_box(_crate_deco, Vector3(0.1, 0.92, 0.1), Vector3(x, 0, z), gold, 0.0)
-	var seam := _box(_crate_deco, Vector3(1.36, 0.06, 0.96), Vector3(0, 0.47, 0), Color(1, 0.95, 0.8), 0.0)
-	var sm: StandardMaterial3D = seam.material_override.duplicate()
-	seam.material_override = sm
+			LowPoly.box(_crate_deco, Vector3(0.1, 0.92, 0.1), Vector3(x, 0, z), gold, 0.0)
+	var seam := LowPoly.box(_crate_deco, Vector3(1.36, 0.06, 0.96), Vector3(0, 0.47, 0), Color(1, 0.95, 0.8), 0.0)
+	var sm := LowPoly.own_mat(seam)
 	sm.emission_enabled = true
 	sm.emission = Color(1.0, 0.85, 0.4)
 	sm.emission_energy_multiplier = 2.0
 	_sparkles(CRATE_POS + Vector3(0, 1.8, -1.6), Vector3(1.0, 0.8, 1.0), gold, 16)
-	_label(CRATE_POS + Vector3(0, 3.3, -1.6), "LOOT CRATES", 64, Color(0.45, 0.25, 0.0), 0.0, true)
+	LowPoly.label(self, CRATE_POS + Vector3(0, 3.3, -1.6), "LOOT CRATES", 64, Color(0.45, 0.25, 0.0), 0.0, true)
 
 
 ## Put a Golden Marble Trophy on the island for each player who owns one.
@@ -415,8 +471,8 @@ func refresh_trophies(profiles: Profiles, count: int) -> void:
 ## A round plate that sinks when a marble rolls on. The marble is parked
 ## on it and `on_enter(player)` is called.
 func _pressure_plate(at: Vector3, color: Color, on_enter: Callable) -> void:
-	var top := _cyl(self, 1.0, 1.05, 0.12, at + Vector3.UP * 0.1, color, 24)
-	var mat: StandardMaterial3D = top.material_override
+	var top := LowPoly.cyl(self, 1.0, 1.05, 0.12, at + Vector3.UP * 0.1, color, 24)
+	var mat := LowPoly.own_mat(top)
 	mat.emission_enabled = true
 	mat.emission = color.darkened(0.4)
 	_plates.append([top, at])
@@ -457,38 +513,23 @@ func _derby() -> void:
 	add_child(derby)
 	# The betting plate under a striped awning.
 	var gold := Color(1.0, 0.78, 0.25)
-	_cyl(self, 1.3, 1.4, 0.12, BET_PLATE_POS + Vector3.UP * 0.06, Color(0.3, 0.22, 0.12), 24)
+	LowPoly.cyl(self, 1.3, 1.4, 0.12, BET_PLATE_POS + Vector3.UP * 0.06, Color(0.3, 0.22, 0.12), 24)
 	_pressure_plate(BET_PLATE_POS, gold, func(p): derby_requested.emit(p))
 	for x in [-1.6, 1.6]:
-		_box(self, Vector3(0.18, 2.6, 0.18), BET_PLATE_POS + Vector3(x, 1.3, -1.2), Color(0.95, 0.93, 0.88), 0.0)
+		LowPoly.box(self, Vector3(0.18, 2.6, 0.18), BET_PLATE_POS + Vector3(x, 1.3, -1.2), Color(0.95, 0.93, 0.88), 0.0)
 	for k in 6:
-		_box(self, Vector3(3.6 / 6.0, 0.12, 1.4), BET_PLATE_POS + Vector3(-1.5 + k * 0.6, 2.65, -0.7),
+		LowPoly.box(self, Vector3(3.6 / 6.0, 0.12, 1.4), BET_PLATE_POS + Vector3(-1.5 + k * 0.6, 2.65, -0.7),
 				Color(0.9, 0.25, 0.25) if k % 2 == 0 else Color.WHITE, 0.0)
-	_label(BET_PLATE_POS + Vector3(0, 3.1, -1.2), "PLACE BETS", 54, Color(0.5, 0.3, 0.05))
-
-
-## An empty fenced plot with cones, waiting for the next minigame.
-func _coming_soon(at: Vector3) -> void:
-	var wood := Color(0.62, 0.45, 0.3)
-	for k in 8:
-		var a := TAU * k / 8.0
-		_box(self, Vector3(0.12, 0.6, 0.12), at + Vector3(cos(a), 0, sin(a)) * 3.0 + Vector3.UP * 0.3, wood, 0.0)
-	for k in 4:
-		var a := TAU * k / 4.0 + 0.4
-		var cone := _cyl(self, 0.03, 0.22, 0.5, at + Vector3(cos(a), 0, sin(a)) * 1.6 + Vector3.UP * 0.25, Color(1.0, 0.5, 0.1), 8)
-		_cyl(cone, 0.12, 0.16, 0.08, Vector3.ZERO, Color.WHITE, 8)
-	_box(self, Vector3(0.12, 1.4, 0.12), at + Vector3(0, 0.7, 3.2), wood, 0.0)
-	_box(self, Vector3(2.4, 0.8, 0.1), at + Vector3(0, 1.4, 3.2), Color(1.0, 0.85, 0.3), 0.0)
-	_label(at + Vector3(0, 1.4, 3.26), "NEW GAME\nCOMING SOON", 34, Color(0.35, 0.2, 0.0))
+	LowPoly.label(self, BET_PLATE_POS + Vector3(0, 3.1, -1.2), "PLACE BETS", 54, Color(0.5, 0.3, 0.05))
 
 
 func _play_portal() -> void:
 	# A big glowing arch. Roll through it to start a real match.
 	var gold := Color(1.0, 0.8, 0.25)
-	_box(self, Vector3(0.5, 4.2, 0.5), PORTAL_POS + Vector3(-2.3, 2.1, 0), Color(0.95, 0.93, 0.88), 0.0)
-	_box(self, Vector3(0.5, 4.2, 0.5), PORTAL_POS + Vector3(2.3, 2.1, 0), Color(0.95, 0.93, 0.88), 0.0)
-	_box(self, Vector3(5.6, 0.9, 0.55), PORTAL_POS + Vector3(0, 4.3, 0), gold, 0.0)
-	_label(PORTAL_POS + Vector3(0, 4.3, -0.3), "PLAY", 110, Color(0.45, 0.25, 0.05), PI)
+	LowPoly.box(self, Vector3(0.5, 4.2, 0.5), PORTAL_POS + Vector3(-2.3, 2.1, 0), Color(0.95, 0.93, 0.88), 0.0)
+	LowPoly.box(self, Vector3(0.5, 4.2, 0.5), PORTAL_POS + Vector3(2.3, 2.1, 0), Color(0.95, 0.93, 0.88), 0.0)
+	LowPoly.box(self, Vector3(5.6, 0.9, 0.55), PORTAL_POS + Vector3(0, 4.3, 0), gold, 0.0)
+	LowPoly.label(self, PORTAL_POS + Vector3(0, 4.3, -0.3), "PLAY", 110, Color(0.45, 0.25, 0.05), PI)
 	var glow := MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(4.1, 3.8)
@@ -523,9 +564,9 @@ func _hurdles() -> void:
 	# Three low bars in a row on the east lawn: roll forward and hop them.
 	for i in 3:
 		var at := Vector3(14, 0, 4 - i * 2.4)
-		_box(self, Vector3(0.12, 0.5, 0.12), at + Vector3(-1.3, 0.25, 0), Color.WHITE, 0.0)
-		_box(self, Vector3(0.12, 0.5, 0.12), at + Vector3(1.3, 0.25, 0), Color.WHITE, 0.0)
-		_box(self, Vector3(2.6, 0.08, 0.08), at + Vector3(0, 0.38, 0),
+		LowPoly.box(self, Vector3(0.12, 0.5, 0.12), at + Vector3(-1.3, 0.25, 0), Color.WHITE, 0.0)
+		LowPoly.box(self, Vector3(0.12, 0.5, 0.12), at + Vector3(1.3, 0.25, 0), Color.WHITE, 0.0)
+		LowPoly.box(self, Vector3(2.6, 0.08, 0.08), at + Vector3(0, 0.38, 0),
 				Color(0.95, 0.3, 0.25) if i % 2 == 0 else Color.WHITE, 0.0)
 		var body := StaticBody3D.new()
 		var shape := CollisionShape3D.new()
@@ -549,6 +590,7 @@ func _playground() -> void:
 	for p in pieces:
 		var info := PieceCatalog.info(p[0])
 		var node: Node3D = load(info.scene).instantiate()
+		PieceStyle.dress(node, p[0])
 		node.position = p[1]
 		node.rotation.y = deg_to_rad(info.base_rotation + p[2])
 		node.scale = Vector3.ONE * PieceCatalog.scale_of(p[0])
@@ -556,9 +598,9 @@ func _playground() -> void:
 
 
 func _windmill(at: Vector3) -> void:
-	_cyl(self, 1.0, 1.5, 5.0, at + Vector3.UP * 2.5, Color(0.95, 0.9, 0.82), 8)
-	_cyl(self, 0.05, 1.7, 1.5, at + Vector3.UP * 5.75, Color(0.8, 0.3, 0.25), 8)
-	_box(self, Vector3(0.6, 1.0, 0.1), at + Vector3(0, 0.5, 1.4), Color(0.45, 0.3, 0.2), 0.0)
+	LowPoly.cyl(self, 1.0, 1.5, 5.0, at + Vector3.UP * 2.5, Color(0.95, 0.9, 0.82), 8)
+	LowPoly.cyl(self, 0.05, 1.7, 1.5, at + Vector3.UP * 5.75, Color(0.8, 0.3, 0.25), 8)
+	LowPoly.box(self, Vector3(0.6, 1.0, 0.1), at + Vector3(0, 0.5, 1.4), Color(0.45, 0.3, 0.2), 0.0)
 	var hub := Node3D.new()
 	hub.position = at + Vector3(0, 5.0, 1.3)
 	add_child(hub)
@@ -566,15 +608,15 @@ func _windmill(at: Vector3) -> void:
 		var arm := Node3D.new()
 		arm.rotation.z = TAU * k / 4.0
 		hub.add_child(arm)
-		_box(arm, Vector3(0.12, 3.2, 0.06), Vector3(0, 1.6, 0), Color(0.55, 0.4, 0.28), 0.0)
-		_box(arm, Vector3(0.7, 2.4, 0.03), Vector3(0.4, 1.9, 0), Color(0.97, 0.95, 0.9), 0.0)
+		LowPoly.box(arm, Vector3(0.12, 3.2, 0.06), Vector3(0, 1.6, 0), Color(0.55, 0.4, 0.28), 0.0)
+		LowPoly.box(arm, Vector3(0.7, 2.4, 0.03), Vector3(0.4, 1.9, 0), Color(0.97, 0.95, 0.9), 0.0)
 	_spinners.append([hub, Vector3.FORWARD, 0.6])
 
 
 func _pond(at: Vector3) -> void:
 	# A little pond that spills over the edge as a waterfall.
-	var water := _cyl(self, 3.2, 3.2, 0.06, at + Vector3.UP * 0.02, Color(0.3, 0.65, 0.9), 24)
-	var wm: StandardMaterial3D = water.material_override
+	var water := LowPoly.cyl(self, 3.2, 3.2, 0.06, at + Vector3.UP * 0.02, Color(0.3, 0.65, 0.9), 24)
+	var wm := LowPoly.own_mat(water)
 	wm.roughness = 0.05
 	wm.metallic = 0.3
 	for i in 9:
@@ -607,7 +649,7 @@ func _pond(at: Vector3) -> void:
 	add_child(fall)
 	# A stream from the pond to the edge.
 	var mid := (at + edge) / 2.0
-	_box(self, Vector3(1.2, 0.05, at.distance_to(edge) - 2.5), mid + Vector3.UP * 0.02,
+	LowPoly.box(self, Vector3(1.2, 0.05, at.distance_to(edge) - 2.5), mid + Vector3.UP * 0.02,
 			Color(0.3, 0.65, 0.9), atan2(dir.x, dir.z))
 
 
@@ -622,16 +664,16 @@ func _trees() -> void:
 		if _near_run(at, 3.5):
 			continue
 		var h := _rng.randf_range(2.2, 3.4)
-		_cyl(self, 0.15, 0.25, h, at + Vector3.UP * h / 2.0, Color(0.45, 0.3, 0.18), 6)
+		LowPoly.cyl(self, 0.15, 0.25, h, at + Vector3.UP * h / 2.0, Color(0.45, 0.3, 0.18), 6)
 		var leaf := Color(0.25, 0.55, 0.28).lerp(Color(0.5, 0.7, 0.3), _rng.randf())
 		if _rng.randf() < 0.5:
 			# Round tree.
-			_ball(at + Vector3.UP * (h + 0.6), _rng.randf_range(1.2, 1.7), leaf)
-			_ball(at + Vector3(0.6, h + 0.2, 0.3), 0.9, leaf.darkened(0.1))
+			LowPoly.ball(self, at + Vector3.UP * (h + 0.6), _rng.randf_range(1.2, 1.7), leaf)
+			LowPoly.ball(self, at + Vector3(0.6, h + 0.2, 0.3), 0.9, leaf.darkened(0.1))
 		else:
 			# Pine.
 			for k in 3:
-				_cyl(self, 0.05, 1.5 - k * 0.35, 1.2, at + Vector3.UP * (h - 0.3 + k * 0.75), leaf.darkened(0.15), 7)
+				LowPoly.cyl(self, 0.05, 1.5 - k * 0.35, 1.2, at + Vector3.UP * (h - 0.3 + k * 0.75), leaf.darkened(0.15), 7)
 		var body := StaticBody3D.new()
 		var shape := CollisionShape3D.new()
 		var cyl := CylinderShape3D.new()
@@ -648,8 +690,8 @@ func _trees() -> void:
 		var at := Vector3(cos(a) * r, 0, sin(a) * r)
 		if _near_run(at, 2.5) or _in_derby(at):
 			continue
-		_cyl(self, 0.06, 0.08, 0.3, at + Vector3.UP * 0.15, Color(0.95, 0.92, 0.85), 6)
-		var cap := _ball(at + Vector3.UP * 0.32, 0.2, Color(0.9, 0.2, 0.2))
+		LowPoly.cyl(self, 0.06, 0.08, 0.3, at + Vector3.UP * 0.15, Color(0.95, 0.92, 0.85), 6)
+		var cap := LowPoly.ball(self, at + Vector3.UP * 0.32, 0.2, Color(0.9, 0.2, 0.2))
 		cap.scale = Vector3(1, 0.55, 1)
 
 
@@ -708,13 +750,13 @@ func _flowers() -> void:
 
 
 func _signs() -> void:
-	_label(LIFT_POS + Vector3(0, 2.2, 0), "PRACTICE RUN", 56, Color(0.1, 0.25, 0.5), 0.0, true)
-	_label(Vector3(14, 1.4, 5.4), "HOP!", 56, Color(0.5, 0.1, 0.1), 0.0, true)
-	_label(Vector3(12, 2.2, 14), "ITEMS", 48, Color(0.2, 0.3, 0.1), 0.0, true)
+	LowPoly.label(self, LIFT_POS + Vector3(0, 2.2, 0), "PRACTICE RUN", 56, Color(0.1, 0.25, 0.5), 0.0, true)
+	LowPoly.label(self, Vector3(14, 1.4, 5.4), "HOP!", 56, Color(0.5, 0.1, 0.1), 0.0, true)
+	LowPoly.label(self, Vector3(12, 2.2, 14), "ITEMS", 48, Color(0.2, 0.3, 0.1), 0.0, true)
 	# A wooden welcome sign by the spawn.
-	_box(self, Vector3(0.15, 1.6, 0.15), Vector3(-4.6, 0.8, 13.5), Color(0.5, 0.35, 0.22), 0.0)
-	_box(self, Vector3(2.8, 0.9, 0.12), Vector3(-4.6, 1.6, 13.5), Color(0.72, 0.52, 0.32), 0.0)
-	_label(Vector3(-4.6, 1.6, 13.57), "MARBLES 4P\nPRACTICE ISLAND", 40, Color(0.3, 0.18, 0.08))
+	LowPoly.box(self, Vector3(0.15, 1.6, 0.15), Vector3(-4.6, 0.8, 13.5), Color(0.5, 0.35, 0.22), 0.0)
+	LowPoly.box(self, Vector3(2.8, 0.9, 0.12), Vector3(-4.6, 1.6, 13.5), Color(0.72, 0.52, 0.32), 0.0)
+	LowPoly.label(self, Vector3(-4.6, 1.6, 13.57), "MARBLES 4P\nPRACTICE ISLAND", 40, Color(0.3, 0.18, 0.08))
 
 
 func _sky_life() -> void:
@@ -769,10 +811,10 @@ func _sky_life() -> void:
 		rock.position = Vector3(cos(a) * r, _rng.randf_range(-6.0, 2.0), sin(a) * r)
 		add_child(rock)
 		var size := _rng.randf_range(0.8, 1.8)
-		_cyl(rock, size, 0.2, size * 2.0, Vector3(0, -size, 0), Color(0.48, 0.44, 0.42), 6)
-		_cyl(rock, size, size * 0.95, 0.3, Vector3.ZERO, Color(0.36, 0.66, 0.3), 6)
+		LowPoly.cyl(rock, size, 0.2, size * 2.0, Vector3(0, -size, 0), Color(0.48, 0.44, 0.42), 6)
+		LowPoly.cyl(rock, size, size * 0.95, 0.3, Vector3.ZERO, Color(0.36, 0.66, 0.3), 6)
 		if _rng.randf() < 0.5:
-			_ball(Vector3(0, 0.6, 0) + rock.position, 0.5, Color(0.3, 0.6, 0.3)).reparent(rock)
+			LowPoly.ball(self, Vector3(0, 0.6, 0) + rock.position, 0.5, Color(0.3, 0.6, 0.3)).reparent(rock)
 		_bobbers.append({"node": rock, "y": rock.position.y, "speed": _rng.randf_range(0.4, 0.8),
 				"phase": _rng.randf() * TAU, "amount": _rng.randf_range(0.3, 0.7)})
 
@@ -783,15 +825,13 @@ func _sky_life() -> void:
 		if _near_run(at, 2.5) or at.distance_to(Vector3(4, 0, 15)) < 3.0 or at.distance_to(Vector3(-5, 0, 16)) < 3.0 \
 				or at.distance_to(CRATE_POS) < 3.0 or at.distance_to(TROPHY_POS + Vector3(0.9, 0, 0.9)) < 3.0:
 			continue  # not on the practice run, the playground pieces, crates or trophies
-		_box(self, Vector3(0.1, 2.2, 0.1), at + Vector3.UP * 1.1, Color(0.2, 0.18, 0.16), 0.0)
-		var bulb := _ball(at + Vector3.UP * 2.3, 0.18, Color(1.0, 0.75, 0.4))
-		var bm: StandardMaterial3D = bulb.material_override
+		LowPoly.box(self, Vector3(0.1, 2.2, 0.1), at + Vector3.UP * 1.1, Color(0.2, 0.18, 0.16), 0.0)
+		var bulb := LowPoly.ball(self, at + Vector3.UP * 2.3, 0.18, Color(1.0, 0.75, 0.4))
+		var bm := LowPoly.own_mat(bulb)
 		bm.emission_enabled = true
 		bm.emission = Color(1.0, 0.7, 0.35)
 		bm.emission_energy_multiplier = 3.0
 
-
-# ------------------------------------------------------------ Helpers
 
 # ------------------------------------------------------------ More life
 
@@ -828,61 +868,64 @@ func _cloud_sea() -> void:
 
 ## A rope bridge off the north edge to a tiny islet with a lookout.
 func _lookout() -> void:
-	var wood := Color(0.6, 0.43, 0.28)
 	var islet := Vector3(0, 0, -45)
 	# The islet itself (you can roll on it).
-	var body := StaticBody3D.new()
-	var shape := CollisionShape3D.new()
-	var cyl := CylinderShape3D.new()
-	cyl.radius = 6.0
-	cyl.height = 2.0
-	shape.shape = cyl
-	shape.position = islet + Vector3.DOWN
-	body.add_child(shape)
-	add_child(body)
-	_cyl(self, 6.0, 5.8, 0.4, islet + Vector3.DOWN * 0.2, Color(0.36, 0.66, 0.3), 16)
-	_cyl(self, 5.8, 1.0, 7.0, islet + Vector3.DOWN * 3.9, Color(0.48, 0.44, 0.42), 9)
-	# The bridge: planks with low rope rails.
-	var start := Vector3(0, 0.05, -ISLAND_RADIUS + 1.0)
-	var end := islet + Vector3(0, 0.05, 5.5)
-	var length := start.distance_to(end)
-	var deck := StaticBody3D.new()
-	add_child(deck)
-	for side in [-1.3, 0.0, 1.3]:
-		var s := CollisionShape3D.new()
-		var box := BoxShape3D.new()
-		box.size = Vector3(2.4 if side == 0.0 else 0.1, 0.1 if side == 0.0 else 0.5, length)
-		s.shape = box
-		s.position = (start + end) / 2.0 + Vector3(side, -0.05 if side == 0.0 else 0.25, 0)
-		deck.add_child(s)
-	var planks := int(length / 0.45)
-	for k in planks:
-		var z := start.z - (k + 0.5) * length / planks
-		var sag := sin(PI * (k + 0.5) / planks) * 0.0
-		_box(self, Vector3(2.4, 0.08, 0.38), Vector3(_rng.randf_range(-0.05, 0.05), sag, z), wood.lightened(_rng.randf_range(-0.1, 0.1)), _rng.randf_range(-0.03, 0.03))
-	for side in [-1.3, 1.3]:
-		for k in 5:
-			_box(self, Vector3(0.1, 0.7, 0.1), Vector3(side, 0.35, start.z - k * length / 4.0), wood.darkened(0.2), 0.0)
-		_box(self, Vector3(0.04, 0.04, length), Vector3(side, 0.55, (start.z + end.z) / 2.0), Color(0.85, 0.75, 0.55), 0.0)
+	LowPoly.solid_cyl(self, 6.0, 2.0, islet + Vector3.DOWN)
+	LowPoly.cyl(self, 6.0, 5.8, 0.4, islet + Vector3.DOWN * 0.2, Color(0.36, 0.66, 0.3), 16)
+	LowPoly.cyl(self, 5.8, 1.0, 7.0, islet + Vector3.DOWN * 3.9, Color(0.48, 0.44, 0.42), 9)
+	_bridge(Vector3(0, 0.05, -ISLAND_RADIUS + 1.0), islet + Vector3(0, 0.05, 5.5))
 	# On the islet: a little lookout with a telescope, a chest and a palm.
-	_cyl(self, 1.4, 1.6, 0.3, islet + Vector3(2.5, 0.15, -2.0), Color(0.75, 0.72, 0.66), 10)
-	_cyl(self, 0.08, 0.08, 1.0, islet + Vector3(2.5, 0.8, -2.0), Color(0.3, 0.3, 0.32), 6)
-	var scope := _cyl(self, 0.09, 0.14, 0.9, islet + Vector3(2.5, 1.35, -2.2), Color(0.8, 0.65, 0.3), 10)
+	LowPoly.cyl(self, 1.4, 1.6, 0.3, islet + Vector3(2.5, 0.15, -2.0), Color(0.75, 0.72, 0.66), 10)
+	LowPoly.cyl(self, 0.08, 0.08, 1.0, islet + Vector3(2.5, 0.8, -2.0), Color(0.3, 0.3, 0.32), 6)
+	var scope := LowPoly.cyl(self, 0.09, 0.14, 0.9, islet + Vector3(2.5, 1.35, -2.2), Color(0.8, 0.65, 0.3), 10)
 	scope.rotation.x = -1.2
-	_box(self, Vector3(1.0, 0.6, 0.7), islet + Vector3(-2.5, 0.3, -1.5), Color(0.55, 0.35, 0.18), 0.4)
-	_box(self, Vector3(1.05, 0.12, 0.75), islet + Vector3(-2.5, 0.66, -1.5), Color(0.95, 0.75, 0.25), 0.4)
-	_cyl(self, 0.12, 0.2, 3.5, islet + Vector3(-1.0, 1.75, -3.5), Color(0.55, 0.4, 0.25), 6)
+	LowPoly.box(self, Vector3(1.0, 0.6, 0.7), islet + Vector3(-2.5, 0.3, -1.5), Color(0.55, 0.35, 0.18), 0.4)
+	LowPoly.box(self, Vector3(1.05, 0.12, 0.75), islet + Vector3(-2.5, 0.66, -1.5), Color(0.95, 0.75, 0.25), 0.4)
+	LowPoly.cyl(self, 0.12, 0.2, 3.5, islet + Vector3(-1.0, 1.75, -3.5), Color(0.55, 0.4, 0.25), 6)
 	for k in 6:
-		var leaf := _box(self, Vector3(0.35, 0.05, 1.8), islet + Vector3(-1.0, 3.5, -3.5), Color(0.3, 0.65, 0.3), TAU * k / 6.0)
+		var leaf := LowPoly.box(self, Vector3(0.35, 0.05, 1.8), islet + Vector3(-1.0, 3.5, -3.5), Color(0.3, 0.65, 0.3), TAU * k / 6.0)
 		leaf.rotate_object_local(Vector3.RIGHT, 0.35)
 		leaf.translate_object_local(Vector3(0, 0, 0.8))
-	_label(islet + Vector3(0, 2.4, 3.6), "LOOKOUT", 48, Color(0.1, 0.3, 0.45), 0.0, true)
+	LowPoly.label(self, islet + Vector3(0, 2.4, 3.6), "LOOKOUT", 48, Color(0.1, 0.3, 0.45), 0.0, true)
+
+
+## A plank bridge with rope rails from `start` to `end` (on the ground).
+func _bridge(start: Vector3, end: Vector3) -> void:
+	var wood := Color(0.6, 0.43, 0.28)
+	var length := start.distance_to(end)
+	var dir := (end - start).normalized()
+	var right := Vector3(-dir.z, 0, dir.x)
+	var yaw := atan2(dir.x, dir.z)
+	var mid := (start + end) / 2.0
+	LowPoly.solid_box(self, Vector3(2.4, 0.1, length), mid + Vector3.DOWN * 0.05, yaw)
+	for side in [-1.3, 1.3]:
+		LowPoly.solid_box(self, Vector3(0.1, 0.5, length), mid + right * side + Vector3.UP * 0.25, yaw)
+	var planks := int(length / 0.45)
+	for k in planks:
+		var at := start + dir * (k + 0.5) * length / planks + right * _rng.randf_range(-0.05, 0.05)
+		LowPoly.box(self, Vector3(2.4, 0.08, 0.38), at, wood.lightened(_rng.randf_range(-0.1, 0.1)), yaw + _rng.randf_range(-0.03, 0.03))
+	for side in [-1.3, 1.3]:
+		for k in 5:
+			LowPoly.box(self, Vector3(0.1, 0.7, 0.1), start + dir * k * length / 4.0 + right * side + Vector3.UP * 0.3, wood.darkened(0.2))
+		LowPoly.box(self, Vector3(0.04, 0.04, length), mid + right * side + Vector3.UP * 0.5, Color(0.85, 0.75, 0.55), yaw)
+
+
+## The sports island to the east, and the bridge over to it.
+func _sports_island() -> void:
+	sports = SportsIsland.new()
+	sports.name = "SportsIsland"
+	sports.position = SportsIsland.OFFSET
+	add_child(sports)
+	var from_x := ISLAND_RADIUS - 1.0
+	sports.build(from_x - SportsIsland.OFFSET.x)
+	var z := SportsIsland.OFFSET.z
+	_bridge(Vector3(from_x, 0.05, z), Vector3(SportsIsland.OFFSET.x - SportsIsland.RADIUS + 0.8, 0.05, z))
 
 
 ## A little cottage with a smoking chimney and a garden.
 func _cottage(at: Vector3) -> void:
 	var walls := Color(0.97, 0.92, 0.82)
-	_box(self, Vector3(4.0, 2.6, 3.4), at + Vector3.UP * 1.3, walls, 0.3)
+	LowPoly.box(self, Vector3(4.0, 2.6, 3.4), at + Vector3.UP * 1.3, walls, 0.3)
 	var roof := Node3D.new()
 	roof.position = at + Vector3.UP * 2.6
 	roof.rotation.y = 0.3
@@ -891,13 +934,13 @@ func _cottage(at: Vector3) -> void:
 	var pm := PrismMesh.new()
 	pm.size = Vector3(4.6, 1.8, 3.9)
 	prism.mesh = pm
-	prism.material_override = _mat(Color(0.8, 0.35, 0.28))
+	prism.material_override = LowPoly.mat(Color(0.8, 0.35, 0.28))
 	prism.position.y = 0.9
 	roof.add_child(prism)
-	_box(roof, Vector3(0.9, 0.6, 1.2), Vector3(0, -1.0, 1.72), Color(0.45, 0.3, 0.2), 0.0)  # door
-	_box(roof, Vector3(0.8, 0.7, 0.05), Vector3(-1.3, -0.9, 1.72), Color(0.6, 0.8, 0.95), 0.0)
-	_box(roof, Vector3(0.8, 0.7, 0.05), Vector3(1.3, -0.9, 1.72), Color(0.6, 0.8, 0.95), 0.0)
-	_box(roof, Vector3(0.5, 1.4, 0.5), Vector3(1.2, 1.2, -0.6), Color(0.6, 0.45, 0.4), 0.0)  # chimney
+	LowPoly.box(roof, Vector3(0.9, 0.6, 1.2), Vector3(0, -1.0, 1.72), Color(0.45, 0.3, 0.2), 0.0)  # door
+	LowPoly.box(roof, Vector3(0.8, 0.7, 0.05), Vector3(-1.3, -0.9, 1.72), Color(0.6, 0.8, 0.95), 0.0)
+	LowPoly.box(roof, Vector3(0.8, 0.7, 0.05), Vector3(1.3, -0.9, 1.72), Color(0.6, 0.8, 0.95), 0.0)
+	LowPoly.box(roof, Vector3(0.5, 1.4, 0.5), Vector3(1.2, 1.2, -0.6), Color(0.6, 0.45, 0.4), 0.0)  # chimney
 	var smoke := CPUParticles3D.new()
 	smoke.amount = 16
 	smoke.lifetime = 3.0
@@ -931,10 +974,10 @@ func _cottage(at: Vector3) -> void:
 	# A small vegetable garden with a picket fence.
 	var garden := at + Vector3(-1.5, 0, 4.5)
 	for k in 8:
-		_box(self, Vector3(0.08, 0.45, 0.08), garden + Vector3(-2.0 + k * 0.57, 0.22, 1.2), Color.WHITE, 0.0)
+		LowPoly.box(self, Vector3(0.08, 0.45, 0.08), garden + Vector3(-2.0 + k * 0.57, 0.22, 1.2), Color.WHITE, 0.0)
 	for row in 3:
 		for k in 5:
-			_ball(garden + Vector3(-1.6 + k * 0.7, 0.15, -0.6 + row * 0.6), 0.16,
+			LowPoly.ball(self, garden + Vector3(-1.6 + k * 0.7, 0.15, -0.6 + row * 0.6), 0.16,
 					[Color(0.95, 0.5, 0.15), Color(0.3, 0.6, 0.25), Color(0.85, 0.2, 0.25)][row])
 
 
@@ -950,7 +993,7 @@ func _bunting() -> void:
 		var a: Vector3 = line[0]
 		var b: Vector3 = line[1]
 		for end in [a, b]:
-			_box(self, Vector3(0.12, end.y, 0.12), Vector3(end.x, end.y / 2.0, end.z), Color(0.5, 0.36, 0.24), 0.0)
+			LowPoly.box(self, Vector3(0.12, end.y, 0.12), Vector3(end.x, end.y / 2.0, end.z), Color(0.5, 0.36, 0.24), 0.0)
 		var n := int(a.distance_to(b) / 0.6)
 		var yaw := atan2(b.x - a.x, b.z - a.z) + PI / 2
 		for i in n:
@@ -958,7 +1001,7 @@ func _bunting() -> void:
 			var p := a.lerp(b, t) + Vector3.DOWN * sin(PI * t) * 0.6
 			var f := MeshInstance3D.new()
 			f.mesh = flag
-			f.material_override = _mat(colors[k % colors.size()])
+			f.material_override = LowPoly.mat(colors[k % colors.size()])
 			f.position = p + Vector3.DOWN * 0.18
 			f.rotation = Vector3(PI, yaw, 0)
 			add_child(f)
@@ -973,10 +1016,10 @@ func _benches() -> void:
 		bench.position = at
 		bench.rotation.y = spot[1]
 		add_child(bench)
-		_box(bench, Vector3(1.8, 0.08, 0.5), Vector3(0, 0.45, 0), wood, 0.0)
-		_box(bench, Vector3(1.8, 0.4, 0.08), Vector3(0, 0.7, -0.24), wood, 0.0)
+		LowPoly.box(bench, Vector3(1.8, 0.08, 0.5), Vector3(0, 0.45, 0), wood, 0.0)
+		LowPoly.box(bench, Vector3(1.8, 0.4, 0.08), Vector3(0, 0.7, -0.24), wood, 0.0)
 		for x in [-0.75, 0.75]:
-			_box(bench, Vector3(0.08, 0.45, 0.45), Vector3(x, 0.22, 0), Color(0.25, 0.25, 0.28), 0.0)
+			LowPoly.box(bench, Vector3(0.08, 0.45, 0.45), Vector3(x, 0.22, 0), Color(0.25, 0.25, 0.28), 0.0)
 
 
 ## Hot-air balloons drifting slowly round the island.
@@ -993,21 +1036,21 @@ func _balloons() -> void:
 			s.radial_segments = 8
 			s.rings = 6
 			seg.mesh = s
-			seg.material_override = _mat(colors[i][k % 2])
+			seg.material_override = LowPoly.mat(colors[i][k % 2])
 			seg.scale = Vector3(0.5, 1, 0.5)
 			seg.position = Vector3(cos(TAU * k / 8.0), 0, sin(TAU * k / 8.0)) * 1.1
 			b.add_child(seg)
-		_box(b, Vector3(1.0, 0.8, 1.0), Vector3(0, -4.2, 0), Color(0.55, 0.4, 0.25), 0.0)
+		LowPoly.box(b, Vector3(1.0, 0.8, 1.0), Vector3(0, -4.2, 0), Color(0.55, 0.4, 0.25), 0.0)
 		for k in 4:
 			var a := TAU * k / 4.0 + PI / 4
-			_box(b, Vector3(0.03, 2.2, 0.03), Vector3(cos(a) * 0.55, -2.9, sin(a) * 0.55), Color(0.3, 0.25, 0.2), 0.0)
+			LowPoly.box(b, Vector3(0.03, 2.2, 0.03), Vector3(cos(a) * 0.55, -2.9, sin(a) * 0.55), Color(0.3, 0.25, 0.2), 0.0)
 		_clouds.append({"node": b, "angle": TAU * i / 3.0, "radius": _rng.randf_range(48.0, 60.0),
 				"y": _rng.randf_range(10.0, 22.0), "speed": _rng.randf_range(0.015, 0.03)})
 
 
 ## Little flocks of birds circling overhead.
 func _birds() -> void:
-	var m := _mat(Color(0.2, 0.2, 0.25))
+	var m := LowPoly.mat(Color(0.2, 0.2, 0.25))
 	for f in 3:
 		var flock := Node3D.new()
 		add_child(flock)
@@ -1043,73 +1086,9 @@ func _near_run(at: Vector3, r: float) -> bool:
 	return false
 
 
-func _mat(color: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = 0.85
-	return m
-
-
-func _cyl(parent: Node3D, top: float, bottom: float, h: float, pos: Vector3, color: Color, sides := 12) -> MeshInstance3D:
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = top
-	mesh.bottom_radius = bottom
-	mesh.height = h
-	mesh.radial_segments = sides
-	mesh.rings = 1
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = _mat(color)
-	mi.position = pos
-	parent.add_child(mi)
-	return mi
-
-
-func _box(parent: Node3D, size: Vector3, pos: Vector3, color: Color, yaw: float) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = _mat(color)
-	mi.position = pos
-	mi.rotation.y = yaw
-	parent.add_child(mi)
-	return mi
-
-
-func _ball(pos: Vector3, r: float, color: Color) -> MeshInstance3D:
-	var mesh := SphereMesh.new()
-	mesh.radius = r
-	mesh.height = r * 2.0
-	mesh.radial_segments = 10
-	mesh.rings = 5
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = _mat(color)
-	mi.position = pos
-	add_child(mi)
-	return mi
-
-
 func _rock(pos: Vector3, r: float) -> void:
-	var b := _ball(pos + Vector3.UP * r * 0.3, r, Color(0.55, 0.52, 0.5))
+	var b := LowPoly.ball(self, pos + Vector3.UP * r * 0.3, r, Color(0.55, 0.52, 0.5))
 	b.scale = Vector3(1.2, 0.7, 1.0)
-
-
-func _label(pos: Vector3, text: String, size: int, outline: Color, yaw := 0.0, billboard := false) -> Label3D:
-	var l := Label3D.new()
-	l.text = text
-	l.font = TITLE_FONT
-	l.font_size = size
-	l.pixel_size = 0.008
-	l.outline_size = 14
-	l.outline_modulate = outline
-	l.position = pos
-	l.rotation.y = yaw
-	if billboard:
-		l.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	add_child(l)
-	return l
 
 
 func _sparkles(at: Vector3, extents: Vector3, color: Color, amount: int) -> void:

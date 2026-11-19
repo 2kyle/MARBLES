@@ -4,9 +4,9 @@ extends Node
 ## player's cursor is, and placing pieces on the lane.
 ##
 ## Like main.gd, this is "referee" code. Players change it only through the
-## request_* functions, which take a player id. Today main.gd calls them from
-## keyboard input; in online play the host will call them when a player's
-## request arrives over the network.
+## request_* functions, which take a player id. main.gd calls them for
+## everyone: people at this computer, bots, and (online, on the host)
+## players on other computers. Online clients only copy the results.
 
 signal changed
 ## A piece went down (online, the host tells everyone where).

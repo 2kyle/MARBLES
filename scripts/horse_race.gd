@@ -249,32 +249,32 @@ func _build() -> void:
 	var dirt := Color(0.72, 0.56, 0.38)
 	var white := Color(0.97, 0.96, 0.92)
 	# Track floor, lanes and rails.
-	_box(self, Vector3(LANE_W * 4 + 0.6, 0.1, LENGTH + 3.0), Vector3(0, 0.05, -LENGTH / 2.0), dirt)
+	LowPoly.box(self, Vector3(LANE_W * 4 + 0.6, 0.1, LENGTH + 3.0), Vector3(0, 0.05, -LENGTH / 2.0), dirt)
 	for k in 5:
 		var x := (k - 2) * LANE_W
-		_box(self, Vector3(0.05, 0.02, LENGTH + 1.0), Vector3(x, 0.11, -LENGTH / 2.0), white)
+		LowPoly.box(self, Vector3(0.05, 0.02, LENGTH + 1.0), Vector3(x, 0.11, -LENGTH / 2.0), white)
 	for side in [-1, 1]:
 		var x: float = side * (LANE_W * 2 + 0.35)
-		_box(self, Vector3(0.1, 0.1, LENGTH + 3.0), Vector3(x, 0.75, -LENGTH / 2.0), white)
+		LowPoly.box(self, Vector3(0.1, 0.1, LENGTH + 3.0), Vector3(x, 0.75, -LENGTH / 2.0), white)
 		for k in 9:
-			_box(self, Vector3(0.12, 0.8, 0.12), Vector3(x, 0.4, 1.4 - k * (LENGTH + 2.8) / 8.0), white)
+			LowPoly.box(self, Vector3(0.12, 0.8, 0.12), Vector3(x, 0.4, 1.4 - k * (LENGTH + 2.8) / 8.0), white)
 	# Finish line (checkered) and a banner over it.
 	for k in 16:
 		for row in 2:
-			_box(self, Vector3(LANE_W * 4 / 16.0, 0.02, 0.25),
+			LowPoly.box(self, Vector3(LANE_W * 4 / 16.0, 0.02, 0.25),
 					Vector3(-LANE_W * 2 + (k + 0.5) * LANE_W * 4 / 16.0, 0.115, -LENGTH - 0.125 + row * 0.25),
 					Color.BLACK if (k + row) % 2 == 0 else Color.WHITE)
 	for side in [-1, 1]:
-		_box(self, Vector3(0.18, 3.0, 0.18), Vector3(side * (LANE_W * 2 + 0.6), 1.5, -LENGTH), white)
-	_box(self, Vector3(LANE_W * 4 + 1.4, 0.6, 0.12), Vector3(0, 3.0, -LENGTH), Color(0.85, 0.2, 0.25))
-	_label(Vector3(0, 3.0, -LENGTH + 0.08), "FINISH", 70, Color(0.4, 0.05, 0.1))
+		LowPoly.box(self, Vector3(0.18, 3.0, 0.18), Vector3(side * (LANE_W * 2 + 0.6), 1.5, -LENGTH), white)
+	LowPoly.box(self, Vector3(LANE_W * 4 + 1.4, 0.6, 0.12), Vector3(0, 3.0, -LENGTH), Color(0.85, 0.2, 0.25))
+	LowPoly.label(self, Vector3(0, 3.0, -LENGTH + 0.08), "FINISH", 70, Color(0.4, 0.05, 0.1))
 
 	# Starting gate: a bar that lifts when the race starts.
 	_gate = Node3D.new()
 	add_child(_gate)
-	_box(_gate, Vector3(LANE_W * 4, 0.12, 0.12), Vector3(0, 0.5, -0.6), Color(1.0, 0.8, 0.25))
+	LowPoly.box(_gate, Vector3(LANE_W * 4, 0.12, 0.12), Vector3(0, 0.5, -0.6), Color(1.0, 0.8, 0.25))
 	for side in [-1, 1]:
-		_box(self, Vector3(0.2, 2.2, 0.2), Vector3(side * (LANE_W * 2 + 0.6), 1.1, -0.6), white)
+		LowPoly.box(self, Vector3(0.2, 2.2, 0.2), Vector3(side * (LANE_W * 2 + 0.6), 1.1, -0.6), white)
 
 	# The horses: marbles with ears, a mane and a number.
 	for i in 4:
@@ -298,7 +298,7 @@ func _build() -> void:
 		t.inner_radius = HORSE_R - 0.02
 		t.outer_radius = HORSE_R + 0.015
 		stripe.mesh = t
-		stripe.material_override = _mat(Color.WHITE)
+		stripe.material_override = LowPoly.mat(Color.WHITE)
 		stripe.rotation.z = PI / 2
 		ball.add_child(stripe)
 		for side in [-1, 1]:
@@ -306,28 +306,28 @@ func _build() -> void:
 			var pm := PrismMesh.new()
 			pm.size = Vector3(0.12, 0.18, 0.06)
 			ear.mesh = pm
-			ear.material_override = _mat(h.color.darkened(0.3))
+			ear.material_override = LowPoly.mat(h.color.darkened(0.3))
 			ear.position = Vector3(side * 0.12, HORSE_R + 0.06, -0.08)
 			body.add_child(ear)
-		var tag := _label(Vector3(0, HORSE_R + 0.5 + (i % 2) * 0.3, 0), "%d %s" % [i + 1, h.name], 26, h.color.darkened(0.5))
+		var tag := LowPoly.label(self, Vector3(0, HORSE_R + 0.5 + (i % 2) * 0.3, 0), "%d %s" % [i + 1, h.name], 26, h.color.darkened(0.5))
 		tag.reparent(body, false)
 		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		_horses.append([body, ball])
 
 	# Odds board beside the start, facing the plaza.
 	var bx := LANE_W * 2 + 3.5
-	_box(self, Vector3(0.2, 4.6, 0.2), Vector3(bx - 1.6, 2.3, -1.5), Color(0.45, 0.3, 0.2))
-	_box(self, Vector3(0.2, 4.6, 0.2), Vector3(bx + 1.6, 2.3, -1.5), Color(0.45, 0.3, 0.2))
-	_box(self, Vector3(3.6, 2.2, 0.15), Vector3(bx, 3.5, -1.5), Color(0.12, 0.3, 0.2))
-	_board = _label(Vector3(bx, 3.5, -1.4), "", 30, Color(0.05, 0.15, 0.1))
+	LowPoly.box(self, Vector3(0.2, 4.6, 0.2), Vector3(bx - 1.6, 2.3, -1.5), Color(0.45, 0.3, 0.2))
+	LowPoly.box(self, Vector3(0.2, 4.6, 0.2), Vector3(bx + 1.6, 2.3, -1.5), Color(0.45, 0.3, 0.2))
+	LowPoly.box(self, Vector3(3.6, 2.2, 0.15), Vector3(bx, 3.5, -1.5), Color(0.12, 0.3, 0.2))
+	_board = LowPoly.label(self, Vector3(bx, 3.5, -1.4), "", 30, Color(0.05, 0.15, 0.1))
 	_board.pixel_size = 0.007
-	_label(Vector3(bx, 5.05, -1.4), "MARBLE DERBY", 64, Color(0.5, 0.25, 0.05))
+	LowPoly.label(self, Vector3(bx, 5.05, -1.4), "MARBLE DERBY", 64, Color(0.5, 0.25, 0.05))
 
 	# A little stand of cheering spectators on the far side.
 	var crowd := Node3D.new()
 	add_child(crowd)
 	for row in 3:
-		_box(self, Vector3(0.9, 0.3 + row * 0.35, LENGTH * 0.7),
+		LowPoly.box(self, Vector3(0.9, 0.3 + row * 0.35, LENGTH * 0.7),
 				Vector3(-LANE_W * 2 - 1.3 - row * 0.9, (0.3 + row * 0.35) / 2.0, -LENGTH / 2.0), Color(0.6, 0.45, 0.3).lightened(row * 0.08))
 		for k in 10:
 			var fan := MeshInstance3D.new()
@@ -335,7 +335,7 @@ func _build() -> void:
 			fs.radius = 0.2
 			fs.height = 0.4
 			fan.mesh = fs
-			fan.material_override = _mat(Color.from_hsv(_rng.randf(), 0.6, 0.95))
+			fan.material_override = LowPoly.mat(Color.from_hsv(_rng.randf(), 0.6, 0.95))
 			fan.position = Vector3(-LANE_W * 2 - 1.3 - row * 0.9, 0.5 + row * 0.35 + 0.2, -LENGTH * 0.15 - k * LENGTH * 0.07 + _rng.randf_range(-0.2, 0.2))
 			crowd.add_child(fan)
 	set_meta("crowd", crowd)
@@ -364,32 +364,3 @@ func _update_board() -> void:
 	_board.text = "\n".join(lines)
 
 
-func _mat(color: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = 0.8
-	return m
-
-
-func _box(parent: Node3D, size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = _mat(color)
-	mi.position = pos
-	parent.add_child(mi)
-	return mi
-
-
-func _label(pos: Vector3, text: String, size: int, outline: Color) -> Label3D:
-	var l := Label3D.new()
-	l.text = text
-	l.font = TITLE_FONT
-	l.font_size = size
-	l.pixel_size = 0.008
-	l.outline_size = 12
-	l.outline_modulate = outline
-	l.position = pos
-	add_child(l)
-	return l

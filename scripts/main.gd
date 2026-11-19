@@ -247,9 +247,11 @@ func _on_play_requested() -> void:
 
 
 ## PRACTICE ISLAND: put everyone's marble on the floating hub island.
+## Only people go to the island: bots join when a match starts.
 func _enter_hub() -> void:
 	menu.close()
 	_setup_local_seats()
+	player_count = clampi(settings.player_count, 1, 4)
 	camera_shake = settings.camera_shake
 	if hub == null:
 		hub = HUB_SCENE.instantiate()
@@ -1320,14 +1322,20 @@ func _update_camera() -> void:
 		camera.target = box.get_center() - right * size * 0.16
 		return
 	if state == State.HUB:
-		# Practice island: from behind and above, keeping every marble in view.
+		# Practice island: follow the marble from behind and above. With
+		# several players, aim at the middle and pull back to keep everyone
+		# in view.
 		var sum := Vector3.ZERO
 		for m in hub.marbles:
 			sum += m.global_position
-			camera.frame_points.append(m.global_position)
+			camera.frame_points.append(m.global_position + Vector3.UP * Hub.TAG_HEIGHT)
 		camera.heading = Vector3.FORWARD
-		camera.follow_offset = Vector3(0, 7.5, 10.0)
-		camera.look_ahead = Vector3(0, -1.0, -6.0)
+		if hub.marbles.size() == 1:
+			camera.follow_offset = Vector3(0, 4.2, 6.8)
+			camera.look_ahead = Vector3(0, -0.5, -3.5)
+		else:
+			camera.follow_offset = Vector3(0, 5.5, 8.5)
+			camera.look_ahead = Vector3(0, -0.8, -4.5)
 		if not hub.marbles.is_empty():
 			camera.target = sum / hub.marbles.size()
 		# Watching the derby: follow the horses, keeping the bettors in shot.

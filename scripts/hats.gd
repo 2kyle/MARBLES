@@ -44,18 +44,18 @@ static func build(id: String) -> Node3D:
 				_add(root, _ball(0.42), Vector3(cos(a) * 0.38, 1.55, sin(a) * 0.38), Color(0.97, 0.97, 0.97))
 			_add(root, _ball(0.45), Vector3(0, 1.7, 0), Color(0.97, 0.97, 0.97))
 		"bunny":
-			_add(root, _ring(0.82, 0.1, 12), Vector3(0, 0.6, 0), Color(0.95, 0.55, 0.75))
+			_add(root, _ring(0.72, 0.1, 12), Vector3(0, 0.72, 0), Color(0.95, 0.55, 0.75))
 			for side in [-1.0, 1.0]:
 				_add(root, _capsule(0.2, 1.1), Vector3(side * 0.32, 1.35, 0), Color(0.98, 0.95, 0.95), Vector3(0, 0, -side * 0.2))
 				_add(root, _capsule(0.11, 0.8), Vector3(side * 0.34, 1.38, -0.12), Color(1.0, 0.6, 0.75), Vector3(0, 0, -side * 0.2))
 		"flowers":
-			_add(root, _ring(0.78, 0.09, 12), Vector3(0, 0.66, 0), Color(0.35, 0.7, 0.3))
+			_add(root, _ring(0.7, 0.09, 12), Vector3(0, 0.74, 0), Color(0.35, 0.7, 0.3))
 			var petals := [Color(1.0, 0.5, 0.65), Color(1.0, 0.85, 0.3), Color(0.7, 0.55, 1.0), Color(1.0, 0.98, 0.95)]
 			for k in 8:
 				var a := k * TAU / 8.0
 				var c: Color = petals[k % petals.size()]
-				_add(root, _ball(0.2), Vector3(cos(a) * 0.78, 0.72, sin(a) * 0.78), c)
-				_add(root, _ball(0.08), Vector3(cos(a) * 0.84, 0.78, sin(a) * 0.84), Color(1.0, 0.8, 0.2))
+				_add(root, _ball(0.2), Vector3(cos(a) * 0.7, 0.8, sin(a) * 0.7), c)
+				_add(root, _ball(0.08), Vector3(cos(a) * 0.76, 0.86, sin(a) * 0.76), Color(1.0, 0.8, 0.2))
 		"propeller":
 			_add(root, _dome(0.85, 0.55), Vector3(0, 0.62, 0), Color(1.0, 0.85, 0.2))
 			_add(root, _cyl(0.06, 0.06, 0.3, 6), Vector3(0, 1.3, 0), Color(0.3, 0.3, 0.35))

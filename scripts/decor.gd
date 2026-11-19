@@ -17,7 +17,7 @@ extends Node3D
 ## Changes which random scatter you get (main.gd sets it each match).
 var seed := 1
 
-const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
+const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 const WATER_Y := -4.0
 const LANTERN_GLOW := Color(1.0, 0.72, 0.35)
 const ARCH_COLOR := Color(0.85, 0.2, 0.18)

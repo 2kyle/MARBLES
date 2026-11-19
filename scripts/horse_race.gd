@@ -29,7 +29,7 @@ const WAGER_STEP := 10
 const MIN_WAGER := 10
 ## The house keeps a little: odds pay back 90% on average.
 const PAYBACK := 0.9
-const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
+const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 
 var profiles: Profiles
 var phase := Phase.OPEN

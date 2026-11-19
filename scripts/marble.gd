@@ -69,7 +69,7 @@ var color := Color.WHITE:
 		color = value
 		_apply_look()
 
-## The player's chosen look: {color, style, trail} entries from Cosmetics.
+## The player's chosen look: {hat, color, style, trail} entries from Cosmetics.
 ## Empty = plain glossy ball in `color`.
 var look: Dictionary = {}:
 	set(value):
@@ -86,6 +86,12 @@ var preview := false:
 			_trail.preview = value
 
 var _trail: MarbleTrail
+## The hat rides on top of the ball without rolling with it, so it's a
+## top-level node that follows the ball's middle and turns to face the way
+## the marble is going.
+var _hat: Node3D
+var _hat_id := ""
+var _hat_yaw := 0.0
 
 const MARBLE_SHADER := preload("res://shaders/marble.gdshader")
 
@@ -101,6 +107,21 @@ func _process(delta: float) -> void:
 		if mesh:
 			mesh.rotate_y(delta * 1.2)
 			mesh.rotate_x(delta * 0.5)
+	_place_hat(delta)
+
+
+func _place_hat(delta: float) -> void:
+	if _hat == null or not is_inside_tree():
+		return
+	var flat := Vector3(linear_velocity.x, 0.0, linear_velocity.z)
+	if preview:
+		_hat_yaw += delta * 1.2
+	elif flat.length() > 0.6:
+		var want := atan2(-flat.x, -flat.z)
+		_hat_yaw = lerp_angle(_hat_yaw, want, clampf(delta * 8.0, 0.0, 1.0))
+	var size := global_transform.basis.get_scale().x * 0.3
+	_hat.global_transform = Transform3D(Basis(Vector3.UP, _hat_yaw).scaled(Vector3.ONE * size), global_position)
+	Hats.animate(_hat, delta, flat.length())
 
 
 func _physics_process(delta: float) -> void:
@@ -268,3 +289,14 @@ func _apply_look() -> void:
 		add_child(_trail)
 	_trail.setup(trail_id, color)
 	_trail.preview = preview
+	var hat_id: String = look.get("hat", {"id": "none"}).id
+	if hat_id != _hat_id:
+		_hat_id = hat_id
+		if _hat:
+			_hat.queue_free()
+			_hat = null
+		if hat_id != "none":
+			_hat = Hats.build(hat_id)
+			_hat.top_level = true
+			add_child(_hat)
+			_place_hat(0.0)

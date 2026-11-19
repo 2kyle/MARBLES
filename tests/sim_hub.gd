@@ -9,6 +9,7 @@ var _ticks := 0
 var _last_y := {}
 var _lowest_d := {}
 var _done := false
+var _coins_crate := 0
 var _coins_before := 0
 
 
@@ -60,11 +61,35 @@ func _process(_delta: float) -> bool:
 				if run.in_gap(d + 1.2, 0.0):
 					m.request_hop()
 		if _ticks == 240:
-			print("customize open: ", game.customize_open, " plate: ", hub.on_plate)
-			game._customize_keys(2)
-			game.request_customize_browse(2, 1)
-			game._close_hub_customize(2)
-			print("after close: ", game.customize_open, " P3 frozen: ", hub.marbles[2].freeze)
+			print("closet open for P%d, plate: %s" % [game.closet.player + 1, hub.on_plate])
+			var closet: Closet = game.closet
+			closet.request_move(Vector2i(0, -1))   # up to the tabs
+			closet.request_move(Vector2i(1, 0))    # BALL COLOR tab
+			closet.request_move(Vector2i(0, 1))    # back into the cards
+			closet.request_move(Vector2i(1, 0))    # next colour (a starter, owned)
+			closet.request_confirm()
+			print("closet tab %d card %d -> P3 colour now %s" % [closet.tab, closet.index, game.profiles.equipped(2, "color")])
+			closet.request_move(Vector2i(0, 1))
+			closet.request_move(Vector2i(0, 1))
+			closet.request_confirm()   # a locked one: shouldn't equip
+			print("locked try: still %s" % game.profiles.equipped(2, "color"))
+			game._close_closet()
+			print("after close: open=%s P3 frozen: %s" % [game.closet.is_open(), hub.marbles[2].freeze])
+			# Then P3 heads for the loot crates.
+			game.profiles.add_coins(2, 300)
+			hub.marbles[2].global_position = hub.to_global(Hub.CRATE_POS + Vector3(0, 0.4, 2.0))
+			hub.marbles[2].linear_velocity = hub.global_basis.z * -3.0
+		if _ticks == 420:
+			print("crates open for P%d" % (game.crate_screen.player + 1))
+			_coins_crate = game.profiles.coins(2)
+			game.crate_screen.request_confirm()
+			print("  shaking: ", game.crate_screen.busy(), "  coins %d -> %d" % [_coins_crate, game.profiles.coins(2)])
+		if _ticks == 420 + 240:
+			var prize: Dictionary = game.crate_screen.prize
+			print("  prize: ", prize.get("kind"), " ", prize.get("item", {}).get("name", prize.get("amount", "")),
+					" (%s) duplicate=%s" % [prize.get("rarity"), prize.get("duplicate")])
+			game._close_crates()
+			print("  crate closed: ", not game.crate_screen.is_open())
 		if _ticks == 200:
 			print("derby open: ", game.derby_open)
 			_coins_before = game.profiles.coins(3)

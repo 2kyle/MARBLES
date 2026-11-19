@@ -10,7 +10,7 @@ const PLAYER_COLORS := [Color(1.0, 0.45, 0.65), Color(1.0, 0.8, 0.25), Color(0.7
 const GAME_COLOR := Color(0.55, 0.8, 1.0)
 const KEY_BG := Color(1, 1, 1, 0.1)
 const INK := Color(0.08, 0.08, 0.14)
-const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
+const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 
 var kind := Kind.KEYBOARD:
 	set(v):
@@ -158,7 +158,7 @@ func _draw_controller() -> void:
 		[c + Vector2(-25, -35), Vector2(20, 236), "Back (hold)", "scoreboard"],
 	]
 	var right := [
-		[face + Vector2(0, 26), Vector2(860, 250), "A", "pick, grab, drop, hop, buy, bet"],
+		[face + Vector2(0, 26), Vector2(860, 250), "A", "pick, grab, drop, hop, wear, open, bet"],
 		[face + Vector2(-26, 0), Vector2(860, 180), "X or RB", "turn / flip a piece, done"],
 		[face + Vector2(26, 0), Vector2(860, 120), "B", "back, leave a plate"],
 		[face + Vector2(0, -26), Vector2(860, 60), "Y", "start match / next frame"],

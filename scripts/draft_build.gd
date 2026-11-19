@@ -36,7 +36,7 @@ var _tags: Array = []      # per player: floating name + flow arrow
 var part: Array = []
 var _first_part: Array = []  # per player: the placed first part, or null
 
-const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
+const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 
 const START_X := [-1.2, 1.2, -0.4, 0.4]
 

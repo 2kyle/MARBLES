@@ -16,7 +16,7 @@ A party game where friends build a bowling lane together, then race physics marb
 
 The game opens on the **MARBLES 4P** title screen (a working title), with the camera slowly circling the island. From there:
 
-- **Play** picks the number of players (1 to 4), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on the Customize screen.
+- **Play** picks the number of players (1 to 4), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start).
 - **Practice Island** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** is a placeholder marked "soon".
 - **Settings** has fullscreen, vsync, volume, camera shake and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
@@ -31,7 +31,9 @@ During a match, **Esc** opens the pause menu.
 A small floating island to warm up on. It's its own place, high above a sea of clouds with its own sky; the match lake and track are hidden while you're there. Roll with your lean keys (forward is away from the camera) and hop with your place key. Nothing here counts.
 
 - **Practice run:** a winding track down from the stone START tower, with a gap to hop and a steep drop. It ends on the plaza, where a big blue pad sends you straight back to the top. The **PRACTICE RUN** pad on the plaza takes you up too.
-- **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch. Your marble is parked on the plate and your Customize panel opens (same controls as before a match). Press your turn key (Q for P1) when you're done and you roll off.
+- **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch to open your **closet** (see below). One player at a time.
+- **Loot Crates plate** (by the welcome sign, under the floating crate): spend coins on loot crates to win new looks (see below).
+- **Golden Marble Trophy:** anyone who has pulled the ultra-rare trophy gets it on a little stand on the east side of the plaza.
 - **Marble Derby** (west lawn): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four marble "horses" (Frank, Trunk, Fatty and Jakob) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
 - **Your coins** show in the top right corner the whole time you're on the island.
 - An empty plot on the east lawn is saved for the next minigame.
@@ -45,7 +47,7 @@ A small floating island to warm up on. It's its own place, high above a sea of c
 The island is built in code in `scripts/hub.gd` (the derby is `scripts/horse_race.gd`): windmill, pond and waterfall, trees, flowers, lanterns, butterflies, drifting clouds and little floating rocks.
 
 
-Before each match, everyone picks their marble's look in the **Customize & Store** (see below). Then each frame has four steps, like the design doc:
+Looks are changed between games in the closet on the practice island, not at the start of a match. Each frame has four steps, like the design doc:
 
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as big picture cards in the middle of the screen. Each player steers their own pointer onto a card and grabs it. First to grab a piece gets it.
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Your piece's name floats above it, and coloured arrows on the floor show which way marbles will roll through it. Pieces stay on the lane for the rest of the match.
@@ -58,16 +60,42 @@ A match is 10 frames. Every match starts on a new random track that winds left a
 
 While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m (not enough to clear the walls), and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
 
-### Customize & Store
+### The closet
 
-![The Customize screen and store](docs/customize.png)
+![The closet](docs/closet.png)
 
-Before each match the camera sits behind the marbles and each player gets a panel. Move up and down to pick a row (Color, Style, Trail) and left and right to flip through looks. Looks you own go on your marble straight away. Looks you don't own show their price, and your place key (E for P1, Enter for P2) buys them.
+Roll onto the CUSTOMIZE plate on the practice island and the closet fills the screen. Your marble spins on a pedestal on the left; on the right are four tabs, **HATS**, **BALL COLOR**, **STYLE** and **TRAIL**, each a grid of cards with a little picture of the look. Your coins are in the top right corner.
 
-- **Styles:** Gloss, Stripes, Chrome, Checkers, Swirl, Neon, Glass, Lava, Galaxy. Patterns are painted on the ball, so you can see it roll.
-- **Trails:** Ribbon, Sparkles, Bubbles, Flame, Rainbow.
-- **Coins:** you get 1 coin per point you score each frame. At the end of a match everyone gets +20 and the winner gets +50 more. New players start with 150. Coins and purchases are saved on this computer for each player seat (P1, P2 and so on).
-- Prices and looks live in `scripts/cosmetics.gd`, and coin amounts in `scripts/profiles.gd`.
+- Move with your lean keys or stick. Up from the top row reaches the tabs, and pushing past the left or right edge of the grid flips to the next tab.
+- Whatever you highlight is tried on the big marble straight away, even if you don't own it yet.
+- Your place key (E for P1, A on a controller) wears a look you own. Locked looks are dark with a padlock: they only come from loot crates.
+- The coloured strip under each card is its rarity: grey Common, blue Rare, purple Epic, gold Legendary.
+- Your turn key (Q for P1, B on a controller) closes the closet and rolls you off the plate.
+
+What's in it: 17 hats (party hat, beanie, ball cap, traffic cone, top hat, cowboy hat, chef hat, bunny ears, flower crown, propeller cap, pirate hat, viking helmet, rubber duck, wizard hat, crown and halo), 13 ball colours, 9 styles (Gloss, Stripes, Checkers, Chrome, Swirl, Neon, Glass, Lava, Galaxy) and 5 trails (Ribbon, Sparkles, Bubbles, Flame, Rainbow). Everyone starts with no hat, four colours, Gloss and the Ribbon trail.
+
+### Loot crates
+
+![Opening a loot crate](docs/crate.png)
+
+Every other look is won from loot crates on the practice island. A crate costs **100 coins**. It shakes, glows in the colour of what's inside, and pops open:
+
+| Prize | Chance |
+| --- | --- |
+| A look: Common / Rare / Epic / Legendary | 46.2% / 23.5% / 10.9% / 3.4% |
+| A pile of coins (50 to 200) | 15% |
+| **Golden Marble Trophy** (ultra rare) | 1% |
+
+A look you already own pays coins back instead (25 for Common up to 150 for Legendary). The Golden Marble Trophy isn't worn: it stands on your practice island. The odds are shown on the crate screen, and live in `scripts/loot_crates.gd` if you want to tune them.
+
+- **Coins:** you get 1 coin per point you score each frame. At the end of a match everyone gets +20 and the winner gets +50 more. New players start with 150, enough for one crate. The Marble Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on).
+- Looks and rarities live in `scripts/cosmetics.gd`, hat shapes in `scripts/hats.gd`, and coin amounts in `scripts/profiles.gd`.
+
+### STRIKE!
+
+If a single player knocks down every pin in a frame on their own, a big **STRIKE!** in their colour bursts onto the middle of the screen before the scores come in. If the pins were shared between players, there's no banner.
+
+The scoreboard then pops in and counts each player's new points up into their total one row at a time, with a "+N" flying off and the leader marked with a star.
 
 ### Pieces
 
@@ -118,7 +146,8 @@ Everything works with the keyboard or controllers, and the **Controls** page in 
 | | Player 1 keys | Player 2 keys | Controller |
 | --- | --- | --- | --- |
 | Menus: move / pick / back | W S or arrows / E or Enter / Esc | | D-pad or left stick / A / B |
-| Customize: row / change / buy | W S / A D / E | Up Down / Left Right / Enter | D-pad or stick / A |
+| Closet: browse / wear / close | W A S D / E / Q | Arrows / Enter / Right Shift | D-pad or stick / A / B |
+| Loot crate: open / leave | E / Q | Enter / Right Shift | A / B |
 | Draft: move pointer / grab | W A S D / E | Arrows / Enter | Left stick / A |
 | Build: move / rotate (flip for track cards) / place | W A S D / Q / E | Arrow keys / Right Shift / Enter | Left stick / X or RB / A |
 | Roll: lean / hop | W A S D / E | Arrow keys / Enter | Left stick (analog) / A |
@@ -194,9 +223,8 @@ Tight corners send marbles over the wall, which is half the fun, but a corner sh
 
 ### Fonts
 
-Text uses two free fonts, both under the SIL Open Font License (the licence files are in `fonts/`):
-- **Lilita One** by Juan Montoreano for titles and big numbers
-- **Fredoka** by the Fredoka Project Authors for everything else (set for the whole game in `ui/theme.tres`)
+Text uses one free font, under the SIL Open Font License (the licence files are in `fonts/`):
+- **Chakra Petch** by the Chakra Petch Project Authors: Bold for titles and big numbers, SemiBold for everything else (set for the whole game in `ui/theme.tres`). Its cut, faceted corners suit the low-poly look.
 
 ## How the project is laid out
 
@@ -215,15 +243,20 @@ scripts/
   scoring.gd         the scoring rules, on their own
   piece_catalog.gd   the list of draftable pieces (add new ones here)
   draft_build.gd     draft and build rules
-  cosmetics.gd       every marble look and its price
-  profiles.gd        each seat's coins, purchases and equipped look (saved)
+  cosmetics.gd       every marble look and its rarity
+  hats.gd            builds the hat shapes
+  loot_crates.gd     loot crate prices and odds
+  closet.gd          the full-screen closet
+  crate_screen.gd    opening a loot crate
+  item_icons.gd      the little pictures of each look (and the trophy)
+  profiles.gd        each seat's coins, owned looks and equipped look (saved)
   marble_trail.gd    marble trails (ribbon, sparkles, flame and so on)
   track_gen.gd       makes random track layouts and applies track cards
   track.gd           builds the track's floor, walls and posts from the curve
   course_builder.gd  the build area, placed pieces, and the bomb
   teleporter.gd      the two-part teleporter pad
   wind_fan.gd        the wind fan piece
-  hub.gd             the practice island (practice run, Customize plate, PLAY arch)
+  hub.gd             the practice island (practice run, closet and crate plates, trophies, PLAY arch)
   horse_race.gd      the Marble Derby betting minigame
   main_menu.gd       title screen, Play/Settings/Controls/Credits pages, pause menu
   game_settings.gd   saved settings (screen, sound, camera, match options)
@@ -235,7 +268,7 @@ scripts/
   art_style.gd       the shared look: sky, haze and puffy clouds
   cloud_layer.gd     drifting clouds (match and practice island)
   camera_rig.gd      follow camera
-  hud.gd             everything on screen: scores, draft cards, Customize screen, scoreboard
+  hud.gd             everything on screen: scores, draft cards, ready screen, STRIKE!, scoreboard
 fonts/               the two fonts and their licences
 ui/theme.tres        default font and text size for all menus
 shaders/
@@ -247,7 +280,8 @@ tests/
   sim_roll.gd        plays frames with no one at the keys and prints results
   sim_items.gd       tries the teleporter, wind fan and Wall Breaker
   sim_gap.gd         rolls over a gap, with or without well-timed hops
-  sim_hub.gd         checks the practice island's teleports, Customize plate, derby bet and PLAY arch
+  sim_hub.gd         checks the practice island's teleports, closet, a loot crate, derby bet and PLAY arch
+  test_crates.gd     opens 100,000 crates and checks the odds (1% trophy and so on)
 ```
 
 The code is set up for online play later: `main.gd` makes every decision (physics, who arrived first, who gets each pin), and player input only reaches the game through two functions: `_gather_inputs()` for marble lean and `_gather_build_inputs()` for draft and build requests. When online play arrives, the host runs `main.gd` and fills those in from the network instead of the keyboard.
@@ -258,6 +292,7 @@ From the project folder in a terminal, with `godot` being the path to your Godot
 
 ```
 godot --headless --script res://tests/test_scoring.gd
+godot --headless --script res://tests/test_crates.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_roll.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_gap.gd -- hop
 ```

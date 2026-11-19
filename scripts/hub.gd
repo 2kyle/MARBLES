@@ -7,7 +7,9 @@ extends Node3D
 ##   - a practice run: a winding track down from a tall start tower, with
 ##     a gap to hop and a drop. A pad at the bottom sends you back to the
 ##     top, and the PRACTICE RUN pad on the plaza takes you up too.
-##   - a CUSTOMIZE pressure plate: roll onto it to change your marble's look
+##   - a CUSTOMIZE pressure plate: roll onto it to open the closet
+##   - a LOOT CRATES plate: spend coins on crates to win new looks
+##   - a trophy stand for anyone who's won the Golden Marble Trophy
 ##   - hurdles to practise hopping, and a few pieces to bump into
 ##   - a PLAY arch that starts a real match
 ## Fall off the island and you pop back on the plaza (no penalty here).
@@ -21,6 +23,8 @@ signal customize_requested(player: int)
 signal play_requested
 ## A player rolled onto the Marble Derby betting plate.
 signal derby_requested(player: int)
+## A player rolled onto the Loot Crates plate.
+signal crates_requested(player: int)
 
 const ISLAND_RADIUS := 34.0
 const SPAWN := Vector3(0, 0.4, 12)
@@ -30,7 +34,10 @@ const DERBY_POS := Vector3(-25.5, 0, 9)
 const BET_PLATE_POS := Vector3(-19.5, 0, 13.5)
 const LIFT_POS := Vector3(8, 0, 8)
 const PORTAL_POS := Vector3(0, 0, 21)
-const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
+const CRATE_POS := Vector3(-10, 0, 14.5)
+## Where Golden Marble Trophies stand (one per player who's won one).
+const TROPHY_POS := Vector3(10.8, 0, 11.2)
+const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 const FLOWER_COLORS := [Color(1, 0.45, 0.6), Color(1, 0.85, 0.3), Color(0.7, 0.5, 1),
 		Color(1, 1, 1), Color(1, 0.55, 0.25)]
 
@@ -54,6 +61,8 @@ var _bobbers: Array = []
 var _time := 0.0
 var _rng := RandomNumberGenerator.new()
 var _mats := {}
+var _trophies: Array = []   # trophy nodes on the island right now
+var _crate_deco: Node3D
 
 
 func _process(delta: float) -> void:
@@ -67,6 +76,13 @@ func _process(delta: float) -> void:
 		var a: float = c.angle + _time * c.speed
 		node.position = Vector3(cos(a) * c.radius, c.y + sin(_time * 0.3 + c.angle) * 0.6, sin(a) * c.radius)
 		node.rotation.y = -(a + PI / 2)  # face the way it's drifting
+	for t in _trophies:
+		var ball := (t as Node3D).get_node("Trophy/Ball") as Node3D
+		ball.position.y = 1.14 + sin(_time * 2.0) * 0.05
+		ball.rotate_y(delta)
+	if _crate_deco:
+		_crate_deco.rotation.y = sin(_time * 0.7) * 0.4
+		_crate_deco.position.y = 1.6 + sin(_time * 1.8) * 0.12
 	for b in _bobbers:
 		(b.node as Node3D).position.y = b.y + sin(_time * b.speed + b.phase) * b.amount
 	for plate in _plates:
@@ -152,6 +168,7 @@ func _build() -> void:
 	_fence()
 	_practice_run()
 	_customize_plate()
+	_crate_plate()
 	_derby()
 	_coming_soon(Vector3(27, 0, 2))
 	_play_portal()
@@ -341,6 +358,58 @@ func _customize_plate() -> void:
 	_box(self, Vector3(1.4, 2.0, 0.05), PLATE_POS + Vector3(0, 1.3, -1.44), frame_col, 0.0)
 	_label(PLATE_POS + Vector3(0, 3.1, -0.42), "CUSTOMIZE", 64, Color(0.4, 0.1, 0.45))
 
+
+
+## The LOOT CRATES plate, with a big crate floating over it.
+func _crate_plate() -> void:
+	var gold := Color(1.0, 0.78, 0.25)
+	_cyl(self, 1.3, 1.4, 0.12, CRATE_POS + Vector3.UP * 0.06, Color(0.3, 0.2, 0.12), 24)
+	_pressure_plate(CRATE_POS, Color(1.0, 0.6, 0.2), func(p): crates_requested.emit(p))
+	_crate_deco = Node3D.new()
+	_crate_deco.position = CRATE_POS + Vector3(0, 1.6, -1.6)
+	add_child(_crate_deco)
+	var wood := Color(0.78, 0.52, 0.3)
+	_box(_crate_deco, Vector3(1.4, 0.9, 1.0), Vector3.ZERO, wood, 0.0)
+	_box(_crate_deco, Vector3(1.5, 0.24, 1.1), Vector3(0, 0.55, 0), wood, 0.0)
+	_box(_crate_deco, Vector3(1.52, 0.06, 1.12), Vector3(0, 0.45, 0), gold, 0.0)
+	_box(_crate_deco, Vector3(0.3, 0.3, 0.08), Vector3(0, 0.38, 0.56), gold, 0.0)
+	for x in [-0.68, 0.68]:
+		for z in [-0.48, 0.48]:
+			_box(_crate_deco, Vector3(0.1, 0.92, 0.1), Vector3(x, 0, z), gold, 0.0)
+	var seam := _box(_crate_deco, Vector3(1.36, 0.06, 0.96), Vector3(0, 0.47, 0), Color(1, 0.95, 0.8), 0.0)
+	var sm: StandardMaterial3D = seam.material_override.duplicate()
+	seam.material_override = sm
+	sm.emission_enabled = true
+	sm.emission = Color(1.0, 0.85, 0.4)
+	sm.emission_energy_multiplier = 2.0
+	_sparkles(CRATE_POS + Vector3(0, 1.8, -1.6), Vector3(1.0, 0.8, 1.0), gold, 16)
+	_label(CRATE_POS + Vector3(0, 3.3, -1.6), "LOOT CRATES", 64, Color(0.45, 0.25, 0.0), 0.0, true)
+
+
+## Put a Golden Marble Trophy on the island for each player who owns one.
+func refresh_trophies(profiles: Profiles, count: int) -> void:
+	for t in _trophies:
+		t.queue_free()
+	_trophies.clear()
+	var owners := []
+	for p in count:
+		if profiles.has_trophy(p):
+			owners.append(p)
+	for i in owners.size():
+		var p: int = owners[i]
+		var col: Color = Cosmetics.find("color", profiles.equipped(p, "color")).color
+		var holder := Node3D.new()
+		holder.position = TROPHY_POS + Vector3((i % 2) * 1.8, 0, floori(i / 2.0) * 1.8)
+		holder.add_child(ItemIcons.trophy_model(col, "P%d" % (p + 1)))
+		holder.scale = Vector3.ONE * 1.2
+		add_child(holder)
+		_trophies.append(holder)
+		var glow := OmniLight3D.new()
+		glow.light_color = Color(1.0, 0.8, 0.35)
+		glow.light_energy = 0.8
+		glow.omni_range = 3.0
+		glow.position = Vector3(0, 1.4, 0.4)
+		holder.add_child(glow)
 
 
 ## A round plate that sinks when a marble rolls on. The marble is parked
@@ -711,8 +780,9 @@ func _sky_life() -> void:
 	for i in 6:
 		var a := PI * (0.15 + 0.7 * i / 5.0)
 		var at := Vector3(cos(a) * 15.0, 0, 10.0 + sin(a) * 6.0)
-		if _near_run(at, 2.5) or at.distance_to(Vector3(4, 0, 15)) < 3.0 or at.distance_to(Vector3(-5, 0, 16)) < 3.0:
-			continue  # not on the practice run or the playground pieces
+		if _near_run(at, 2.5) or at.distance_to(Vector3(4, 0, 15)) < 3.0 or at.distance_to(Vector3(-5, 0, 16)) < 3.0 \
+				or at.distance_to(CRATE_POS) < 3.0 or at.distance_to(TROPHY_POS + Vector3(0.9, 0, 0.9)) < 3.0:
+			continue  # not on the practice run, the playground pieces, crates or trophies
 		_box(self, Vector3(0.1, 2.2, 0.1), at + Vector3.UP * 1.1, Color(0.2, 0.18, 0.16), 0.0)
 		var bulb := _ball(at + Vector3.UP * 2.3, 0.18, Color(1.0, 0.75, 0.4))
 		var bm: StandardMaterial3D = bulb.material_override

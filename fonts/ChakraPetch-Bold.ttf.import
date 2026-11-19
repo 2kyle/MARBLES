@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://0fm83uwt2urr"
-path="res://.godot/imported/Fredoka.ttf-298377900bfb6872c6093eeb33bab54d.fontdata"
+uid="uid://bf4g12rrrenui"
+path="res://.godot/imported/ChakraPetch-Bold.ttf-b45a74094acbceb3f49c2d4f74608170.fontdata"
 
 [deps]
 
-source_file="res://fonts/Fredoka.ttf"
-dest_files=["res://.godot/imported/Fredoka.ttf-298377900bfb6872c6093eeb33bab54d.fontdata"]
+source_file="res://fonts/ChakraPetch-Bold.ttf"
+dest_files=["res://.godot/imported/ChakraPetch-Bold.ttf-b45a74094acbceb3f49c2d4f74608170.fontdata"]
 
 [params]
 

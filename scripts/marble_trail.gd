@@ -84,12 +84,26 @@ func _make_particles(size: float, life: float, tint: Color, glow: bool) -> CPUPa
 	p.spread = 180.0
 	p.initial_velocity_min = 0.1
 	p.initial_velocity_max = 0.4
-	var mesh := QuadMesh.new()
-	mesh.size = Vector2(size, size) * 2.0
+	var mesh: PrimitiveMesh
+	if glow:
+		# Sparkles are tiny low-poly diamonds rather than flat squares.
+		var gem := SphereMesh.new()
+		gem.radius = size
+		gem.height = size * 2.6
+		gem.radial_segments = 4
+		gem.rings = 2
+		mesh = gem
+	else:
+		# Bubbles and flames are little low-poly balls.
+		var ball := SphereMesh.new()
+		ball.radius = size
+		ball.height = size * 2.0
+		ball.radial_segments = 6
+		ball.rings = 3
+		mesh = ball
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	mat.vertex_color_use_as_albedo = true
 	if glow:
 		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD

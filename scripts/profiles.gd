@@ -1,12 +1,13 @@
 class_name Profiles
 extends RefCounted
-## Each player seat's coins, what they've bought, and what they're wearing.
+## Each player seat's coins, what they've won from loot crates, and what
+## they're wearing.
 ## Saved on this computer (user://profiles.cfg) so it carries over between
 ## games. In online play each player would keep their own profile instead.
 
 const PATH := "user://profiles.cfg"
 const SEATS := 4
-## Coins a brand-new seat starts with, so there's something to spend.
+## Coins a brand-new seat starts with: enough for a first loot crate.
 const STARTING_COINS := 150
 const DEFAULT_COLORS := ["pink", "yellow", "violet", "lime"]
 
@@ -22,7 +23,7 @@ func _init() -> void:
 		seats.append({
 			"coins": STARTING_COINS,
 			"owned": Cosmetics.free_items(),
-			"equipped": {"color": DEFAULT_COLORS[i], "style": "gloss", "trail": "ribbon"},
+			"equipped": {"hat": "none", "color": DEFAULT_COLORS[i], "style": "gloss", "trail": "ribbon"},
 		})
 
 
@@ -75,24 +76,28 @@ func equip(seat: int, slot: String, id: String) -> bool:
 	return true
 
 
-## Spend coins on an item. Returns false if it's already owned or the
-## seat can't afford it.
-func buy(seat: int, slot: String, id: String) -> bool:
-	var price: int = Cosmetics.find(slot, id).price
-	if owns(seat, slot, id) or coins(seat) < price:
+## Give a seat a look (from a loot crate). Returns false if it already
+## had it (the crate then pays coins back instead).
+func grant(seat: int, slot: String, id: String) -> bool:
+	if owns(seat, slot, id):
 		return false
-	seats[seat].coins -= price
 	seats[seat].owned.append(slot + ":" + id)
 	return true
+
+
+## Whether this seat has pulled the ultra-rare trophy.
+func has_trophy(seat: int) -> bool:
+	return owns(seat, "trophy", Cosmetics.TROPHY.id)
 
 
 func add_coins(seat: int, amount: int) -> void:
 	seats[seat].coins += amount
 
 
-## Everything a marble needs to look right: color, style and trail entries.
+## Everything a marble needs to look right: hat, color, style and trail entries.
 func look(seat: int) -> Dictionary:
 	return {
+		"hat": Cosmetics.find("hat", equipped(seat, "hat")),
 		"color": Cosmetics.find("color", equipped(seat, "color")),
 		"style": Cosmetics.find("style", equipped(seat, "style")),
 		"trail": Cosmetics.find("trail", equipped(seat, "trail")),

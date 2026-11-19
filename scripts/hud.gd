@@ -4,11 +4,11 @@ extends CanvasLayer
 ## cards and pointers, the Customize screen, the scoreboard and key hints.
 ## Only reads game state, never changes it.
 ##
-## Fonts: Fredoka for normal text (set for the whole project in
-## ui/theme.tres) and Lilita One for titles and big numbers. Both are free
-## fonts under the SIL Open Font License (see fonts/).
+## Font: Chakra Petch, a free font (SIL Open Font License, see fonts/)
+## with cut, faceted corners to suit the low-poly look. SemiBold for normal
+## text (set for the whole project in ui/theme.tres), Bold for titles.
 
-const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
+const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
 
@@ -24,14 +24,22 @@ var _badge: Label            # "FRAME 3/10" top centre
 var _banner: Label           # "DRAFT 12" under the badge
 var _center: Label           # countdown number
 var _board: PanelContainer
-var _board_grid: GridContainer
+var _board_grid: VBoxContainer
 var _board_title: Label
 var _board_lines: Label
+var _board_frames := -1
+var _board_key := ""
+var _board_shown := {}   # total each player's row shows while counting up
+var _strike: Label
+var _strike_burst: CPUParticles2D
+## Seconds left of the STRIKE! banner (the scoreboard waits for it).
+var _strike_left := 0.0
+var _strike_player := -1
 var _hints: HBoxContainer
 var _hints_key := ""
 var _chips: HBoxContainer    # build-phase status, bottom centre
-var _customize: HBoxContainer
-var _customize_title: Label
+var _ready_title: Label
+var _ready_sub: Label
 var _derby: HBoxContainer        # Marble Derby betting panels (practice island)
 var _hub_coins: HBoxContainer    # everyone's coins, top right on the island
 
@@ -97,16 +105,11 @@ func _ready() -> void:
 
 	_build_board()
 
-	_customize = HBoxContainer.new()
-	_customize.add_theme_constant_override("separation", 18)
-	_customize.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	_customize.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_customize.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_customize.offset_bottom = -58
-	add_child(_customize)
-	_customize_title = _title_label(52, Control.PRESET_CENTER_TOP)
-	_customize_title.offset_top = 62
-	_customize_title.text = "CUSTOMIZE"
+	_ready_title = _title_label(84, Control.PRESET_CENTER_TOP)
+	_ready_title.offset_top = 70
+	_ready_title.text = "READY?"
+	_ready_sub = _title_label(24, Control.PRESET_CENTER_TOP)
+	_ready_sub.offset_top = 175
 
 	_derby = HBoxContainer.new()
 	_derby.add_theme_constant_override("separation", 18)
@@ -145,11 +148,15 @@ func refresh(game) -> void:
 	_update_countdown(game)
 	_update_draft(game)
 	_update_chips(game)
-	_update_customize(game)
+	_update_ready(game)
 	_update_hub(game)
 
 	var show_board: bool = game.state in [game.State.RESULTS, game.State.MATCH_OVER] \
 			or (Input.is_action_pressed("scoreboard") and not game.state in [game.State.WAITING, game.State.HUB])
+	# Let a STRIKE! play before the scores come in.
+	_strike_left = maxf(_strike_left - get_process_delta_time(), 0.0)
+	if _strike_left > 0.0 and not Input.is_action_pressed("scoreboard"):
+		show_board = false
 	_board.visible = show_board
 	if show_board:
 		_fill_board(game)
@@ -434,100 +441,18 @@ func _update_chips(game) -> void:
 		l.add_theme_color_override("font_color", Color(1, 0.45, 0.4) if state == "BLOCKED" else Color.WHITE)
 
 
-# ------------------------------------------------------------ Customize
+# ------------------------------------------------------------ Ready screen
 
-func _update_customize(game) -> void:
-	# Before a match everyone customizes; on the practice island only the
-	# players parked on the Customize plate do.
-	var in_hub: bool = game.state == game.State.HUB
-	var show: bool = game.state == game.State.WAITING or (in_hub and game.customize_open.has(true))
-	_customize.visible = show
-	_customize_title.visible = show
+func _update_ready(game) -> void:
+	var show: bool = game.state == game.State.WAITING
+	_ready_title.visible = show
+	_ready_sub.visible = show
 	if not show:
 		return
-	while _customize.get_child_count() < game.player_count:
-		_customize.add_child(_make_customize_panel())
-	_show_first(_customize, game.player_count)
-	if in_hub:
-		for p in game.player_count:
-			_customize.get_child(p).visible = game.customize_open[p]
-	for p in game.player_count:
-		var panel: PanelContainer = _customize.get_child(p)
-		var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
-		style.border_color = game.player_colors[p]
-		var box := panel.get_child(0)
-		var head: HBoxContainer = box.get_child(0)
-		head.get_child(0).text = "P%d" % (p + 1)
-		head.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
-		head.get_child(2).text = "%d COINS" % game.profiles.coins(p)
-		for r in Cosmetics.SLOTS.size():
-			var slot: String = Cosmetics.SLOTS[r]
-			var id: String = game.customize_browse[p].get(slot, game.profiles.equipped(p, slot))
-			var item := Cosmetics.find(slot, id)
-			var row: PanelContainer = box.get_child(1 + r)
-			var selected: bool = game.customize_row[p] == r
-			var row_style: StyleBoxFlat = row.get_theme_stylebox("panel")
-			row_style.bg_color = Color(1, 1, 1, 0.12) if selected else Color(0, 0, 0, 0)
-			var cols: HBoxContainer = row.get_child(0)
-			cols.get_child(0).text = slot.to_upper()
-			cols.get_child(1).text = ("<  %s  >" if selected else "%s") % item.name
-			var owned: bool = game.profiles.owns(p, slot, id)
-			cols.get_child(2).text = "" if owned else str(item.price)
-			cols.get_child(2).visible = not owned
-		var foot: Label = box.get_child(1 + Cosmetics.SLOTS.size())
-		var slot_now: String = Cosmetics.SLOTS[game.customize_row[p]]
-		var id_now: String = game.customize_browse[p].get(slot_now, "")
-		if game.customize_message[p] != "":
-			foot.text = game.customize_message[p]
-		elif id_now != "" and not game.profiles.owns(p, slot_now, id_now):
-			foot.text = "%s  Buy" % _key_names(p).confirm
-		else:
-			foot.text = ""
-
-
-func _make_customize_panel() -> PanelContainer:
-	var panel := PanelContainer.new()
-	var style := _pill(PANEL_BG, 14, 12)
-	style.border_width_top = 5
-	panel.add_theme_stylebox_override("panel", style)
-	panel.custom_minimum_size = Vector2(300, 0)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
-	panel.add_child(box)
-	var head := HBoxContainer.new()
-	var tag := Label.new()
-	tag.add_theme_font_override("font", TITLE_FONT)
-	tag.add_theme_font_size_override("font_size", 26)
-	head.add_child(tag)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(spacer)
-	head.add_child(_coin_label(22))
-	box.add_child(head)
-	for r in Cosmetics.SLOTS.size():
-		var row := PanelContainer.new()
-		row.add_theme_stylebox_override("panel", _pill(Color(0, 0, 0, 0), 8, 3))
-		var cols := HBoxContainer.new()
-		cols.add_theme_constant_override("separation", 10)
-		row.add_child(cols)
-		var key := Label.new()
-		key.custom_minimum_size = Vector2(62, 0)
-		key.add_theme_font_size_override("font_size", 13)
-		key.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
-		cols.add_child(key)
-		var value := Label.new()
-		value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		value.add_theme_font_size_override("font_size", 19)
-		cols.add_child(value)
-		cols.add_child(_coin_label(16))
-		box.add_child(row)
-	var foot := Label.new()
-	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	foot.add_theme_font_size_override("font_size", 15)
-	foot.add_theme_color_override("font_color", GOLD)
-	foot.custom_minimum_size = Vector2(0, 22)
-	box.add_child(foot)
-	return panel
+	_ready_sub.text = "PRESS %s TO START  ·  CHANGE LOOKS IN THE CLOSET ON THE PRACTICE ISLAND" % _gk("SPACE")
+	var pulse := 1.0 + sin(Time.get_ticks_msec() / 1000.0 * 3.0) * 0.04
+	_ready_title.pivot_offset = _ready_title.size / 2.0
+	_ready_title.scale = Vector2(pulse, pulse)
 
 
 ## A gold number, for coins and prices.
@@ -543,7 +468,10 @@ func _coin_label(size: int) -> Label:
 
 func _update_hub(game) -> void:
 	var in_hub: bool = game.state == game.State.HUB
-	_hub_coins.visible = in_hub
+	# The closet and crate screens draw their own coins and hints.
+	var screen: bool = in_hub and (game.closet.is_open() or game.crate_screen.is_open())
+	_hub_coins.visible = in_hub and not screen
+	_hints.visible = not screen
 	_derby.visible = in_hub and game.derby_open.has(true)
 	if not in_hub:
 		return
@@ -572,8 +500,6 @@ func _update_hub(game) -> void:
 		row.get_child(1).text = "%d COINS" % game.profiles.coins(p)
 	if not _derby.visible:
 		return
-	# Sit above the Customize panels if both are open.
-	_derby.offset_bottom = -300 if _customize.visible else -58
 	var derby: HorseRace = game.hub.derby
 	while _derby.get_child_count() < game.player_count:
 		_derby.add_child(_make_derby_panel())
@@ -655,9 +581,11 @@ func _make_derby_panel() -> PanelContainer:
 
 func _build_board() -> void:
 	_board = PanelContainer.new()
-	var style := _pill(PANEL_BG, 22, 16)
-	style.shadow_color = Color(0, 0, 0, 0.4)
-	style.shadow_size = 10
+	var style := _pill(Color(0.06, 0.08, 0.15, 0.94), 28, 20)
+	style.border_width_top = 6
+	style.border_color = GOLD
+	style.shadow_color = Color(0, 0, 0, 0.45)
+	style.shadow_size = 18
 	_board.add_theme_stylebox_override("panel", style)
 	_board.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_board.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -667,12 +595,14 @@ func _build_board() -> void:
 	_board.add_child(box)
 	_board_title = Label.new()
 	_board_title.add_theme_font_override("font", TITLE_FONT)
-	_board_title.add_theme_font_size_override("font_size", 34)
+	_board_title.add_theme_font_size_override("font_size", 46)
+	_board_title.add_theme_color_override("font_color", GOLD)
+	_board_title.add_theme_color_override("font_outline_color", Color(0.25, 0.12, 0.0))
+	_board_title.add_theme_constant_override("outline_size", 10)
 	_board_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_board_title)
-	_board_grid = GridContainer.new()
-	_board_grid.add_theme_constant_override("h_separation", 16)
-	_board_grid.add_theme_constant_override("v_separation", 6)
+	_board_grid = VBoxContainer.new()
+	_board_grid.add_theme_constant_override("separation", 8)
 	box.add_child(_board_grid)
 	_board_lines = Label.new()
 	_board_lines.add_theme_font_size_override("font_size", 16)
@@ -682,51 +612,86 @@ func _build_board() -> void:
 	add_child(_board)
 
 
-## One row per player, one column per frame, then the total.
+## One row per player (a coloured card), one cell per frame, then the total.
+func _make_board_row(frames: int, header: bool) -> PanelContainer:
+	var card := PanelContainer.new()
+	var st := _pill(Color(1, 1, 1, 0.0 if header else 0.06), 14, 6 if header else 8)
+	st.border_width_left = 0 if header else 8
+	card.add_theme_stylebox_override("panel", st)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	card.add_child(row)
+	var name := Label.new()
+	name.custom_minimum_size = Vector2(70, 0)
+	name.add_theme_font_override("font", TITLE_FONT)
+	name.add_theme_font_size_override("font_size", 28)
+	row.add_child(name)
+	for f in frames:
+		var cell := Label.new()
+		cell.custom_minimum_size = Vector2(34, 0)
+		cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cell.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		cell.add_theme_font_size_override("font_size", 14 if header else 20)
+		row.add_child(cell)
+	var total := Label.new()
+	total.custom_minimum_size = Vector2(90, 0)
+	total.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	total.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	total.add_theme_font_override("font", TITLE_FONT)
+	total.add_theme_font_size_override("font_size", 14 if header else 38)
+	row.add_child(total)
+	var plus := Label.new()
+	plus.custom_minimum_size = Vector2(70, 0)
+	plus.add_theme_font_override("font", TITLE_FONT)
+	plus.add_theme_font_size_override("font_size", 26)
+	plus.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
+	plus.add_theme_constant_override("outline_size", 6)
+	row.add_child(plus)
+	return card
+
+
 func _fill_board(game) -> void:
 	var frames: int = game.frames_per_match
-	var cols: int = frames + 2
-	if _board_grid.columns != cols or _board_grid.get_child_count() != cols * (game.player_count + 1):
+	var rows: int = game.player_count + 1
+	if _board_grid.get_child_count() != rows or _board_frames != frames:
 		for c in _board_grid.get_children():
+			_board_grid.remove_child(c)
 			c.queue_free()
-		_board_grid.columns = cols
-		for i in cols * (game.player_count + 1):
-			var l := Label.new()
-			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			l.custom_minimum_size = Vector2(26, 0)
-			l.add_theme_font_size_override("font_size", 18)
-			_board_grid.add_child(l)
-	var cells := _board_grid.get_children()
-	cells[0].text = ""
+		_board_frames = frames
+		for r in rows:
+			_board_grid.add_child(_make_board_row(frames, r == 0))
+		_board_key = ""
+	# Header row: frame numbers.
+	var head: HBoxContainer = _board_grid.get_child(0).get_child(0)
 	for f in frames:
-		var head: Label = cells[1 + f]
-		head.text = str(f + 1)
-		head.add_theme_font_size_override("font_size", 14)
-		var current: bool = f == game.frame - 1
-		head.add_theme_color_override("font_color", GOLD if current else Color(1, 1, 1, 0.45))
-	cells[cols - 1].text = "TOTAL"
-	cells[cols - 1].add_theme_font_size_override("font_size", 14)
-	cells[cols - 1].add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
+		var l: Label = head.get_child(1 + f)
+		l.text = str(f + 1)
+		l.add_theme_color_override("font_color", GOLD if f == game.frame - 1 else Color(1, 1, 1, 0.4))
+	(head.get_child(1 + frames) as Label).text = "TOTAL"
+	(head.get_child(1 + frames) as Label).add_theme_color_override("font_color", Color(1, 1, 1, 0.4))
+
 	var leader := 0
 	for p in game.player_count:
 		if game.totals[p] > game.totals[leader]:
 			leader = p
 	for p in game.player_count:
-		var row: int = (p + 1) * cols
+		var card: PanelContainer = _board_grid.get_child(p + 1)
+		var st: StyleBoxFlat = card.get_theme_stylebox("panel")
+		st.border_color = game.player_colors[p]
+		var row: HBoxContainer = card.get_child(0)
 		var color: Color = game.player_colors[p].lightened(0.25)
-		cells[row].text = "P%d" % (p + 1)
-		cells[row].add_theme_font_override("font", TITLE_FONT)
-		cells[row].add_theme_color_override("font_color", color)
+		var name: Label = row.get_child(0)
+		name.text = ("★ P%d" if p == leader and game.totals[p] > 0 else "P%d") % (p + 1)
+		name.add_theme_color_override("font_color", color)
 		for f in frames:
-			var cell: Label = cells[row + 1 + f]
+			var cell: Label = row.get_child(1 + f)
 			var played: bool = f < game.frame_points.size()
 			cell.text = str(game.frame_points[f][p]) if played else "·"
-			cell.add_theme_color_override("font_color", Color(1, 1, 1, 1.0 if played else 0.3))
-		var total: Label = cells[row + cols - 1]
-		total.text = str(game.totals[p])
-		total.add_theme_font_override("font", TITLE_FONT)
+			cell.add_theme_color_override("font_color", Color(1, 1, 1, 1.0 if played else 0.25))
+		var total: Label = row.get_child(1 + frames)
+		var shown: int = _board_shown.get(p, game.totals[p])
+		total.text = str(shown)
 		total.add_theme_color_override("font_color", color)
-		total.add_theme_font_size_override("font_size", 28 if p == leader else 22)
 
 	var lines := []
 	match game.state:
@@ -741,6 +706,122 @@ func _fill_board(game) -> void:
 			_board_title.text = "SCORES"
 	_board_lines.text = "\n".join(lines.filter(func(s): return s != ""))
 	_board_lines.visible = _board_lines.text != ""
+
+	# A new result: play the scores in.
+	var key := "%d-%d-%d" % [game.frame, game.state, game.frame_points.size()]
+	if game.state in [game.State.RESULTS, game.State.MATCH_OVER] and key != _board_key:
+		_board_key = key
+		_animate_board(game, frames, leader)
+
+
+## Juice: the board pops in, then each player's points count up into their
+## total one after another, with a flying "+N", a pop on the new frame
+## cell and a flash of their card. The leader's total gets a bounce.
+func _animate_board(game, frames: int, leader: int) -> void:
+	_board.pivot_offset = _board.size / 2.0
+	_board.scale = Vector2.ONE * 0.8
+	_board.modulate.a = 0.0
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(_board, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_board, "modulate:a", 1.0, 0.2)
+	var f: int = game.frame_points.size() - 1
+	for p in game.player_count:
+		var gained: int = game.frame_points[f][p] if f >= 0 else 0
+		var to: int = game.totals[p]
+		_board_shown[p] = to - gained
+		var card: PanelContainer = _board_grid.get_child(p + 1)
+		var row: HBoxContainer = card.get_child(0)
+		var total: Label = row.get_child(1 + frames)
+		var cell: Label = row.get_child(1 + f) if f >= 0 else null
+		var plus: Label = row.get_child(2 + frames)
+		plus.text = "+%d" % gained if gained > 0 else ""
+		plus.add_theme_color_override("font_color", GOLD)
+		plus.modulate.a = 0.0
+		if cell:
+			cell.modulate.a = 0.0
+		var delay: float = 0.45 + p * 0.35
+		var t := create_tween()
+		t.tween_interval(delay)
+		t.tween_callback(func():
+			if cell:
+				cell.pivot_offset = cell.size / 2.0
+				cell.modulate.a = 1.0
+				cell.scale = Vector2.ONE * 1.8
+				create_tween().tween_property(cell, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			card.modulate = Color(1.6, 1.6, 1.6)
+			create_tween().tween_property(card, "modulate", Color.WHITE, 0.4)
+			plus.modulate.a = 1.0
+			plus.position.y = 0.0
+			var pt := create_tween().set_parallel(true)
+			pt.tween_property(plus, "position:y", -18.0, 0.9).set_ease(Tween.EASE_OUT)
+			pt.tween_property(plus, "modulate:a", 0.0, 0.5).set_delay(0.6))
+		var count_time: float = clampf(gained * 0.06, 0.25, 0.9)
+		t.tween_method(func(v: float):
+			_board_shown[p] = roundi(v)
+			total.text = str(roundi(v))
+			total.pivot_offset = total.size / 2.0
+			total.scale = Vector2.ONE * (1.0 + 0.25 * absf(sin(v * 1.7)) * (1.0 if gained > 0 else 0.0)),
+			float(to - gained), float(to), count_time)
+		t.tween_callback(func():
+			_board_shown[p] = to
+			total.scale = Vector2.ONE * 1.35
+			create_tween().tween_property(total, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT))
+	if game.state == game.State.MATCH_OVER:
+		_board_title.pivot_offset = _board_title.size / 2.0
+		var wt := create_tween().set_loops(4)
+		wt.tween_property(_board_title, "scale", Vector2.ONE * 1.12, 0.25)
+		wt.tween_property(_board_title, "scale", Vector2.ONE, 0.25)
+
+
+# ------------------------------------------------------------ Strike!
+
+## Big STRIKE! in the middle of the screen, in the player's colour.
+func show_strike(player: int, color: Color) -> void:
+	if _strike == null:
+		_strike = Label.new()
+		_strike.add_theme_font_override("font", TITLE_FONT)
+		_strike.add_theme_font_size_override("font_size", 170)
+		_strike.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.15))
+		_strike.add_theme_constant_override("outline_size", 28)
+		_strike.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.4))
+		_strike.add_theme_constant_override("shadow_offset_y", 12)
+		_strike.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_strike.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_strike.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(_strike)
+		_strike_burst = CPUParticles2D.new()
+		_strike_burst.emitting = false
+		_strike_burst.one_shot = true
+		_strike_burst.amount = 90
+		_strike_burst.lifetime = 1.4
+		_strike_burst.explosiveness = 1.0
+		_strike_burst.spread = 180.0
+		_strike_burst.initial_velocity_min = 300.0
+		_strike_burst.initial_velocity_max = 750.0
+		_strike_burst.gravity = Vector2(0, 600)
+		_strike_burst.scale_amount_min = 6.0
+		_strike_burst.scale_amount_max = 14.0
+		add_child(_strike_burst)
+	_strike.text = "STRIKE!"
+	_strike.add_theme_color_override("font_color", color.lightened(0.35))
+	_strike.pivot_offset = get_viewport().get_visible_rect().size / 2.0
+	_strike.visible = true
+	_strike.modulate.a = 1.0
+	_strike.scale = Vector2.ZERO
+	_strike.rotation = -0.25
+	_strike_burst.position = get_viewport().get_visible_rect().size / 2.0
+	_strike_burst.color = color.lightened(0.3)
+	_strike_burst.restart()
+	_strike_burst.emitting = true
+	_strike_left = 2.2
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(_strike, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_strike, "rotation", -0.06, 0.45).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_interval(1.2)
+	tw.chain().tween_property(_strike, "modulate:a", 0.0, 0.4)
+	tw.chain().tween_callback(func(): _strike.visible = false)
+	_strike_player = player
 
 
 ## e.g. "P1 +9  7 pins, race +2      P2 +4  4 pins"
@@ -793,16 +874,11 @@ func _update_hints(game) -> void:
 	var n: int = game.player_count
 	match game.state:
 		game.State.WAITING:
-			for p in n:
-				var k := _key_names(p)
-				items += [[k.move, "P%d" % (p + 1)], [k.confirm, "Buy"], "|"]
 			items += [[_gk("SPACE"), "Start"], [_gk("V"), "Track"], [_gk("ESC"), "Pause"]]
 		game.State.HUB:
 			for p in n:
 				var k := _key_names(p)
-				if game.customize_open[p]:
-					items += [[k.move, "P%d Browse" % (p + 1)], [k.confirm, "Buy"], [k.rotate, "Done"], "|"]
-				elif game.derby_open[p]:
+				if game.derby_open[p]:
 					items += [[k.move, "P%d Horse/Wager" % (p + 1)], [k.confirm, "Bet"], [k.rotate, "Leave"], "|"]
 				else:
 					items += [[k.move, "P%d Roll" % (p + 1)], [k.confirm, "Hop"], "|"]
@@ -867,7 +943,7 @@ func _gk(key: String) -> String:
 	return {"SPACE": "SPACE / Y", "ESC": "ESC / START", "TAB": "TAB / BACK", "V": "V / LB"}.get(key, key)
 
 
-func _key_names(p: int) -> Dictionary:
+static func _key_names(p: int) -> Dictionary:
 	if Controls.using_pad[p]:
 		return {"move": "L-STICK", "rotate": "X", "confirm": "A"}
 	match p:

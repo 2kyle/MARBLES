@@ -19,7 +19,7 @@ signal quit_to_menu_requested
 signal quit_requested
 signal settings_changed
 
-const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
+const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
 const TITLE := "MARBLES 4P"
@@ -333,7 +333,7 @@ func _build_controls_page() -> void:
 
 func _build_credits_page() -> void:
 	var page := _page("credits", "CREDITS")
-	_note(page, "Made with Godot 4 (godotengine.org).\n\nFonts, both under the SIL Open Font License:\n  Lilita One by Juan Montoreano\n  Fredoka by the Fredoka Project Authors\n\nEverything else is built in code for this prototype.")
+	_note(page, "Made with Godot 4 (godotengine.org).\n\nFont: Chakra Petch by the Chakra Petch Project Authors,\nunder the SIL Open Font License.\n\nEverything else is built in code for this prototype.")
 	_button(page, "BACK", back)
 
 

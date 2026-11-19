@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://c4fe0w1sg6kvd"
-path="res://.godot/imported/LilitaOne-Regular.ttf-150579ea79b262716ec303b5070fa68e.fontdata"
+uid="uid://6thxab027rt1"
+path="res://.godot/imported/ChakraPetch-SemiBold.ttf-f9606a104978c6dc6f8e95fa6c3ccf3a.fontdata"
 
 [deps]
 
-source_file="res://fonts/LilitaOne-Regular.ttf"
-dest_files=["res://.godot/imported/LilitaOne-Regular.ttf-150579ea79b262716ec303b5070fa68e.fontdata"]
+source_file="res://fonts/ChakraPetch-SemiBold.ttf"
+dest_files=["res://.godot/imported/ChakraPetch-SemiBold.ttf-f9606a104978c6dc6f8e95fa6c3ccf3a.fontdata"]
 
 [params]
 

@@ -112,11 +112,10 @@ func _process(_d: float) -> bool:
 			check("B goes back to the title", game.menu._stack == ["main"])
 			game._on_play_requested()
 		12:
-			check("match waiting on Customize", game.state == game.State.WAITING)
+			check("match waiting on the ready screen", game.state == game.State.WAITING)
 			pad_button(1, JOY_BUTTON_DPAD_RIGHT)
 		13:
 			pad_button(1, JOY_BUTTON_DPAD_RIGHT, false)
-			check("P2's controller browses P2's look (%s)" % game.customize_browse[1].color, game.customize_browse[1].color != game.profiles.equipped(1, "color") or true)
 			check("P2 now shown as using a controller", Controls.using_pad[1])
 			pad_button(0, JOY_BUTTON_Y)
 		14:

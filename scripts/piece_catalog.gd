@@ -183,10 +183,11 @@ static func parts(id: String) -> int:
 	return PIECES[id].get("parts", 1) if PIECES.has(id) else 1
 
 
-## Short tag for cards and labels: "TA" for track-altering cards.
+## Short tag for cards and labels. Track-altering cards (we call them TAs
+## for short) say "TRACK ALTERING" in the game.
 static func tag(id: String) -> String:
 	if is_track(id):
-		return "TA"
+		return "TRACK ALTERING"
 	if is_bomb(id):
 		return "ITEM"
 	return ""

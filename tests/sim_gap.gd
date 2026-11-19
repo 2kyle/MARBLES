@@ -25,6 +25,8 @@ func _initialize() -> void:
 
 func _process(_delta: float) -> bool:
 	_ticks += 1
+	if game.state == game.State.MENU:
+		game._on_play_requested()  # skip the title screen
 	if _ticks == 5:
 		var layout := TrackGen.insert(game.track.layout, _gap_at, TrackGen.gap())
 		game.track.apply_layout(layout, game.track.start_xz)

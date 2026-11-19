@@ -14,6 +14,16 @@ A party game where friends build a bowling lane together, then race physics marb
 
 ## What's in the prototype
 
+The game opens on the **MARBLES 4P** title screen (a working title), with the camera slowly circling the island. From there:
+
+- **Play** picks the number of players (1 to 4), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match in the locker.
+- **Practice** and **Online** are placeholders marked "soon". Practice is where a small hub world for trying out items, hops and movement will plug in (`practice_requested` in `scripts/main_menu.gd`).
+- **Settings** has fullscreen, vsync, volume, camera shake and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
+- **Controls**, **Credits** and **Quit**.
+
+During a match, **Esc** opens the pause menu.
+
+
 Before each match, everyone picks their marble's look in the **Locker & Store** (see below). Then each frame has four steps, like the design doc:
 
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as big picture cards in the middle of the screen. Each player steers their own pointer onto a card and grabs it. First to grab a piece gets it.
@@ -40,7 +50,7 @@ Before each match the camera sits behind the marbles and each player gets a pane
 
 ### Pieces
 
-Track-altering cards are called **TAs**. They're in the same draft pool as everything else, with a gold **TA** badge and gold name on their cards. Every crate has at least one TA. They work a little differently from pieces:
+Track-altering cards (**TAs** for short) are in the same draft pool as everything else. In the game they're marked **Track Altering**, with a gold badge and gold name on their cards. Every crate has at least one TA. They work a little differently from pieces:
 
 - A coloured bar goes across the whole track. You only slide it up and down the track, not side to side.
 - The new stretch of track it adds shows as a striped yellow ribbon with little rails, starting at the bar. The rest of the track after it shows faintly, so you can see where everything ends up. A gap shows as a red patch.
@@ -95,7 +105,7 @@ Pieces further down the track move with it, and the pins move to the new end.
 | **R** | Re-roll this frame on the same lane |
 | **C** | Turn marble-vs-marble collision on or off |
 | **V** | Switch between the follow camera and an overhead view |
-| **Esc** | Quit |
+| **Esc** | Pause menu (resume, retry the frame, settings, or quit to the title screen) |
 
 ## Scoring
 
@@ -181,6 +191,8 @@ scripts/
   course_builder.gd  the build area, placed pieces, and the bomb
   teleporter.gd      the two-part teleporter pad
   wind_fan.gd        the wind fan piece
+  main_menu.gd       title screen, Play/Settings/Controls/Credits pages, pause menu
+  game_settings.gd   saved settings (screen, sound, camera, match options)
   decor.gd           start/finish arches, lanterns, braces, rocks, islands, buoys
   thumbnails.gd      live pictures of each piece for the draft cards
   booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd, tilt_table.gd   piece behaviour

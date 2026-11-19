@@ -116,6 +116,10 @@ func _ready() -> void:
 
 
 func refresh(game) -> void:
+	# The main menu draws its own screen; the game HUD stays out of the way.
+	visible = game.state != game.State.MENU
+	if not visible:
+		return
 	_update_scores(game)
 	_update_top(game)
 	_update_countdown(game)
@@ -153,6 +157,7 @@ func _update_scores(game) -> void:
 		status.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 		row.add_child(status)
 		_scores.add_child(chip)
+	_show_first(_scores, game.player_count)
 	for i in game.player_count:
 		var chip: PanelContainer = _scores.get_child(i)
 		var style: StyleBoxFlat = chip.get_theme_stylebox("panel")
@@ -318,12 +323,12 @@ func _build_cards(crate: Array) -> void:
 		box.alignment = BoxContainer.ALIGNMENT_CENTER
 		box.add_theme_constant_override("separation", 2)
 		panel.add_child(box)
-		# TAs (track-altering cards) get a gold "TA" badge on top.
+		# Track altering cards (TAs) get a gold badge on top.
 		var badge := Label.new()
 		badge.text = PieceCatalog.tag(id) if PieceCatalog.is_track(id) else ""
 		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		badge.add_theme_font_override("font", TITLE_FONT)
-		badge.add_theme_font_size_override("font_size", 15)
+		badge.add_theme_font_size_override("font_size", 13)
 		badge.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 		var badge_bg := _pill(GOLD, 10, 1)
 		badge_bg.set_corner_radius_all(8)
@@ -379,6 +384,7 @@ func _update_chips(game) -> void:
 		l.add_theme_font_size_override("font_size", 17)
 		chip.add_child(l)
 		_chips.add_child(chip)
+	_show_first(_chips, game.player_count)
 	for p in game.player_count:
 		var chip: PanelContainer = _chips.get_child(p)
 		var style: StyleBoxFlat = chip.get_theme_stylebox("panel")
@@ -386,7 +392,7 @@ func _update_chips(game) -> void:
 		style.border_width_bottom = 4
 		var piece := PieceCatalog.display_name(db.current_id(p)) if db.picks[p] != "" else ""
 		if PieceCatalog.is_track(db.picks[p]):
-			piece = "TA  " + piece
+			piece = "Track Altering: " + piece
 		if PieceCatalog.parts(db.picks[p]) > 1 and not db.has_placed[p]:
 			piece += "  %d/%d" % [db.part[p] + 1, PieceCatalog.parts(db.picks[p])]
 		if PieceCatalog.turns(db.picks[p]):
@@ -414,6 +420,7 @@ func _update_locker(game) -> void:
 		return
 	while _locker.get_child_count() < game.player_count:
 		_locker.add_child(_make_locker_panel())
+	_show_first(_locker, game.player_count)
 	for p in game.player_count:
 		var panel: PanelContainer = _locker.get_child(p)
 		var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
@@ -647,7 +654,7 @@ func _update_hints(game) -> void:
 			for p in n:
 				var k := _key_names(p)
 				items += [[k.move, "P%d" % (p + 1)], [k.confirm, "Buy"], "|"]
-			items += [["SPACE", "Start"], ["V", "Track"]]
+			items += [["SPACE", "Start"], ["V", "Track"], ["ESC", "Pause"]]
 		game.State.DRAFT:
 			for p in n:
 				var k := _key_names(p)
@@ -666,7 +673,7 @@ func _update_hints(game) -> void:
 			for p in n:
 				var k := _key_names(p)
 				items += [[k.move, "P%d Lean" % (p + 1)], [k.confirm, "Hop"], "|"]
-			items += [["TAB", "Scores"], ["R", "Retry"], ["V", "Camera"],
+			items += [["ESC", "Pause"], ["TAB", "Scores"], ["R", "Retry"], ["V", "Camera"],
 					["C", "Bumping " + ("on" if game.marbles_collide else "off")]]
 		_:
 			items += [["SPACE", "Next"], ["TAB", "Scores"], ["R", "Retry"]]
@@ -709,6 +716,12 @@ func _key_names(p: int) -> Dictionary:
 
 
 # ------------------------------------------------------------ Helpers
+
+## Show the first `count` children (one per player) and hide the rest, so
+## a match with fewer players than the last one doesn't show old panels.
+func _show_first(parent: Node, count: int) -> void:
+	for i in parent.get_child_count():
+		(parent.get_child(i) as CanvasItem).visible = i < count
 
 func _ordinal(n: int) -> String:
 	match n:

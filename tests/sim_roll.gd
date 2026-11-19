@@ -31,6 +31,8 @@ func _initialize() -> void:
 
 func _process(_delta: float) -> bool:
 	_ticks += 1
+	if game.state == game.State.MENU:
+		game._on_play_requested()  # skip the title screen
 	if game.state == game.State.WAITING and _ticks > 5:
 		if _pintest_x != null:
 			game._start_countdown()

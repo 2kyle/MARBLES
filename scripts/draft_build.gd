@@ -192,7 +192,7 @@ func describe(player: int) -> String:
 		return ""
 	var name := PieceCatalog.display_name(id).to_upper()
 	if PieceCatalog.is_track(id):
-		name = "TA: " + name
+		name = "TRACK ALTERING\n" + name
 	if PieceCatalog.parts(picks[player]) > 1:
 		name += "  (%d/%d)" % [part[player] + 1, PieceCatalog.parts(picks[player])]
 	if PieceCatalog.turns(id):

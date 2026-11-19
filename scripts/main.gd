@@ -1,5 +1,5 @@
 extends Node3D
-## Runs a local match. Each frame goes:
+## Runs the game: the title menu, then local matches.
 ## Before a match, everyone picks their marble's look in the locker (and
 ## can buy new looks with coins). Then each frame goes:
 ##   Draft (pick a piece from the crate) -> Build (place it on the lane)
@@ -13,7 +13,9 @@ extends Node3D
 ## arrives, the host runs this script and those two functions read each
 ## player's input from the network instead of the keyboard.
 
-enum State { WAITING, DRAFT, BUILD, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER }
+## MENU is the title screen (the camera slowly circles the island).
+## WAITING is the locker before a match.
+enum State { WAITING, DRAFT, BUILD, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER, MENU }
 
 const PLAYER_COLORS := [
 	Color(0.95, 0.3, 0.55),  # pink
@@ -73,7 +75,11 @@ enum CameraFollow { ALL_MARBLES, ONE_MARBLE }
 
 @export var marble_scene: PackedScene = preload("res://scenes/marble.tscn")
 
-var state := State.WAITING
+var state := State.MENU
+## Screen, sound and match options (saved between sessions).
+var settings := GameSettings.new()
+var menu: MainMenu
+var _menu_time := 0.0
 ## Coins, bought looks and equipped looks for each seat (saved to disk).
 var profiles := Profiles.new()
 ## Each player's marble colour this match (from their locker choice).
@@ -123,19 +129,82 @@ func _ready() -> void:
 	rack.swept.connect(_on_rack_swept)
 	arrival_line.body_entered.connect(_on_arrival_line_body_entered)
 	profiles.load_from_disk()
+	settings.load_from_disk()
+	settings.apply()
+	camera_shake = settings.camera_shake
 	draft_build.setup(builder, player_count, player_colors)
 	hud.thumbnails = $Thumbnails
+	menu = MainMenu.new()
+	menu.settings = settings
+	add_child(menu)
+	menu.play_requested.connect(_on_play_requested)
+	menu.resume_requested.connect(_resume)
+	menu.restart_frame_requested.connect(_on_restart_frame_requested)
+	menu.quit_to_menu_requested.connect(_on_quit_to_menu)
+	menu.quit_requested.connect(func(): get_tree().quit())
+	menu.settings_changed.connect(func(): camera_shake = settings.camera_shake)
+	# The practice hub will connect to menu.practice_requested here.
 	_new_match()
+	show_title()
 
 
-func _new_match() -> void:
+# ------------------------------------------------------------ Menus
+
+## Back to the title screen, with the camera circling the island.
+func show_title() -> void:
+	get_tree().paused = false
+	state = State.MENU
+	_overhead_camera = false
+	menu.open_main()
+
+
+## PLAY -> START: set up a local match from the menu's options and go to
+## the locker. The island shown behind the menu is the one you play on.
+func _on_play_requested() -> void:
+	player_count = settings.player_count
+	frames_per_match = settings.frames_per_match
+	marbles_collide = settings.marbles_collide
+	camera_shake = settings.camera_shake
+	draft_build.setup(builder, player_count, player_colors)
+	menu.close()
+	_new_match(false)
+
+
+func _pause() -> void:
+	get_tree().paused = true
+	menu.open_pause()
+
+
+func _resume() -> void:
+	menu.close()
+	get_tree().paused = false
+
+
+func _on_restart_frame_requested() -> void:
+	_resume()
+	if state in [State.COUNTDOWN, State.ROLLING, State.RESULTS]:
+		_prepare_roll()
+		_start_countdown()
+	else:
+		menu.toast("You can retry once the marbles are rolling")
+
+
+func _on_quit_to_menu() -> void:
+	get_tree().paused = false
+	_new_match()
+	show_title()
+
+
+## Start a fresh match in the locker. `new_track` false keeps the island
+## that's already built (the one behind the title screen).
+func _new_match(new_track := true) -> void:
 	frame = 1
 	totals.resize(player_count)
 	totals.fill(0)
 	frame_points.clear()
 	last_result = {}
 	builder.clear()
-	if random_track:
+	if random_track and (new_track or track.layout.is_empty()):
 		_new_track()
 	_place_deck()
 	state = State.WAITING
@@ -402,8 +471,10 @@ func _pressed_or_repeat(action: String, delta: float, rate := 0.09) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if state == State.MENU or menu.is_open():
+		return  # the menu handles its own keys
 	if event.is_action_pressed("quit"):
-		get_tree().quit()
+		_pause()
 	elif event.is_action_pressed("toggle_collision"):
 		marbles_collide = not marbles_collide
 		for m in marbles:
@@ -616,6 +687,20 @@ func _marbles_center() -> Vector3:
 
 func _update_camera() -> void:
 	camera.frame_points = []
+	if state == State.MENU:
+		# Title screen: a slow circle around the whole island.
+		_menu_time += get_process_delta_time()
+		var box := _course_box()
+		var size := maxf(box.size.x, box.size.z)
+		var a := _menu_time * 0.06
+		camera.heading = Vector3(-sin(a), 0, -cos(a))
+		camera.follow_offset = Vector3(0, size * 0.32, size * 0.62)
+		camera.look_ahead = Vector3(0, -size * 0.05, -size * 0.1)
+		# Aim a little to the left of the island's middle so it sits to
+		# the right of the menu panel.
+		var right := Vector3(cos(a), 0, -sin(a))
+		camera.target = box.get_center() - right * size * 0.16
+		return
 	if state == State.WAITING and not _overhead_camera:
 		# Locker: up close behind the marbles, looking down the track.
 		var gate := track.world_frame_at(1.0)

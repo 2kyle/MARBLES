@@ -113,20 +113,31 @@ Pieces further down the track move with it, and the pins move to the new end.
 
 ## Controls
 
-| | Player 1 | Player 2 |
-| --- | --- | --- |
-| Draft: move pointer / grab | W A S D / E | Arrows / Enter |
-| Build: move / rotate (flip for track cards) / place | W A S D / Q / E | Arrow keys / Right Shift / Enter |
-| Roll: lean / hop | W A S D / E | Arrow keys / Enter |
+Everything works with the keyboard or controllers, and the **Controls** page in the menu shows a drawn keyboard and controller with every binding. Players 3 and 4 use I J K L (U, O) and the number pad (8 4 5 6, 7, 9).
+
+| | Player 1 keys | Player 2 keys | Controller |
+| --- | --- | --- | --- |
+| Menus: move / pick / back | W S or arrows / E or Enter / Esc | | D-pad or left stick / A / B |
+| Customize: row / change / buy | W S / A D / E | Up Down / Left Right / Enter | D-pad or stick / A |
+| Draft: move pointer / grab | W A S D / E | Arrows / Enter | Left stick / A |
+| Build: move / rotate (flip for track cards) / place | W A S D / Q / E | Arrow keys / Right Shift / Enter | Left stick / X or RB / A |
+| Roll: lean / hop | W A S D / E | Arrow keys / Enter | Left stick (analog) / A |
+| Practice island: roll / hop / leave a plate | W A S D / E / Q | Arrows / Enter / Right Shift | Left stick / A / B or X |
+
+**Controllers:** controller 1 plays as P1, controller 2 as P2, and so on, in the order they were plugged in. You can switch between keys and controller at any time, and the hints at the bottom of the screen show whichever you used last.
 
 | Key | What it does |
 | --- | --- |
-| **Space** | Start the match / go to the next frame |
-| **Tab** (hold) | Show the scoreboard |
+| **Space** (controller **Y**) | Start the match / go to the next frame |
+| **Tab** (hold) (controller **Back**, hold) | Show the scoreboard |
 | **R** | Re-roll this frame on the same lane |
 | **C** | Turn marble-vs-marble collision on or off |
-| **V** | Switch between the follow camera and an overhead view |
-| **Esc** | Pause menu (resume, retry the frame, settings, or quit to the title screen) |
+| **V** (controller **LB**) | Switch between the follow camera and an overhead view |
+| **Esc** (controller **Start**) | Pause menu (resume, retry the frame, settings, or quit to the title screen) |
+
+## Art direction (work in progress)
+
+The current look is a starting point called **toy diorama in the sky**: soft, matte, low-poly shapes in a pastel palette, like painted wooden toys, under a plain sunny sky with puffy 3D clouds and a little haze. There's no heavy bloom, no screen-space shading effects and no noise-heavy sky shader, so it stays light on the graphics card. Both the match lake and the practice island use the same sky and clouds (`scripts/art_style.gd`).
 
 ## Scoring
 
@@ -161,7 +172,8 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | Pin weight and wobble | `scenes/pin.tscn`, root node | Mass, Center Of Mass |
 | The shape of the track | `scenes/course.tscn`, `Track/Path` node | See "Reshaping the track" below |
 | Track width, wall height, how much corners bank | `scenes/course.tscn`, `Track` node | Lane Width, Wall Height, Bank Speed, Max Bank Deg |
-| Water and sky colours | `shaders/water.gdshader`, `shaders/sky.gdshader` | The `uniform` lines at the top |
+| Water colours | `shaders/water.gdshader` | The `uniform` lines at the top |
+| Sky, haze and cloud colours | `scripts/art_style.gd` | The constants at the top |
 | Players, frames, timers, crate size, collision | `scenes/main.tscn`, `Main` node | Player Count, Frames Per Match, Draft Time, Build Time, Crate Extra, Roll Time Limit, Marbles Collide |
 | Build area and how close pieces can go | `scenes/course.tscn`, `Track/Placed` node | Half Width, Top Z, End Margin, Overlap Allowed |
 | Build cursor speed and rotate step | `scenes/main.tscn`, `Main` node | Cursor Speed, Rotate Step |
@@ -218,17 +230,20 @@ scripts/
   decor.gd           start/finish arches, lanterns, braces, rocks, islands, buoys
   thumbnails.gd      live pictures of each piece for the draft cards
   booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd, tilt_table.gd   piece behaviour
-  controls.gd        all the key bindings
+  controls.gd        all the key and controller bindings
+  controls_diagram.gd  the drawn keyboard and controller on the Controls page
+  art_style.gd       the shared look: sky, haze and puffy clouds
+  cloud_layer.gd     drifting clouds (match and practice island)
   camera_rig.gd      follow camera
   hud.gd             everything on screen: scores, draft cards, Customize screen, scoreboard
 fonts/               the two fonts and their licences
 ui/theme.tres        default font and text size for all menus
 shaders/
   marble.gdshader    marble patterns (stripes, swirl, galaxy, lava...)
-  sky.gdshader       the sky, clouds and distant hills
   water.gdshader     the moving water
 tests/
   test_scoring.gd    checks the scoring rules
+  test_controls.gd   presses fake keys and controller buttons through menus, settings and a match
   sim_roll.gd        plays frames with no one at the keys and prints results
   sim_items.gd       tries the teleporter, wind fan and Wall Breaker
   sim_gap.gd         rolls over a gap, with or without well-timed hops

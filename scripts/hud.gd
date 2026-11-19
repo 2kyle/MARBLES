@@ -796,7 +796,7 @@ func _update_hints(game) -> void:
 			for p in n:
 				var k := _key_names(p)
 				items += [[k.move, "P%d" % (p + 1)], [k.confirm, "Buy"], "|"]
-			items += [["SPACE", "Start"], ["V", "Track"], ["ESC", "Pause"]]
+			items += [[_gk("SPACE"), "Start"], [_gk("V"), "Track"], [_gk("ESC"), "Pause"]]
 		game.State.HUB:
 			for p in n:
 				var k := _key_names(p)
@@ -806,7 +806,7 @@ func _update_hints(game) -> void:
 					items += [[k.move, "P%d Horse/Wager" % (p + 1)], [k.confirm, "Bet"], [k.rotate, "Leave"], "|"]
 				else:
 					items += [[k.move, "P%d Roll" % (p + 1)], [k.confirm, "Hop"], "|"]
-			items += [["ESC", "Pause"]]
+			items += [[_gk("ESC"), "Pause"]]
 		game.State.DRAFT:
 			for p in n:
 				var k := _key_names(p)
@@ -825,10 +825,11 @@ func _update_hints(game) -> void:
 			for p in n:
 				var k := _key_names(p)
 				items += [[k.move, "P%d Lean" % (p + 1)], [k.confirm, "Hop"], "|"]
-			items += [["ESC", "Pause"], ["TAB", "Scores"], ["R", "Retry"], ["V", "Camera"],
-					["C", "Bumping " + ("on" if game.marbles_collide else "off")]]
+			items += [[_gk("ESC"), "Pause"], [_gk("TAB"), "Scores"], [_gk("V"), "Camera"]]
+			if not Controls.any_pad():
+				items += [["R", "Retry"], ["C", "Bumping " + ("on" if game.marbles_collide else "off")]]
 		_:
-			items += [["SPACE", "Next"], ["TAB", "Scores"], ["R", "Retry"]]
+			items += [[_gk("SPACE"), "Next"], [_gk("TAB"), "Scores"]]
 	if not items.is_empty() and items[-1] is String:
 		items.pop_back()
 	var key := str(items)
@@ -859,7 +860,16 @@ func _update_hints(game) -> void:
 
 
 ## Short key names for a player, for the hints.
+## A game-wide key, or its controller button if anyone is on a controller.
+func _gk(key: String) -> String:
+	if not Controls.any_pad():
+		return key
+	return {"SPACE": "SPACE / Y", "ESC": "ESC / START", "TAB": "TAB / BACK", "V": "V / LB"}.get(key, key)
+
+
 func _key_names(p: int) -> Dictionary:
+	if Controls.using_pad[p]:
+		return {"move": "L-STICK", "rotate": "X", "confirm": "A"}
 	match p:
 		0: return {"move": "WASD", "rotate": "Q", "confirm": "E"}
 		1: return {"move": "ARROWS", "rotate": "R-SHIFT", "confirm": "ENTER"}

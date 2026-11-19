@@ -107,31 +107,7 @@ func stop() -> void:
 ## The island's own sky: bright and open, with a sea of clouds below
 ## instead of the match's lake and hills.
 func make_environment() -> Environment:
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.2, 0.42, 0.85)
-	sky_mat.sky_horizon_color = Color(0.72, 0.82, 0.95)
-	sky_mat.ground_horizon_color = Color(0.78, 0.85, 0.95)
-	sky_mat.ground_bottom_color = Color(0.7, 0.78, 0.9)
-	sky_mat.sun_angle_max = 20.0
-	var sky := Sky.new()
-	sky.sky_material = sky_mat
-	var env := Environment.new()
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.7
-	env.ambient_light_sky_contribution = 0.8
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.05
-	env.ssao_enabled = true
-	env.glow_enabled = true
-	env.glow_intensity = 0.6
-	env.glow_hdr_threshold = 1.2
-	env.fog_enabled = true
-	env.fog_light_color = Color(0.75, 0.83, 0.95)
-	env.fog_density = 0.0012
-	env.fog_sky_affect = 0.0
-	return env
+	return ArtStyle.environment(Color(0.93, 0.95, 1.0))
 
 
 func stop_marbles() -> void:
@@ -705,27 +681,16 @@ func _sky_life() -> void:
 	add_child(flutter)
 
 	# Puffy clouds slowly circling the island, some below it.
-	var cloud_mat := StandardMaterial3D.new()
-	cloud_mat.albedo_color = Color(1, 1, 1, 0.92)
-	cloud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	cloud_mat.roughness = 1.0
-	for i in 12:
-		var cloud := Node3D.new()
-		add_child(cloud)
-		for k in _rng.randi_range(3, 5):
-			var puff := MeshInstance3D.new()
-			var s := SphereMesh.new()
-			s.radius = _rng.randf_range(1.4, 2.6)
-			s.height = s.radius * 1.6
-			s.radial_segments = 10
-			s.rings = 5
-			puff.mesh = s
-			puff.material_override = cloud_mat
-			puff.position = Vector3(k * 1.6 - 3.0, _rng.randf_range(-0.4, 0.4), _rng.randf_range(-0.8, 0.8))
-			puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			cloud.add_child(puff)
-		_clouds.append({"node": cloud, "angle": _rng.randf() * TAU, "radius": _rng.randf_range(46.0, 70.0),
-				"y": _rng.randf_range(-18.0, 10.0), "speed": _rng.randf_range(0.01, 0.025)})
+	var clouds := CloudLayer.new()
+	clouds.count = 12
+	clouds.radius_min = 46.0
+	clouds.radius_max = 70.0
+	clouds.height_min = -18.0
+	clouds.height_max = 12.0
+	clouds.size_min = 1.0
+	clouds.size_max = 1.6
+	clouds.speed = 0.018
+	add_child(clouds)
 
 	# Little rocks floating around the island, bobbing gently.
 	for i in 8:

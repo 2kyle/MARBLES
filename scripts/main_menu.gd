@@ -317,26 +317,17 @@ func _build_settings_page() -> void:
 
 func _build_controls_page() -> void:
 	var page := _page("controls", "CONTROLS")
-	var grid := GridContainer.new()
-	grid.columns = 5
-	grid.add_theme_constant_override("h_separation", 22)
-	grid.add_theme_constant_override("v_separation", 8)
-	page.add_child(grid)
-	var rows := [
-		["", "P1", "P2", "P3", "P4"],
-		["Move / lean", "W A S D", "Arrows", "I J K L", "Num 8 4 5 6"],
-		["Turn / flip", "Q", "R-Shift", "U", "Num 7"],
-		["Grab / drop / hop", "E", "Enter", "O", "Num 9"],
-	]
-	for r in rows.size():
-		for c in rows[r].size():
-			var l := Label.new()
-			l.text = rows[r][c]
-			l.add_theme_font_size_override("font_size", 18)
-			if r == 0 or c == 0:
-				l.add_theme_color_override("font_color", GOLD)
-			grid.add_child(l)
-	_note(page, "Space: start / next frame    Tab: scores    R: retry frame\nV: whole-track camera    C: bumping on/off    Esc: pause")
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 10)
+	page.add_child(tabs)
+	var diagram := ControlsDiagram.new()
+	var keys := _button(tabs, "KEYBOARD", func(): diagram.kind = ControlsDiagram.Kind.KEYBOARD)
+	var pad := _button(tabs, "CONTROLLER", func(): diagram.kind = ControlsDiagram.Kind.CONTROLLER)
+	# Moving onto a tab shows it straight away.
+	keys.focus_entered.connect(func(): diagram.kind = ControlsDiagram.Kind.KEYBOARD)
+	pad.focus_entered.connect(func(): diagram.kind = ControlsDiagram.Kind.CONTROLLER)
+	page.add_child(diagram)
+	_note(page, "Move = lean while rolling, steer the pointer in the draft and slide your piece in the build. On the practice island, the turn key (or B) leaves a plate.")
 	_button(page, "BACK", back)
 
 

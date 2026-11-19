@@ -146,6 +146,7 @@ func _ready() -> void:
 	camera_shake = settings.camera_shake
 	draft_build.setup(builder, player_count, player_colors)
 	hud.thumbnails = $Thumbnails
+	_setup_sky()
 	menu = MainMenu.new()
 	menu.settings = settings
 	add_child(menu)
@@ -158,6 +159,21 @@ func _ready() -> void:
 	menu.practice_requested.connect(_enter_hub)
 	_new_match()
 	show_title()
+
+
+## The match sky (see ArtStyle): plain blue with drifting puffy clouds.
+func _setup_sky() -> void:
+	($WorldEnvironment as WorldEnvironment).environment = ArtStyle.environment(Color(0.35, 0.62, 0.72))
+	var clouds := CloudLayer.new()
+	clouds.name = "Clouds"
+	clouds.count = 26
+	clouds.radius_min = 110.0
+	clouds.radius_max = 220.0
+	clouds.height_min = 22.0
+	clouds.height_max = 48.0
+	clouds.size_min = 3.0
+	clouds.size_max = 5.5
+	course.add_child(clouds)
 
 
 # ------------------------------------------------------------ Menus
@@ -505,7 +521,7 @@ func _gather_hub_inputs() -> void:
 		if customize_open[p]:
 			m.lean = Vector2.ZERO
 			_customize_keys(p)
-			if Input.is_action_just_pressed(Controls.action_name(p, "rotate")):
+			if _leave_pressed(p):
 				_close_hub_customize(p)
 			continue
 		if derby_open[p]:
@@ -523,7 +539,7 @@ func _gather_hub_inputs() -> void:
 				derby.request_wager(p, -1)
 			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
 				derby.request_bet(p)
-			if Input.is_action_just_pressed(Controls.action_name(p, "rotate")):
+			if _leave_pressed(p):
 				derby_open[p] = false
 				hub.release_from_plate(p)
 			continue
@@ -531,6 +547,12 @@ func _gather_hub_inputs() -> void:
 		m.lane_basis = flat
 		if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
 			m.request_hop()
+
+
+## Done / leave on the island: the turn key, or B on a controller.
+func _leave_pressed(p: int) -> bool:
+	return Input.is_action_just_pressed(Controls.action_name(p, "rotate")) \
+			or Input.is_action_just_pressed(Controls.action_name(p, "cancel"))
 
 
 func _gather_customize_inputs() -> void:
@@ -618,6 +640,10 @@ func _pressed_or_repeat(action: String, delta: float, rate := 0.09) -> bool:
 			_repeat[action] = rate
 			return true
 	return false
+
+
+func _input(event: InputEvent) -> void:
+	Controls.note_input(event)
 
 
 func _unhandled_input(event: InputEvent) -> void:

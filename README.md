@@ -78,18 +78,40 @@ Bots fill empty seats and play by the same rules as people: they wander over to 
 
 ### Online play
 
-![The online lobby](docs/online_lobby.png)
+![The online page](docs/steam_online.png)
 
-1. One person picks **ONLINE → HOST A GAME**. Their computer runs the game.
+**Over Steam (the easy way).** Needs the GodotSteam plugin and Steam running; see [docs/STEAM.md](docs/STEAM.md).
+
+1. One person picks **ONLINE → HOST ON STEAM**. The game makes a friends-only Steam lobby.
+2. In the **LOBBY**, **INVITE STEAM FRIENDS** opens Steam's friends list to send invites. Friends accept the invite, or pick **Join Game** on the host in their Steam friends list. If their game isn't open, Steam starts it and drops them straight into the lobby.
+3. Everyone shows up with their Steam name. The host can add bots, pick the number of frames, and press **START**.
+
+There's no port forwarding: Steam connects everyone through its own relay network, and nobody sees anyone else's address. Steam play uses `scripts/steam_service.gd`; the App ID is in `scripts/steam_config.gd`.
+
+**By address (works without Steam).**
+
+1. One person picks **ONLINE → HOST BY ADDRESS**. Their computer runs the game.
 2. Everyone else picks **ONLINE**, types the host's address and picks **JOIN**. On the same Wi-Fi that's the host's local address (like `192.168.1.20`); over the internet it's the host's public address. To test on one computer, open the game twice and join `127.0.0.1`.
-3. Everyone appears in the **LOBBY**. The host can add bots (up to four seats in all), pick the number of frames, and press **START**.
+3. Everyone appears in the **LOBBY**, the same as over Steam.
 
 How it works: the host's computer runs the whole game (physics, pins, scoring and the bots). Everyone else's game sends only their stick and button presses to the host and shows what the host sends back about 30 times a second, so everyone sees the same pins fall and nobody can cheat by changing their own copy. Online, each computer plays with the Player 1 keys or the first controller.
 
-- The game uses **port 24680 (UDP)**. Over the internet, the host has to forward that port to their computer in their router's settings ("port forwarding"). You can also type `address:port` to join a different port.
+- By address, the game uses **port 24680 (UDP)**. Over the internet, the host has to forward that port to their computer in their router's settings ("port forwarding"). You can also type `address:port` to join a different port.
 - If someone leaves mid-match, a bot takes over their seat and the match carries on. If the host leaves, the match ends for everyone.
 - People can't join a match that has already started, retrying a frame is turned off online, and the practice island is local only for now.
-- The networking is in `scripts/net.gd`; `main.gd` decides what to send and does what the host says.
+- The networking is in `scripts/net.gd`; `main.gd` decides what to send and does what the host says. Steam and an address only differ in how the connection is made: everything after that is the same code.
+
+### Achievements
+
+![The achievements page](docs/achievements.png)
+
+19 achievements, from finishing your first frame to pulling the Golden Marble. **ACHIEVEMENTS** on the title screen shows them all, with progress on counting ones (like 212 / 500 pins). Unlocking one pops up a badge in the corner. They belong to the computer (one Steam account), so any person playing here can earn them, but bots can't, and online each computer earns its own.
+
+They're saved on this computer (`user://achievements.cfg`) and sent to Steam whenever Steam is running, including any you earned while it wasn't. With the test App ID (480) Steam doesn't know them yet; [docs/STEAM.md](docs/STEAM.md) has the list to add on the Steamworks site.
+
+![The achievement badges](docs/achievement_icons.png)
+
+The badges are drawn in code (`scripts/achievement_icon.gd`). `steam/achievements/` has every one as a 256 x 256 PNG, in colour and grey (locked), ready to upload to Steam. To redraw them after a change, run `godot --script res://tools/make_achievement_icons.gd` (not headless). The list itself is `LIST` in `scripts/achievements.gd`.
 
 ### The closet
 
@@ -302,6 +324,10 @@ scripts/
   course_builder.gd  the build area, placed pieces, and the bomb
   teleporter.gd      the two-part teleporter pad
   wind_fan.gd        the wind fan piece
+  steam_config.gd    the Steam App ID (480 for testing; change it to yours)
+  steam_service.gd   everything that talks to Steam: lobbies, invites, presence, achievements
+  achievements.gd    the achievement list, unlocking and saving
+  achievement_icon.gd  draws the achievement badges
   hub.gd             the practice island (practice run, closet and crate plates, trophies, PLAY arch, name tags)
   sports_island.gd   the sports island: soccer pitch and scoreboard, trampoline and hoop
   low_poly.gd        shared helpers for building simple shapes, labels and confetti in code
@@ -319,6 +345,9 @@ scripts/
   camera_rig.gd      follow camera
   hud.gd             everything on screen: scores, draft cards, ready screen, STRIKE!, scoreboard
 fonts/               the two fonts and their licences
+addons/godotsteam/   the GodotSteam plugin, once you install it (see docs/STEAM.md)
+steam/achievements/  achievement icons to upload to Steam
+tools/               make_achievement_icons.gd (redraws those icons)
 ui/theme.tres        default font and text size for all menus
 shaders/
   marble.gdshader    marble patterns (stripes, swirl, galaxy, lava...)
@@ -333,6 +362,8 @@ tests/
   sim_hub.gd         checks the practice island's teleports, closet, a loot crate, derby bet and PLAY arch
   test_crates.gd     opens 100,000 crates and checks the odds (1% trophy and so on)
   sim_bots.gd        one idle person and three bots: checks bots draft, build and roll on their own
+  test_achievements.gd  achievements unlock, count, save and reach Steam; the game runs fine with no Steam
+  fake_steam.gd      a stand-in for Steam so tests can play over a "Steam lobby" without Steam
   sim_sports.gd      checks people-only island, name tags, a trampoline basket and a soccer goal
   net_host.gd, net_client.gd, run_net_test.sh   plays an online match between two copies of the game
 ```
@@ -350,5 +381,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_roll.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_gap.gd -- hop
 godot --headless --fixed-fps 120 --script res://tests/sim_bots.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_sports.gd
+godot --headless --script res://tests/test_achievements.gd
 GODOT=godot tests/run_net_test.sh
+GODOT=godot tests/run_net_test.sh steam
 ```

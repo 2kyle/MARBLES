@@ -95,6 +95,12 @@ var seat_looks: Array = []
 var bots: Array = [null, null, null, null]
 ## Online play (host or join). Offline unless the Online menu is used.
 var net: NetSession
+## Steam (lobbies, invites, achievements). Works without Steam too.
+var steam: SteamService
+## Tests set this to a stand-in for the Steam plugin before the game starts.
+var steam_backend: Object
+## Strikes each seat has got this match (for the Turkey achievement).
+var _strikes: Array = [0, 0, 0, 0]
 ## Screen, sound and match options (saved between sessions).
 var settings := GameSettings.new()
 var menu: MainMenu
@@ -154,6 +160,9 @@ var _snap: Dictionary = {}
 
 func _ready() -> void:
 	Controls.setup()
+	steam = SteamService.new(steam_backend)
+	steam.name = "Steam"
+	add_child(steam)
 	_rng.randomize()
 	builder.track_reshaped.connect(_on_track_reshaped)
 	rack.swept.connect(_on_rack_swept)
@@ -183,6 +192,17 @@ func _ready() -> void:
 	net = NetSession.new()
 	net.name = "Net"
 	add_child(net)
+	net.my_nick = steam.my_name()
+	net.hosted.connect(func(): menu.open_lobby(true, net.over_steam))
+	# Steam shows its own pop-up for real achievements; ours covers playing
+	# without Steam (and the test App ID, which doesn't have ours).
+	Achievements.on_unlocked = func(a: Dictionary):
+		if not (steam.available and SteamConfig.APP_ID != 480):
+			hud.show_achievement(a)
+	steam.invite_accepted.connect(_join_steam_lobby)
+	menu.steam = steam
+	menu.steam_host_requested.connect(_on_steam_host_requested)
+	menu.invite_requested.connect(steam.invite_friends)
 	net.event_received.connect(_on_net_event)
 	net.snapshot_received.connect(func(d): _snap = d)
 	net.lobby_changed.connect(_refresh_lobby)
@@ -199,6 +219,14 @@ func _ready() -> void:
 	_setup_local_seats()
 	_new_match()
 	show_title()
+	if steam.pending_lobby:
+		# Started by accepting a Steam invite: go straight to that game.
+		_join_steam_lobby.call_deferred(steam.pending_lobby)
+
+
+func _exit_tree() -> void:
+	# The pop-up hook points at this game; let go of it before it's freed.
+	Achievements.on_unlocked = Callable()
 
 
 ## The match sky (see ArtStyle): plain blue with drifting puffy clouds.
@@ -221,6 +249,8 @@ func _setup_sky() -> void:
 ## Back to the title screen, with the camera circling the island.
 func show_title() -> void:
 	get_tree().paused = false
+	if steam:
+		steam.presence("In the menus")
 	if net and net.active():
 		if net.has_meta("in_match"):
 			net.remove_meta("in_match")
@@ -253,6 +283,7 @@ func _enter_hub() -> void:
 	_setup_local_seats()
 	player_count = clampi(settings.player_count, 1, 4)
 	camera_shake = settings.camera_shake
+	steam.presence("On the practice island")
 	if hub == null:
 		hub = HUB_SCENE.instantiate()
 		hub.position = HUB_POSITION
@@ -414,6 +445,7 @@ func _new_match(new_track := true) -> void:
 	totals.fill(0)
 	frame_points.clear()
 	last_result = {}
+	_strikes = [0, 0, 0, 0]
 	builder.clear()
 	if random_track and (new_track or track.layout.is_empty()):
 		_new_track()
@@ -883,8 +915,26 @@ func _on_host_requested() -> void:
 	net.bot_count = settings.bot_count
 	if net.host() != OK:
 		menu.toast("Couldn't host (is the game already running?)")
+
+
+func _on_steam_host_requested() -> void:
+	net.my_look_ids = profiles.seats[0].equipped.duplicate()
+	net.bot_count = settings.bot_count
+	if not net.host_steam():
+		menu.toast(steam.problem if steam.problem != "" else "Steam isn't available")
 		return
-	menu.open_lobby(true)
+	menu.toast("Making a Steam lobby...")
+
+
+## Join a friend's Steam lobby (accepted an invite, or "Join game" in the
+## Steam friends list). Whatever we were doing stops first.
+func _join_steam_lobby(lobby_id: int) -> void:
+	if state != State.MENU or net.active():
+		show_title()
+	net.my_look_ids = profiles.seats[0].equipped.duplicate()
+	if net.join_steam(lobby_id):
+		menu.back_to_online()
+		menu.toast("Joining your friend's game...")
 
 
 func _on_join_requested(address: String) -> void:
@@ -907,7 +957,8 @@ func _refresh_lobby() -> void:
 		var s: Dictionary = net.lobby[i]
 		var who: String = {"host": "host", "player": "player", "bot": "bot"}.get(s.kind, s.kind)
 		var me := "   (you)" if i == net.my_seat and s.kind != "bot" else ""
-		lines.append("%s   %s%s" % [s.name, who, me])
+		var nick: String = s.get("nick", "")
+		lines.append("%s   %s%s" % [s.name, nick if nick != "" else who, me])
 	menu.set_lobby_text("\n".join(lines), net.is_host())
 
 
@@ -916,6 +967,7 @@ func _start_online_match() -> void:
 	if not net.is_host():
 		return
 	net.set_meta("in_match", true)
+	steam.set_joinable(false)
 	frames_per_match = settings.frames_per_match
 	marbles_collide = settings.marbles_collide
 	_apply_lobby(net.lobby)
@@ -999,6 +1051,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 			totals.fill(0)
 			frame_points.clear()
 			last_result = {}
+			_strikes = [0, 0, 0, 0]
 			match_coins = [0, 0, 0, 0]
 			builder.clear()
 			($Course/Decor as TrackDecor).seed = data.decor
@@ -1043,6 +1096,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 				profiles.save_to_disk()
 			if data.striker >= 0:
 				hud.show_strike(data.striker, player_colors[data.striker])
+			_frame_achievements(data.striker)
 
 
 ## Client: each frame, send my input and show the host's newest snapshot.
@@ -1183,8 +1237,43 @@ func _finish_frame() -> void:
 	var striker := strike_player()
 	if striker >= 0:
 		hud.show_strike(striker, player_colors[striker])
+	_frame_achievements(striker)
 	net.send_event("result", {"result": last_result, "totals": totals, "points": frame_points,
 			"coins": coins_earned, "match_coins": match_coins, "state": state, "striker": striker})
+
+
+## Achievements for the people at this computer, once a frame is scored
+## (host and online clients both run this for their own players).
+func _frame_achievements(striker: int) -> void:
+	var max_total: int = totals.max()
+	for p in player_count:
+		if profile_of(p) < 0:
+			continue
+		Achievements.unlock("FIRST_FRAME")
+		Achievements.add("PINS_500", last_result.pins[p])
+		if striker == p:
+			Achievements.unlock("STRIKE")
+			_strikes[p] += 1
+			if _strikes[p] >= 3:
+				Achievements.unlock("TURKEY")
+		if last_result.race[p] == Scoring.RACE_BONUS[0]:
+			Achievements.unlock("PHOTO_FINISH")
+		if last_result.knockouts[p] > 0:
+			Achievements.unlock("BUMPER_CARS")
+		if p < marbles.size() and (marbles[p] as Marble).out:
+			Achievements.unlock("SPLASHDOWN")
+		if profiles.coins(profile_of(p)) >= 1000:
+			Achievements.unlock("PIGGY_BANK")
+		if state == State.MATCH_OVER:
+			Achievements.unlock("FIRST_MATCH")
+			if net.active():
+				Achievements.unlock("ONLINE_MATCH")
+			if player_count > 1 and totals[p] == max_total and totals.count(max_total) == 1:
+				Achievements.unlock("FIRST_WIN")
+	if state == State.MATCH_OVER:
+		steam.presence("Just finished a match")
+	else:
+		steam.presence("In a match (frame %d of %d)" % [frame, frames_per_match])
 
 
 ## The player who knocked down every pin by themselves this frame, or -1

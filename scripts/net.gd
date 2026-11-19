@@ -1,6 +1,8 @@
 class_name NetSession
 extends Node
-## Online play over the internet or a home network (Godot's ENet).
+## Online play: over Steam (friends-only lobbies, see steam_service.gd) or
+## by address over the internet or a home network (Godot's ENet). Both give
+## Godot a "multiplayer peer", and everything below works the same on either.
 ##
 ## The host runs the whole game, exactly like local play: physics, pins,
 ## scoring, bots. Everyone else is a "client": it sends its player's input
@@ -18,6 +20,9 @@ extends Node
 ## main.gd owns this node, asks it to host or join, and handles the events.
 
 signal lobby_changed
+## We're hosting and the lobby is open (straight away by address; once
+## Steam has made the lobby over Steam).
+signal hosted
 signal joined
 signal failed(reason: String)
 signal left(reason: String)
@@ -41,6 +46,10 @@ var bot_count := 1
 var my_seat := 0
 ## My equipped look ids, sent to the host when joining.
 var my_look_ids := {}
+## My Steam name ("" without Steam), shown in the lobby.
+var my_nick := ""
+## True while the game is over Steam rather than by address.
+var over_steam := false
 
 ## Host side: newest input from each remote seat.
 var _inputs := {}        # seat -> {lean: Vector2, counts: Array}
@@ -58,6 +67,11 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(_on_connected)
 	multiplayer.connection_failed.connect(func(): _fail("Couldn't reach the host"))
 	multiplayer.server_disconnected.connect(func(): _drop("The host left the game"))
+	var steam := SteamService.instance
+	if steam:
+		steam.lobby_hosted.connect(func(_id): _start_host(steam.make_peer(true)))
+		steam.lobby_entered.connect(func(_id): _start_client(steam.make_peer(false)))
+		steam.lobby_failed.connect(_fail)
 
 
 func active() -> bool:
@@ -74,36 +88,79 @@ func is_client() -> bool:
 
 # ------------------------------------------------------------ Host / join
 
+## Host by address: friends join with this computer's address.
 func host(port := DEFAULT_PORT) -> Error:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(port, MAX_PLAYERS - 1)
 	if err != OK:
 		return err
-	multiplayer.multiplayer_peer = peer
-	role = Role.HOST
-	my_seat = 0
-	lobby = [{"kind": "host", "peer": 1, "name": "P1", "look": my_look_ids}]
-	_rebuild_lobby()
+	_start_host(peer)
 	return OK
 
 
+## Join by address ("192.168.1.20" and a port).
 func join(address: String, port := DEFAULT_PORT) -> Error:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_client(address, port)
 	if err != OK:
 		return err
+	_start_client(peer)
+	return OK
+
+
+## Host over Steam: make a friends-only lobby, then invite friends from the
+## Steam overlay. `hosted` fires when it's ready.
+func host_steam() -> bool:
+	var steam := SteamService.instance
+	if steam == null or not steam.available:
+		return false
+	leave()
+	over_steam = true
+	steam.host_lobby()
+	return true
+
+
+## Join a friend's Steam lobby (from an invite or the friends list).
+func join_steam(lobby_id: int) -> bool:
+	var steam := SteamService.instance
+	if steam == null or not steam.available or lobby_id == 0:
+		return false
+	leave()
+	over_steam = true
+	steam.join_lobby(lobby_id)
+	return true
+
+
+func _start_host(peer: MultiplayerPeer) -> void:
+	if peer == null:
+		_fail("Couldn't start hosting")
+		return
+	multiplayer.multiplayer_peer = peer
+	role = Role.HOST
+	my_seat = 0
+	lobby = [{"kind": "host", "peer": 1, "name": "P1", "look": my_look_ids, "nick": my_nick}]
+	_rebuild_lobby()
+	hosted.emit()
+
+
+func _start_client(peer: MultiplayerPeer) -> void:
+	if peer == null:
+		_fail("Couldn't connect to the host")
+		return
 	multiplayer.multiplayer_peer = peer
 	role = Role.CLIENT
 	lobby = []
-	return OK
 
 
 func leave() -> void:
 	if multiplayer.multiplayer_peer and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+	if over_steam and SteamService.instance:
+		SteamService.instance.leave_lobby()
+	over_steam = false
 	role = Role.OFFLINE
 	lobby = []
 	_inputs.clear()
@@ -152,7 +209,7 @@ func _on_peer_disconnected(id: int) -> void:
 
 
 func _on_connected() -> void:
-	_hello.rpc_id(1, my_look_ids)
+	_hello.rpc_id(1, my_look_ids, my_nick)
 	joined.emit()
 
 
@@ -182,14 +239,14 @@ func _drop(reason: String) -> void:
 # ------------------------------------------------------------ RPCs
 
 @rpc("any_peer", "reliable")
-func _hello(look_ids: Dictionary) -> void:
+func _hello(look_ids: Dictionary, nick: String) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
 	if has_meta("in_match"):
 		_kick.rpc_id(id, "That game has already started")
 		return
-	lobby.insert(humans(), {"kind": "player", "peer": id, "look": look_ids})
+	lobby.insert(humans(), {"kind": "player", "peer": id, "look": look_ids, "nick": nick.left(24)})
 	_rebuild_lobby()
 
 

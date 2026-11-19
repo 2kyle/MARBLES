@@ -105,6 +105,7 @@ func _on_goal(team: String) -> void:
 		return  # already scored, the ball is just rolling about in the net
 	score[team] += 1
 	_refresh_board()
+	Achievements.unlock("BACK_OF_THE_NET")
 	var color: Color = BLUE if team == "blue" else ORANGE
 	_say("GOAL!", color)
 	LowPoly.confetti(self, _ball.global_position + Vector3.UP * 0.5, 90)
@@ -370,6 +371,7 @@ func _basket(m: Marble) -> void:
 	_basket_wait[m] = 1.0
 	baskets += 1
 	_refresh_hoop()
+	Achievements.unlock("NOTHING_BUT_NET")
 	LowPoly.confetti(self, to_global(RIM + Vector3.UP * 0.4))
 	_say_at_hoop()
 	m.wince(4.0)

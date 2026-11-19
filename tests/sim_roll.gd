@@ -23,6 +23,8 @@ func _initialize() -> void:
 	for a in args:
 		if a.begins_with("pins="):
 			_pintest_x = float(a.substr(5))
+	# Keep test achievements out of the real save file.
+	Achievements.save_path = "user://test_achievements.cfg"
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	game.draft_time = 0.5

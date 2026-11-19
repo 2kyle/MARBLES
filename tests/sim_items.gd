@@ -14,6 +14,8 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_mode = args[0]
+	# Keep test achievements out of the real save file.
+	Achievements.save_path = "user://test_achievements.cfg"
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 

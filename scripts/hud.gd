@@ -824,6 +824,76 @@ func show_strike(player: int, color: Color) -> void:
 	_strike_player = player
 
 
+## "ACHIEVEMENT UNLOCKED" card that slides up in the corner for a few
+## seconds. Several in a row wait their turn. It sits on its own layer so it
+## shows over the closet, the crate screen and menus too.
+func show_achievement(entry: Dictionary) -> void:
+	_award_queue.append(entry)
+	if _award_queue.size() == 1:
+		_next_award()
+
+
+var _award_queue: Array = []
+var _award_layer: CanvasLayer
+
+
+func _next_award() -> void:
+	if _award_queue.is_empty():
+		return
+	var entry: Dictionary = _award_queue[0]
+	if _award_layer == null:
+		_award_layer = CanvasLayer.new()
+		_award_layer.layer = 100
+		_award_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(_award_layer)
+	var card := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.07, 0.09, 0.16, 0.94)
+	style.border_color = GOLD
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(16)
+	style.content_margin_left = 14
+	style.content_margin_right = 22
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	card.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	card.add_child(row)
+	row.add_child(AchievementIcon.make(entry, false, 72))
+	var words := VBoxContainer.new()
+	words.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(words)
+	var top := Label.new()
+	top.text = "ACHIEVEMENT UNLOCKED"
+	top.add_theme_font_size_override("font_size", 15)
+	top.add_theme_color_override("font_color", GOLD)
+	words.add_child(top)
+	var name_label := Label.new()
+	name_label.text = entry.name
+	name_label.add_theme_font_override("font", TITLE_FONT)
+	name_label.add_theme_font_size_override("font_size", 28)
+	words.add_child(name_label)
+	var how := Label.new()
+	how.text = entry.text
+	how.add_theme_font_size_override("font_size", 15)
+	how.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
+	words.add_child(how)
+	_award_layer.add_child(card)
+	card.reset_size()
+	# Slides up into the bottom right corner, like Steam's own pop-ups.
+	var screen := get_viewport().get_visible_rect().size
+	card.position = Vector2(screen.x - card.size.x - 24, screen.y + 10)
+	var tw := card.create_tween()
+	tw.tween_property(card, "position:y", screen.y - card.size.y - 24, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(3.0)
+	tw.tween_property(card, "position:y", screen.y + 10, 0.3).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		card.queue_free()
+		_award_queue.pop_front()
+		_next_award())
+
+
 ## e.g. "P1 +9  7 pins, race +2      P2 +4  4 pins"
 func _frame_summary(game) -> String:
 	var r: Dictionary = game.last_result

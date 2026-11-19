@@ -14,6 +14,8 @@ var _last_state := -1
 
 
 func _initialize() -> void:
+	# Keep test achievements out of the real save file.
+	Achievements.save_path = "user://test_achievements.cfg"
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	game.draft_time = 12.0

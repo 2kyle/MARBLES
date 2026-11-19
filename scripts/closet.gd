@@ -146,6 +146,8 @@ func request_confirm() -> void:
 	if card.owned:
 		profiles.equip(player, slot, card.item.id)
 		profiles.save_to_disk()
+		if profiles.equipped(player, "hat") != "none" and profiles.equipped(player, "eyes") != "none":
+			Achievements.unlock("DRESSED_UP")
 		if slot == "color":
 			player_color = card.item.color
 		_refresh_cards()

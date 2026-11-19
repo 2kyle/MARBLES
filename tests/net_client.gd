@@ -9,10 +9,18 @@ var _ticks := 0
 var _draft_ticks := 0
 var _result_frames := {}
 var _quit_at := -1
+var _steam_mode := OS.get_cmdline_user_args().has("steam")
+var fake: Object
 
 
 func _initialize() -> void:
 	game = load("res://scenes/main.tscn").instantiate()
+	if _steam_mode:
+		fake = load("res://tests/fake_steam.gd").new()
+		fake.nick = "Guesty"
+		game.steam_backend = fake
+	Achievements.save_path = "user://test_achievements_client.cfg"
+	Achievements.reset()
 	root.add_child(game)
 
 
@@ -25,7 +33,13 @@ func check(what: String, ok: bool) -> void:
 func _process(_delta: float) -> bool:
 	_ticks += 1
 	if _ticks == 30:
-		game._on_join_requested("127.0.0.1")
+		if _steam_mode:
+			# What Steam does when you accept a friend's invite.
+			fake.join_requested.emit(fake.LOBBY_BASE + fake.PORT, fake.HOST_ID)
+		else:
+			game._on_join_requested("127.0.0.1")
+	if _ticks == 120 and _steam_mode:
+		check("accepting the invite joined the game over Steam", game.net.is_client() and game.net.over_steam)
 	if _ticks > 120 * 200:
 		print("CLIENT timed out in state %d" % game.state)
 		return _finish()
@@ -59,6 +73,7 @@ func _process(_delta: float) -> bool:
 
 func _finish() -> bool:
 	check("saw two frames' results", _result_frames.size() >= 2)
+	check("first-frame achievement on this computer too", Achievements.has("FIRST_FRAME"))
 	print("CLIENT " + ("all passed" if _fails == 0 else "%d FAILED" % _fails))
 	game.net.leave()
 	quit(1 if _fails > 0 else 0)

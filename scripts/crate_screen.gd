@@ -215,6 +215,13 @@ func _show_prize() -> void:
 	_prompt.add_theme_color_override("font_color", Color.WHITE)
 	if prize.kind == "trophy" and not prize.duplicate:
 		trophy_won.emit(player)
+	Achievements.unlock("FIRST_CRATE")
+	if prize.kind == "trophy":
+		Achievements.unlock("GOLDEN_MARBLE")
+	elif prize.get("rarity", "") == "legendary" and prize.kind == "item":
+		Achievements.unlock("LEGENDARY")
+	if profiles.coins(player) >= 1000:
+		Achievements.unlock("PIGGY_BANK")
 
 
 func _shake_label(l: Label) -> void:

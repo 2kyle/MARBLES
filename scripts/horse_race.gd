@@ -186,6 +186,11 @@ func _pay_out() -> void:
 			var win := roundi(bet.amount * odds[winner])
 			profiles.add_coins(p, win)
 			message[p] = "%s won! +%d coins" % [HORSES[winner].name, win]
+			Achievements.unlock("DERBY_WIN")
+			if odds[winner] >= 5.0:
+				Achievements.unlock("LONG_SHOT")
+			if profiles.coins(p) >= 1000:
+				Achievements.unlock("PIGGY_BANK")
 		else:
 			message[p] = "%s lost. -%d coins" % [HORSES[bet.horse].name, bet.amount]
 	profiles.save_to_disk()

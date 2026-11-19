@@ -6,8 +6,10 @@ extends CanvasLayer
 ## The menu never changes the game itself: it only emits signals, and
 ## main.gd decides what happens. That keeps it easy to add pages later.
 ## PRACTICE takes everyone to the practice island (main.gd opens the hub).
-## ONLINE hosts or joins a game (main.gd and net.gd do the networking);
-## the lobby page shows who's in and lets the host add bots and start.
+## ONLINE hosts or joins a game, over Steam or by address (main.gd and
+## net.gd do the networking); the lobby page shows who's in, lets the host
+## invite Steam friends, add bots and start.
+## ACHIEVEMENTS lists every achievement and which ones you have.
 ##
 ## Keyboard: arrows (or W/S) move between buttons, Enter (or E) picks,
 ## left/right change a setting, Esc goes back. The mouse works too.
@@ -15,6 +17,8 @@ extends CanvasLayer
 signal play_requested
 signal practice_requested
 signal host_requested
+signal steam_host_requested
+signal invite_requested
 signal join_requested(address: String)
 signal lobby_leave_requested
 signal lobby_start_requested
@@ -32,6 +36,8 @@ const TITLE := "MARBLES 4P"
 const VERSION := "prototype"
 
 var settings: GameSettings
+## Set by main.gd; the online page asks it whether Steam is running.
+var steam: SteamService
 ## True while the pause menu is up (during a match).
 var paused_menu := false
 
@@ -47,6 +53,8 @@ var _address: LineEdit
 var _lobby_list: Label
 var _lobby_host_only: Array = []
 var _lobby_wait: Label
+var _lobby_invite: Button
+var _lobby_steam := false
 
 
 ## A button that cycles through values with left/right (or a click).
@@ -125,6 +133,7 @@ func _ready() -> void:
 	_build_play_page()
 	_build_online_page()
 	_build_lobby_page()
+	_build_achievements_page()
 	_build_settings_page()
 	_build_controls_page()
 	_build_credits_page()
@@ -200,13 +209,12 @@ func close() -> void:
 
 
 ## Show the online lobby. Only the host gets the bots, frames and start
-## controls.
-func open_lobby(is_host: bool) -> void:
+## controls; over Steam everyone can invite friends.
+func open_lobby(is_host: bool, over_steam := false) -> void:
 	paused_menu = false
+	_lobby_steam = over_steam
 	_stack = ["main", "online", "lobby"]
-	for c in _lobby_host_only:
-		c.visible = is_host
-	_lobby_wait.visible = not is_host
+	set_lobby_text(_lobby_list.text, is_host)
 	_show_top()
 
 
@@ -222,6 +230,7 @@ func set_lobby_text(text: String, is_host: bool) -> void:
 	for c in _lobby_host_only:
 		c.visible = is_host
 	_lobby_wait.visible = not is_host
+	_lobby_invite.visible = _lobby_steam
 
 
 func is_open() -> bool:
@@ -285,6 +294,7 @@ func _build_main_page() -> void:
 	_button(page, "ONLINE", func(): _push("online"))
 	_button(page, "SETTINGS", func(): _push("settings"))
 	_button(page, "CONTROLS", func(): _push("controls"))
+	_button(page, "ACHIEVEMENTS", func(): _push("achievements"))
 	_button(page, "CREDITS", func(): _push("credits"))
 	_button(page, "QUIT", func(): quit_requested.emit())
 
@@ -327,8 +337,10 @@ func _build_play_page() -> void:
 
 func _build_online_page() -> void:
 	var page := _page("online", "ONLINE")
-	_button(page, "HOST A GAME", func(): host_requested.emit(), true)
-	_note(page, "Or join a friend's game. Type their address (like 192.168.1.20, or a public address):")
+	var steam_host := _button(page, "HOST ON STEAM", func(): steam_host_requested.emit(), true)
+	var steam_note := _note(page, "")
+	_note(page, "Or play by address. HOST BY ADDRESS, or type a friend's address (like 192.168.1.20) and JOIN:")
+	_button(page, "HOST BY ADDRESS", func(): host_requested.emit())
 	_address = LineEdit.new()
 	_address.text = "127.0.0.1"
 	_address.placeholder_text = "address"
@@ -337,8 +349,13 @@ func _build_online_page() -> void:
 	_address.text_submitted.connect(func(t): join_requested.emit(t))
 	page.add_child(_address)
 	_button(page, "JOIN", func(): join_requested.emit(_address.text))
-	_note(page, "The host's computer runs the game on port %d (UDP). Over the internet the host needs that port forwarded on their router; on the same Wi-Fi it just works." % NetSession.DEFAULT_PORT)
+	_note(page, "By address, the host uses port %d (UDP). Over the internet they need it forwarded on their router; on the same Wi-Fi it just works." % NetSession.DEFAULT_PORT)
 	_button(page, "BACK", back)
+	page.set_meta("sync", func():
+		var on := steam != null and steam.available
+		steam_host.disabled = not on
+		steam_note.text = ("Play with your Steam friends: host, then invite them from the lobby. They can also pick \"Join Game\" on you in their Steam friends list. No setup needed." if on
+				else "Steam play is off: %s. You can still play by address." % (steam.problem if steam else "Steam isn't set up")))
 
 
 func _build_lobby_page() -> void:
@@ -357,6 +374,7 @@ func _build_lobby_page() -> void:
 	frames.value_changed.connect(func(i):
 		settings.frames_per_match = [3, 5, 10][i]
 		_save())
+	_lobby_invite = _button(page, "INVITE STEAM FRIENDS", func(): invite_requested.emit())
 	var start := _button(page, "START", func(): lobby_start_requested.emit(), true)
 	_lobby_host_only = [bots, frames, start]
 	_lobby_wait = Label.new()
@@ -420,9 +438,62 @@ func _build_controls_page() -> void:
 	_button(page, "BACK", back)
 
 
+## Every achievement: its badge, name and how to get it. Locked ones are
+## grey. Rebuilt each time it's shown so it's always up to date.
+func _build_achievements_page() -> void:
+	var page := _page("achievements", "ACHIEVEMENTS")
+	var count := Label.new()
+	count.add_theme_font_size_override("font_size", 18)
+	count.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
+	page.add_child(count)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(760, 420)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	page.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 18)
+	grid.add_theme_constant_override("v_separation", 12)
+	scroll.add_child(grid)
+	var back_button := _button(page, "BACK", back)
+	# Up/down on the keyboard or a controller scrolls the list.
+	back_button.gui_input.connect(func(e: InputEvent):
+		if e.is_action_pressed("ui_up") or e.is_action_pressed("ui_down"):
+			scroll.scroll_vertical += 120 if e.is_action_pressed("ui_down") else -120
+			back_button.accept_event())
+	page.set_meta("sync", func():
+		for c in grid.get_children():
+			c.free()
+		count.text = "%d of %d unlocked" % [Achievements.unlocked_count(), Achievements.LIST.size()]
+		for a in Achievements.LIST:
+			var got := Achievements.has(a.id)
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 12)
+			row.custom_minimum_size = Vector2(365, 64)
+			row.add_child(AchievementIcon.make(a, not got, 60))
+			var words := VBoxContainer.new()
+			words.add_theme_constant_override("separation", 0)
+			words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var title := Label.new()
+			title.text = a.name
+			title.add_theme_font_override("font", TITLE_FONT)
+			title.add_theme_font_size_override("font_size", 20)
+			title.add_theme_color_override("font_color", GOLD if got else Color(1, 1, 1, 0.55))
+			words.add_child(title)
+			var how := Label.new()
+			var goal: int = a.get("goal", 0)
+			how.text = a.text + ("  (%d / %d)" % [Achievements.count(a.id), goal] if goal > 0 and not got else "")
+			how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			how.add_theme_font_size_override("font_size", 14)
+			how.add_theme_color_override("font_color", Color(1, 1, 1, 0.8 if got else 0.5))
+			words.add_child(how)
+			row.add_child(words)
+			grid.add_child(row))
+
+
 func _build_credits_page() -> void:
 	var page := _page("credits", "CREDITS")
-	_note(page, "Made with Godot 4 (godotengine.org).\n\nFont: Chakra Petch by the Chakra Petch Project Authors,\nunder the SIL Open Font License.\n\nEverything else is built in code for this prototype.")
+	_note(page, "Made with Godot 4 (godotengine.org).\n\nFont: Chakra Petch by the Chakra Petch Project Authors,\nunder the SIL Open Font License.\n\nSteam support: GodotSteam (MIT License) and the Steamworks SDK.\n\nEverything else is built in code for this prototype.")
 	_button(page, "BACK", back)
 
 
@@ -494,7 +565,7 @@ func _stepper(parent: Control, caption: String, options: Array) -> Stepper:
 	return s
 
 
-func _note(parent: Control, text: String) -> void:
+func _note(parent: Control, text: String) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -502,6 +573,7 @@ func _note(parent: Control, text: String) -> void:
 	l.add_theme_font_size_override("font_size", 16)
 	l.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
 	parent.add_child(l)
+	return l
 
 
 func _style_button(b: Button, big: bool) -> void:

@@ -30,7 +30,11 @@ During a match, **Esc** opens the pause menu.
 
 A small floating island to warm up on. It's its own place, high above a sea of clouds with its own sky; the match lake and track are hidden while you're there. Roll with your lean keys (forward is away from the camera) and hop with your place key. Nothing here counts.
 
-Only people come to the island (no bots). The camera follows your marble, and with two or more players it pulls back to keep everyone in view. A coloured name tag (P1, P2...) with a little arrow floats over each marble so you can always find yourself, and it grows when the camera is far away.
+Only people come to the island (no bots). The camera is a free third-person camera that follows your marble anywhere on the island, so you can explore. Turn it with **Z / X**, the **right stick**, or by holding the **right mouse button** and dragging (drag up and down to look higher or lower), and use the **mouse wheel** to move it closer or further away. If you leave it alone for a second while rolling, it swings round behind you. If a wall or tree gets between the camera and your marble, the camera moves in front of it. With two or more players on one screen, it follows the middle of the group and pulls back to keep everyone in view.
+
+![The free camera on the island](docs/island_camera.png)
+
+ A coloured name tag (P1, P2...) with a little arrow floats over each marble so you can always find yourself, and it grows when the camera is far away.
 
 - **Practice run:** a winding track down from the stone START tower, with a gap to hop and a steep drop. It ends on the plaza, where a big blue pad sends you straight back to the top. The **PRACTICE RUN** pad on the plaza takes you up too.
 - **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch to open your **closet** (see below). One player at a time.
@@ -70,7 +74,7 @@ A match is 10 frames. Every match starts on a new random track that winds left a
 
 ### Hopping and gaps
 
-While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m (not enough to clear the walls), and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
+While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m, which is just enough to clear the 0.7 m side walls if you want to jump off or cut a corner, and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
 
 ### Bots
 
@@ -84,7 +88,13 @@ Bots fill empty seats and play by the same rules as people: they wander over to 
 
 1. One person picks **ONLINE → HOST ON STEAM**. The game makes a friends-only Steam lobby.
 2. In the **LOBBY**, **INVITE STEAM FRIENDS** opens Steam's friends list to send invites. Friends accept the invite, or pick **Join Game** on the host in their Steam friends list. If their game isn't open, Steam starts it and drops them straight into the lobby.
-3. Everyone shows up with their Steam name. The host can add bots, pick the number of frames, and press **START**.
+3. Everyone lands on the host's **island** with their Steam name over their marble, and can roll around, open crates, dress up in the closet and bet on the derby together.
+4. When you're ready, roll through the **PLAY** arch. Your tag says **READY** (roll through again to take it back). When everyone is ready, a 3-second countdown starts the match. The host can also press **Esc → START NOW**.
+5. After the match, everyone goes back to the island, and friends can join again.
+
+![Friends on the host's island, with the lobby open](docs/online_island.png)
+
+**Esc** on the island opens the lobby: the host can invite friends, add bots and pick the number of frames there.
 
 There's no port forwarding: Steam connects everyone through its own relay network, and nobody sees anyone else's address. Steam play uses `scripts/steam_service.gd`; the App ID is in `scripts/steam_config.gd`.
 
@@ -92,13 +102,14 @@ There's no port forwarding: Steam connects everyone through its own relay networ
 
 1. One person picks **ONLINE → HOST BY ADDRESS**. Their computer runs the game.
 2. Everyone else picks **ONLINE**, types the host's address and picks **JOIN**. On the same Wi-Fi that's the host's local address (like `192.168.1.20`); over the internet it's the host's public address. To test on one computer, open the game twice and join `127.0.0.1`.
-3. Everyone appears in the **LOBBY**, the same as over Steam.
+3. Everyone lands on the host's island and readies up, the same as over Steam.
 
 How it works: the host's computer runs the whole game (physics, pins, scoring and the bots). Everyone else's game sends only their stick and button presses to the host and shows what the host sends back about 30 times a second, so everyone sees the same pins fall and nobody can cheat by changing their own copy. Online, each computer plays with the Player 1 keys or the first controller.
 
 - By address, the game uses **port 24680 (UDP)**. Over the internet, the host has to forward that port to their computer in their router's settings ("port forwarding"). You can also type `address:port` to join a different port.
 - If someone leaves mid-match, a bot takes over their seat and the match carries on. If the host leaves, the match ends for everyone.
-- People can't join a match that has already started, retrying a frame is turned off online, and the practice island is local only for now.
+- People can't join a match that has already started (they can join once everyone's back on the island), and retrying a frame is turned off online.
+- On the island the host runs the physics too. Each guest opens their closet and crates on their own screen; the new look shows up for everyone when they close it.
 - The networking is in `scripts/net.gd`; `main.gd` decides what to send and does what the host says. Steam and an address only differ in how the connection is made: everything after that is the same code.
 
 ### Achievements
@@ -217,6 +228,7 @@ Everything works with the keyboard or controllers, and the **Controls** page in 
 | Build: move / rotate (flip for track cards) / place | W A S D / Q / E | Arrow keys / Right Shift / Enter | Left stick / X or RB / A |
 | Roll: lean / hop | W A S D / E | Arrow keys / Enter | Left stick (analog) / A |
 | Practice island: roll / hop / leave a plate | W A S D / E / Q | Arrows / Enter / Right Shift | Left stick / A / B or X |
+| Practice island: turn the camera | Z / X, or hold the right mouse button and drag; mouse wheel to zoom | | Right stick |
 
 **Controllers:** controller 1 plays as P1, controller 2 as P2, and so on, in the order they were plugged in. You can switch between keys and controller at any time, and the hints at the bottom of the screen show whichever you used last.
 
@@ -252,7 +264,7 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | --- | --- | --- |
 | Rescuing stuck marbles | `scenes/main.tscn`, `Main` node | Stuck Time, Rescue Time |
 | Steering strength | `scenes/marble.tscn`, root node | Lean Side Force, Lean Forward Force |
-| How snappy steering feels | `scenes/marble.tscn`, root node | Lean Attack (how fast a lean builds up), Lean Release (how fast it dies away), Counter Steer Boost (extra push when you steer against a slide) |
+| How snappy steering feels | `scenes/marble.tscn`, root node | Lean Attack (how fast a lean builds up), Lean Release (how fast it dies away), Counter Steer Boost (extra push when you steer against a slide), Spin Assist (how quickly the ball's spin catches up with where it's going, so it grips instead of skidding when you turn back; 0 turns it off). Turning from full speed one way to rolling the other way takes about 0.8 s |
 | Who the camera follows | `scenes/main.tscn`, `Main` node | Camera Follow: All Marbles keeps every rolling marble in shot; One Marble follows only Camera Player's marble. Camera Shake sets how hard crashes shake the screen |
 | How far the camera may pull back | `scenes/main.tscn`, `Camera` node | Frame Margin, Max Zoom, Zoom Out Speed, Zoom In Speed |
 | How heavy the marble is | `scenes/marble.tscn`, root node | Mass (heavier scatters pins harder) |

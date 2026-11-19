@@ -11,16 +11,23 @@ extends RigidBody3D
 ## Which player owns this marble (0-based).
 @export var player_id := 0
 ## Sideways lean force. Raise it for sharper steering.
-@export var lean_side_force := 5.0
-## Forward/back lean force, weaker than sideways on purpose.
-@export var lean_forward_force := 4.0
+@export var lean_side_force := 8.0
+## Forward/back lean force, a bit weaker than sideways on purpose.
+@export var lean_forward_force := 6.0
 ## How fast the lean builds up when you press a key, and dies away when you
 ## let go (per second). Higher = snappier, lower = floatier.
-@export var lean_attack := 7.0
-@export var lean_release := 10.0
-## Extra sideways force when you steer against the way you're sliding, so
-## changing direction feels quick instead of mushy.
-@export var counter_steer_boost := 1.4
+@export var lean_attack := 16.0
+@export var lean_release := 18.0
+## Extra force when you steer against the way you're moving (after a
+## bounce off a wall, say), so turning back is quick instead of mushy.
+## Up to this many times the normal force, the faster you're going the
+## wrong way.
+@export var counter_steer_boost := 2.6
+## How much the ball's spin follows your steering. A rolling ball has to
+## stop spinning one way before it can roll back the other, which feels
+## like steering a shopping trolley; this turns the spin with the push.
+## 0 = plain physics, 1 = spin always matches.
+@export var spin_assist := 1.0
 ## Top speed in metres per second. Keeps boosted marbles from launching
 ## off the end of the lane over the pins.
 @export var max_speed := 11.0
@@ -116,6 +123,11 @@ func _ready() -> void:
 	_apply_look()
 
 
+## How fast the ball is moving (also right for network-moved marbles).
+func seen_velocity() -> Vector3:
+	return _seen_velocity
+
+
 ## Squeeze the eyes shut after a knock. `strength` is the impact speed.
 func wince(strength: float) -> void:
 	if _eyes:
@@ -135,11 +147,11 @@ func _process(delta: float) -> void:
 ## to face the camera, leaning toward the way the ball is going (and face
 ## the viewer on display stands and in the closet).
 func _place_hat(delta: float) -> void:
+	if delta > 0.0 and is_inside_tree():
+		_seen_velocity = _seen_velocity.lerp((global_position - _last_pos) / delta, 0.3)
+		_last_pos = global_position
 	if (_hat == null and _eyes == null) or not is_inside_tree():
 		return
-	if delta > 0.0:
-		_seen_velocity = _seen_velocity.lerp((global_position - _last_pos) / delta, 0.3)
-	_last_pos = global_position
 	_face_time += delta
 	var flat := Vector3(_seen_velocity.x, 0.0, _seen_velocity.z)
 	var cam := get_viewport().get_camera_3d()
@@ -192,12 +204,22 @@ func _physics_process(delta: float) -> void:
 	var l := _lean_now
 	# Lean is relative to the lane, so "left" always means the lane's left
 	# even when the track bends.
-	var side := l.x * lean_side_force
-	var slide := linear_velocity.dot(lane_basis.x)
-	if absf(slide) > 0.3 and signf(slide) != signf(l.x):
-		side *= counter_steer_boost
-	var force := lane_basis.x * side + lane_basis.z * l.y * lean_forward_force
+	var force := lane_basis.x * l.x * lean_side_force + lane_basis.z * l.y * lean_forward_force
+	var push_dir := force.normalized() if force.length() > 0.001 else Vector3.ZERO
+	# Steering against the way it's moving: push harder, more so the
+	# faster it's going the wrong way.
+	var against := -linear_velocity.dot(push_dir)
+	if against > 0.3:
+		force *= lerpf(1.0, counter_steer_boost, clampf(against / 2.0, 0.0, 1.0))
 	apply_central_force(force * mass)
+	# Turn the spin with the push so the ball rolls the new way straight
+	# away instead of skidding while its old spin wears off.
+	var up := floor_normal()
+	if up != Vector3.ZERO and spin_assist > 0.0:
+		var radius := 0.3
+		var want_spin := up.cross(linear_velocity) / radius
+		var k := clampf(spin_assist * 10.0 * delta, 0.0, 1.0) if push_dir != Vector3.ZERO else 0.0
+		angular_velocity = angular_velocity.lerp(want_spin, k)
 	_track_landing(delta)
 	if linear_velocity.length() > max_speed:
 		linear_velocity = linear_velocity.limit_length(max_speed)

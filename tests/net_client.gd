@@ -9,6 +9,8 @@ var _ticks := 0
 var _draft_ticks := 0
 var _result_frames := {}
 var _quit_at := -1
+var _hub_seen := false
+var _lean_on := false
 var _steam_mode := OS.get_cmdline_user_args().has("steam")
 var fake: Object
 
@@ -45,6 +47,14 @@ func _process(_delta: float) -> bool:
 		return _finish()
 	if _quit_at > 0 and _ticks >= _quit_at:
 		return _finish()
+	if game.state == game.State.HUB and not _hub_seen:
+		_hub_seen = true
+		check("joining puts me on the host's island", game.net.is_client())
+		Input.action_press(Controls.action_name(0, "forward"))
+		_lean_on = true
+	if _lean_on and game.state != game.State.HUB:
+		Input.action_release(Controls.action_name(0, "forward"))
+		_lean_on = false
 	if game.state == game.State.DRAFT:
 		# Push the pointer up onto the cards, then grab.
 		_draft_ticks += 1
@@ -72,6 +82,7 @@ func _process(_delta: float) -> bool:
 
 
 func _finish() -> bool:
+	check("was on the island before the match", _hub_seen)
 	check("saw two frames' results", _result_frames.size() >= 2)
 	check("first-frame achievement on this computer too", Achievements.has("FIRST_FRAME"))
 	print("CLIENT " + ("all passed" if _fails == 0 else "%d FAILED" % _fails))

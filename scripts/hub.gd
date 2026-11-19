@@ -11,7 +11,8 @@ extends Node3D
 ##   - a LOOT CRATES plate: spend coins on crates to win new looks
 ##   - a trophy stand for anyone who's won the Golden Marble Trophy
 ##   - hurdles to practise hopping, and a few pieces to bump into
-##   - a PLAY arch that starts a real match
+##   - a PLAY arch that starts a real match (online, rolling through it
+##     marks you READY; the match starts once everyone is)
 ## Fall off the island and you pop back on the plaza (no penalty here).
 ##
 ## Like the match, the hub never reads the keyboard: main.gd sets each
@@ -20,7 +21,7 @@ extends Node3D
 ## A player rolled onto the Customize plate.
 signal customize_requested(player: int)
 ## Someone rolled through the PLAY arch.
-signal play_requested
+signal play_requested(player: int)
 ## A player rolled onto the Marble Derby betting plate.
 signal derby_requested(player: int)
 ## A player rolled onto the Loot Crates plate.
@@ -45,6 +46,9 @@ const FLOWER_COLORS := [Color(1, 0.45, 0.6), Color(1, 0.85, 0.3), Color(0.7, 0.5
 
 var marbles: Array[Marble] = []
 var built := false
+## Online guests show the host's island: their marbles and the soccer ball
+## are moved by the host, so nothing here bumps, triggers or scores.
+var mirror := false
 ## Players whose marble is sitting on the Customize plate right now.
 var on_plate: Array = [false, false, false, false]
 ## The horse race minigame.
@@ -111,24 +115,54 @@ func _process(delta: float) -> void:
 
 ## Put a marble on the island for each player (building the island first
 ## if needed). `looks` holds each seat's look (people and bots).
-func start(count: int, looks: Array, marble_scene: PackedScene) -> void:
+func start(count: int, looks: Array, marble_scene: PackedScene, names: Array = []) -> void:
 	if not built:
 		_build()
 	visible = true
 	stop_marbles()
+	on_plate = [false, false, false, false]
+	sync_marbles(count, looks, marble_scene, names)
+	sports.set_mirror(mirror)
+
+
+## Online: people came or went, or changed their look. Adds and removes
+## marbles to match, without moving anyone who's already here.
+func sync_marbles(count: int, looks: Array, marble_scene: PackedScene, names: Array = []) -> void:
+	while marbles.size() > count:
+		marbles.pop_back().queue_free()
+		_tags.pop_back().queue_free()
 	for p in count:
+		var name_text: String = names[p] if p < names.size() and names[p] != "" else "P%d" % (p + 1)
+		if p < marbles.size():
+			if marbles[p].look != looks[p]:
+				marbles[p].look = looks[p]
+			set_tag(p, name_text, looks[p].color.color)
+			continue
 		var m: Marble = marble_scene.instantiate()
 		m.player_id = p
 		m.look = looks[p]
 		# On open ground forward should be as strong as sideways.
 		m.lean_forward_force = m.lean_side_force
+		if mirror:
+			m.freeze = true
+			m.collision_layer = 0
+			m.collision_mask = 0
 		add_child(m)
 		m.global_position = spawn_point(p)
 		marbles.append(m)
-		var tag := _name_tag("P%d" % (p + 1), looks[p].color.color)
+		var tag := _name_tag(name_text, looks[p].color.color)
 		add_child(tag)
 		_tags.append(tag)
-	on_plate = [false, false, false, false]
+
+
+## Change the words (and colour) over a player's marble, like "Sam  READY".
+func set_tag(p: int, text: String, color: Color) -> void:
+	if p >= _tags.size():
+		return
+	var label: Label3D = _tags[p].get_child(0)
+	label.text = text
+	label.modulate = color.lightened(0.15)
+	(_tags[p].get_child(1) as MeshInstance3D).material_override.albedo_color = color.lightened(0.15)
 
 
 func stop() -> void:
@@ -557,7 +591,7 @@ func _play_portal() -> void:
 	add_child(area)
 	area.body_entered.connect(func(body):
 		if body is Marble and marbles.has(body):
-			play_requested.emit())
+			play_requested.emit(body.player_id))
 
 
 func _hurdles() -> void:

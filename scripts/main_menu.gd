@@ -55,6 +55,7 @@ var _lobby_host_only: Array = []
 var _lobby_wait: Label
 var _lobby_invite: Button
 var _lobby_steam := false
+var _lobby_in_game := false
 
 
 ## A button that cycles through values with left/right (or a click).
@@ -205,15 +206,19 @@ func open_pause() -> void:
 
 func close() -> void:
 	_stack.clear()
+	_lobby_in_game = false
 	_show_top()
 
 
 ## Show the online lobby. Only the host gets the bots, frames and start
 ## controls; over Steam everyone can invite friends.
-func open_lobby(is_host: bool, over_steam := false) -> void:
-	paused_menu = false
+## `in_game`: opened with Esc on the online island (Esc again closes it;
+## LEAVE leaves the game).
+func open_lobby(is_host: bool, over_steam := false, in_game := false) -> void:
+	paused_menu = in_game
 	_lobby_steam = over_steam
-	_stack = ["main", "online", "lobby"]
+	_lobby_in_game = in_game
+	_stack = ["lobby"] if in_game else ["main", "online", "lobby"]
 	set_lobby_text(_lobby_list.text, is_host)
 	_show_top()
 
@@ -229,7 +234,9 @@ func set_lobby_text(text: String, is_host: bool) -> void:
 	_lobby_list.text = text
 	for c in _lobby_host_only:
 		c.visible = is_host
-	_lobby_wait.visible = not is_host
+	_lobby_wait.visible = not is_host or _lobby_in_game
+	_lobby_wait.text = ("Roll through the PLAY arch on the island to get ready. The match starts when everyone is." if _lobby_in_game
+			else "Waiting for the host to start...")
 	_lobby_invite.visible = _lobby_steam
 
 
@@ -240,7 +247,9 @@ func is_open() -> bool:
 ## Go back one page. Backing out of the pause menu resumes the match;
 ## backing out of the lobby leaves the online game.
 func back() -> void:
-	if not _stack.is_empty() and _stack[-1] == "lobby":
+	if not _stack.is_empty() and _stack[-1] == "lobby" and _lobby_in_game:
+		close()
+	elif not _stack.is_empty() and _stack[-1] == "lobby":
 		lobby_leave_requested.emit()
 	elif _stack.size() > 1:
 		_stack.pop_back()
@@ -375,17 +384,19 @@ func _build_lobby_page() -> void:
 		settings.frames_per_match = [3, 5, 10][i]
 		_save())
 	_lobby_invite = _button(page, "INVITE STEAM FRIENDS", func(): invite_requested.emit())
-	var start := _button(page, "START", func(): lobby_start_requested.emit(), true)
+	var start := _button(page, "START NOW", func(): lobby_start_requested.emit(), true)
 	_lobby_host_only = [bots, frames, start]
 	_lobby_wait = Label.new()
 	_lobby_wait.text = "Waiting for the host to start..."
 	_lobby_wait.add_theme_font_size_override("font_size", 20)
 	_lobby_wait.add_theme_color_override("font_color", GOLD)
+	_lobby_wait.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_lobby_wait.custom_minimum_size = Vector2(440, 0)
 	page.add_child(_lobby_wait)
 	page.set_meta("sync", func():
 		bots.index = settings.bot_count
 		frames.index = maxi([3, 5, 10].find(settings.frames_per_match), 0))
-	_button(page, "LEAVE", back)
+	_button(page, "LEAVE GAME", func(): lobby_leave_requested.emit())
 
 
 func _build_settings_page() -> void:

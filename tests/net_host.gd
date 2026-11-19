@@ -1,7 +1,8 @@
 extends SceneTree
 ## Online test, host side. Run together with net_client.gd (see
-## tests/run_net_test.sh): hosts a game with one bot, waits for the client,
-## plays two frames, then checks a bot takes over when the client leaves.
+## tests/run_net_test.sh): hosts a game with one bot, waits for the client on
+## the island, readies both up, plays three frames (a bot takes over when
+## the client leaves) and checks everyone goes back to the island.
 ## With "-- steam" it plays over a stand-in for Steam (tests/fake_steam.gd):
 ## a Steam lobby, a friend invite, rich presence and achievements.
 
@@ -12,6 +13,9 @@ var _started := false
 var _frames := 0
 var _client_picked_early := false
 var _left_seen := false
+var _ready_at := -1
+var _guest_start := Vector3.ZERO
+var _back_at := -1
 var _steam_mode := OS.get_cmdline_user_args().has("steam")
 var fake: Object
 
@@ -56,17 +60,35 @@ func _process(_delta: float) -> bool:
 		print("HOST timed out in state %d" % game.state)
 		return _finish()
 	if not _started:
-		if game.net.humans() == 2 and game.net.lobby.size() == 3:
+		if _ready_at < 0 and game.net.humans() == 2 and game.net.lobby.size() == 3:
 			check("lobby: host, player, bot " + str(game.net.lobby.map(func(s): return s.kind)),
 					game.net.lobby.map(func(s): return s.kind) == ["host", "player", "bot"])
-			_started = true
 			if _steam_mode:
 				check("Steam names in the lobby " + str(game.net.lobby.map(func(s): return s.get("nick", ""))),
 						game.net.lobby[0].nick == "Hosty" and game.net.lobby[1].nick == "Guesty")
-			game._start_online_match()
+			check("hosting puts us on the island", game.state == game.State.HUB)
+			check("the friend's marble appeared on the island", game.hub.marbles.size() == 2)
+			_guest_start = game.hub.marbles[1].global_position
+			_ready_at = _ticks + 240
+		elif _ready_at > 0 and _ticks == _ready_at:
+			var moved: float = game.hub.marbles[1].global_position.distance_to(_guest_start)
+			check("the friend rolls their own marble around the island (%.1f m)" % moved, moved > 1.0)
+			game._on_hub_play(0)
+			check("one ready isn't enough", game._ready_countdown < 0.0 and game.state == game.State.HUB)
+			game._on_hub_play(1)
+			check("everyone ready starts the countdown", game._ready_countdown > 0.0)
+		elif _ready_at > 0 and _ticks > _ready_at and game.state != game.State.HUB:
+			_started = true
 			if _steam_mode:
 				check("nobody can join the Steam lobby mid-match", not fake.joinable)
 			check("3 seats: me, remote, bot", game.player_count == 3 and game.seat_kinds == [0, 2, 1, 0])
+		return false
+	if _back_at > 0:
+		if _ticks == _back_at:
+			check("after the match everyone goes back to the island", game.state == game.State.HUB)
+			if _steam_mode:
+				check("friends can join again on the island", fake.joinable)
+			return _finish()
 		return false
 	match game.state:
 		game.State.DRAFT:
@@ -78,7 +100,10 @@ func _process(_delta: float) -> bool:
 					_frames += 1
 					print("HOST frame %d totals %s pieces %d" % [game.frame, game.totals, game.builder.placed.size()])
 					if _frames == 3:
-						return _finish()
+						check("played all 3 frames to the end", game.state == game.State.MATCH_OVER)
+						_back_at = _ticks + 60
+						game.request_next()
+						return false
 				game.request_next()
 	if not _left_seen and game.net.lobby.size() == 3 and game.net.lobby[1].get("left", false):
 		_left_seen = true
@@ -88,7 +113,7 @@ func _process(_delta: float) -> bool:
 
 func _finish() -> bool:
 	check("the client's stick and button picked a card in time", _client_picked_early)
-	check("played all 3 frames to the end", _frames == 3 and game.state == game.State.MATCH_OVER)
+	check("finished 3 frames", _frames == 3)
 	check("a bot took over when the client left", _left_seen)
 	var got := Achievements.unlocked_ids()
 	check("achievements for a finished online match " + str(got),
@@ -96,7 +121,7 @@ func _finish() -> bool:
 	if _steam_mode:
 		check("achievements sent to Steam " + str(fake.achievements.keys()),
 				fake.achievements.has("FIRST_MATCH") and fake.achievements.has("ONLINE_MATCH"))
-		check("rich presence says the match is over", fake.presence.get("status", "") == "Just finished a match")
+		check("rich presence says we are back on the island", fake.presence.get("status", "") == "On the island with friends")
 	print("HOST " + ("all passed" if _fails == 0 else "%d FAILED" % _fails))
 	quit(1 if _fails > 0 else 0)
 	return true

@@ -27,6 +27,8 @@ signal joined
 signal failed(reason: String)
 signal left(reason: String)
 signal event_received(name: String, data: Dictionary)
+## Host: a guest changed their look (closet or loot crate on their computer).
+signal look_changed(seat: int)
 signal snapshot_received(data: Dictionary)
 
 const DEFAULT_PORT := 24680
@@ -262,6 +264,36 @@ func _lobby_update(new_lobby: Array) -> void:
 @rpc("authority", "reliable")
 func _kick(reason: String) -> void:
 	_drop(reason)
+
+
+## Host: forget people who left during the match (bots took their seats).
+func drop_left() -> void:
+	if not is_host():
+		return
+	var before := lobby.size()
+	lobby = lobby.filter(func(s): return not s.get("left", false))
+	if lobby.size() != before:
+		_rebuild_lobby()
+
+
+## Guest: I changed my look; tell the host so everyone sees it.
+func send_look(look_ids: Dictionary) -> void:
+	my_look_ids = look_ids
+	if is_client():
+		_set_look.rpc_id(1, look_ids)
+
+
+@rpc("any_peer", "reliable")
+func _set_look(look_ids: Dictionary) -> void:
+	if not is_host():
+		return
+	var id := multiplayer.get_remote_sender_id()
+	for i in lobby.size():
+		if lobby[i].peer == id:
+			lobby[i].look = look_ids
+			_rebuild_lobby()
+			look_changed.emit(i)
+			return
 
 
 ## Host -> everyone: a game event (see main.gd `_on_net_event`).

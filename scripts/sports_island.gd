@@ -1,5 +1,11 @@
 class_name SportsIsland
 extends Node3D
+
+## A goal went in (`team` is who scored). main.gd hands out achievements and,
+## online, tells everyone else to show it too.
+signal goal_scored(team: String)
+## A marble dropped through the hoop.
+signal basket_made(player: int)
 ## The sports island, joined to the east side of the practice island by a
 ## bridge. Built in code the first time the practice island is opened.
 ##
@@ -104,12 +110,30 @@ func _on_goal(team: String) -> void:
 	if _reset_wait >= 0.0:
 		return  # already scored, the ball is just rolling about in the net
 	score[team] += 1
+	show_goal(team, score)
+	_reset_wait = 2.0
+	goal_scored.emit(team)
+
+
+## The GOAL! shout, confetti and new score (also run on online guests,
+## who see the host's game).
+func show_goal(team: String, new_score: Dictionary) -> void:
+	score = new_score.duplicate()
 	_refresh_board()
-	Achievements.unlock("BACK_OF_THE_NET")
 	var color: Color = BLUE if team == "blue" else ORANGE
 	_say("GOAL!", color)
 	LowPoly.confetti(self, _ball.global_position + Vector3.UP * 0.5, 90)
-	_reset_wait = 2.0
+
+
+## Online guests: the ball is moved by the host, so it doesn't fall or
+## bump into anything here.
+func set_mirror(on: bool) -> void:
+	_ball.freeze = on
+	_ball.collision_layer = 0 if on else 4
+
+
+func ball() -> RigidBody3D:
+	return _ball
 
 
 func _refresh_board() -> void:
@@ -370,11 +394,17 @@ func _basket(m: Marble) -> void:
 		return
 	_basket_wait[m] = 1.0
 	baskets += 1
+	show_basket(baskets)
+	m.wince(4.0)
+	basket_made.emit(m.player_id)
+
+
+## The SWISH!, confetti and new count (also run on online guests).
+func show_basket(count: int) -> void:
+	baskets = count
 	_refresh_hoop()
-	Achievements.unlock("NOTHING_BUT_NET")
 	LowPoly.confetti(self, to_global(RIM + Vector3.UP * 0.4))
 	_say_at_hoop()
-	m.wince(4.0)
 
 
 func _refresh_hoop() -> void:

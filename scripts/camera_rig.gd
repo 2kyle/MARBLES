@@ -9,6 +9,11 @@ extends Camera3D
 ## screen, like every marble or every build cursor), the camera pulls back
 ## just far enough to keep them all in view, and moves in again when they
 ## bunch up.
+##
+## With `orbit` on (the practice island) it's a free third-person camera
+## instead: it circles `target` at `orbit_yaw` / `orbit_pitch`, which the
+## game turns with the mouse, right stick or Z / X, and slides in closer
+## when something is between it and the marble.
 
 @export var follow_offset := Vector3(0, 8.0, 7.0)
 @export var look_ahead := Vector3(0, -2.0, -10.0)
@@ -20,6 +25,15 @@ extends Camera3D
 ## How fast the camera pulls back (fast) and moves in again (slow).
 @export var zoom_out_speed := 4.0
 @export var zoom_in_speed := 0.9
+
+## Free third-person mode (see the top of this file).
+var orbit := false
+## Which way the camera faces (radians around up; 0 = looking along -Z).
+var orbit_yaw := 0.0
+## How far it looks down (radians).
+var orbit_pitch := 0.38
+## How far behind the target it sits (metres, before zooming out).
+var orbit_distance := 6.0
 
 var target := Vector3.ZERO
 ## Direction "down the lane" for the camera (only its flat part is used).
@@ -39,8 +53,9 @@ func snap_to(point: Vector3) -> void:
 	_yaw = _heading_yaw()
 	var rot := Basis(Vector3.UP, _yaw)
 	_zoom = _fit_zoom(rot)
-	global_position = point + rot * follow_offset * _zoom
-	_look = point + rot * look_ahead
+	var pose := _pose(_zoom, rot)
+	global_position = _unblocked(pose[0])
+	_look = pose[1]
 	look_at(_look)
 
 
@@ -56,8 +71,13 @@ func _process(delta: float) -> void:
 	var want := _fit_zoom(rot)
 	var speed := zoom_out_speed if want > _zoom else zoom_in_speed
 	_zoom = lerpf(_zoom, want, 1.0 - exp(-speed * delta))
-	global_position = global_position.lerp(target + rot * follow_offset * _zoom, w)
-	_look = _look.lerp(target + rot * look_ahead, w)
+	var pose := _pose(_zoom, rot)
+	if orbit:
+		# Snappier, so turning the camera feels direct.
+		w = 1.0 - exp(-12.0 * delta)
+		pose[0] = _unblocked(pose[0])
+	global_position = global_position.lerp(pose[0], w)
+	_look = _look.lerp(pose[1], w)
 	look_at(_look)
 	if _shake > 0.0:
 		_shake_t += delta * 40.0
@@ -85,9 +105,32 @@ func _fit_zoom(rot: Basis) -> float:
 	return hi
 
 
+## Where the camera sits and what it looks at, for a zoom.
+func _pose(zoom: float, rot: Basis) -> Array:
+	if orbit:
+		var turn := Basis(Vector3.UP, orbit_yaw) * Basis(Vector3.RIGHT, -orbit_pitch)
+		var aim := target + Vector3.UP * 0.6
+		return [aim + turn * Vector3(0, 0, orbit_distance * zoom), aim]
+	return [target + rot * follow_offset * zoom, target + rot * look_ahead]
+
+
+## In orbit mode, if a wall or tree is between the target and `pos`, move
+## the camera in front of it so the marble never disappears behind things.
+func _unblocked(pos: Vector3) -> Vector3:
+	if not orbit or not is_inside_tree():
+		return pos
+	var from := target + Vector3.UP * 0.6
+	var q := PhysicsRayQueryParameters3D.create(from, pos, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		return pos
+	return from + (hit.position - from) * 0.9
+
+
 func _fits(zoom: float, rot: Basis) -> bool:
-	var pos := target + rot * follow_offset * zoom
-	var look := target + rot * look_ahead
+	var pose := _pose(zoom, rot)
+	var pos: Vector3 = pose[0]
+	var look: Vector3 = pose[1]
 	var basis := Basis.looking_at(look - pos, Vector3.UP)
 	var tan_v := tan(deg_to_rad(fov) / 2.0) * frame_margin
 	var size := get_viewport().get_visible_rect().size if is_inside_tree() else Vector2(16, 9)

@@ -19,8 +19,9 @@ extends Node3D
 	set(v):
 		lane_width = v
 		_queue_rebuild()
-## Height of the side walls, metres.
-@export var wall_height := 1.0:
+## Height of the side walls, metres. 0.7 keeps marbles in on bends but a
+## well-timed hop (about 0.8 m high) can clear it on purpose.
+@export var wall_height := 0.7:
 	set(v):
 		wall_height = v
 		_queue_rebuild()

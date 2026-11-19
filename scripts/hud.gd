@@ -951,7 +951,7 @@ func _update_hints(game) -> void:
 					items += [[k.move, game.seat_name(p) + " Horse/Wager"], [k.confirm, "Bet"], [k.rotate, "Leave"], "|"]
 				else:
 					items += [[k.move, game.seat_name(p) + " Roll"], [k.confirm, "Hop"], "|"]
-			items += [[_gk("ESC"), "Pause"]]
+			items += [[_gk("Z X"), "Camera"], [_gk("ESC"), "Pause"]]
 		game.State.DRAFT:
 			for p in game.local_seats():
 				var k := _key_names(game.seat_keys[p])
@@ -1009,7 +1009,7 @@ func _update_hints(game) -> void:
 func _gk(key: String) -> String:
 	if not Controls.any_pad():
 		return key
-	return {"SPACE": "SPACE / Y", "ESC": "ESC / START", "TAB": "TAB / BACK", "V": "V / LB"}.get(key, key)
+	return {"SPACE": "SPACE / Y", "ESC": "ESC / START", "TAB": "TAB / BACK", "V": "V / LB", "Z X": "Z X / R-STICK"}.get(key, key)
 
 
 static func _key_names(p: int) -> Dictionary:

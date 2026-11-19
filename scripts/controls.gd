@@ -50,6 +50,10 @@ const GAME_KEYS := {
 	"toggle_camera": [KEY_V],
 	"scoreboard": [KEY_TAB],
 	"quit": [KEY_ESCAPE],
+	# Turn the camera on the practice island (the mouse and right stick
+	# turn it too).
+	"cam_left": [KEY_Z],
+	"cam_right": [KEY_X],
 }
 
 

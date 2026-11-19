@@ -40,7 +40,7 @@ var _hints_key := ""
 var _chips: HBoxContainer    # build-phase status, bottom centre
 var _ready_title: Label
 var _ready_sub: Label
-var _derby: HBoxContainer        # Marble Derby betting panels (practice island)
+var _tables: HBoxContainer       # casino panels: derby, blackjack, bar (one per seated player)
 var _hub_coins: HBoxContainer    # everyone's coins, top right on the island
 
 var _draft_root: Control
@@ -111,13 +111,13 @@ func _ready() -> void:
 	_ready_sub = _title_label(24, Control.PRESET_CENTER_TOP)
 	_ready_sub.offset_top = 175
 
-	_derby = HBoxContainer.new()
-	_derby.add_theme_constant_override("separation", 18)
-	_derby.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	_derby.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_derby.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_derby.offset_bottom = -58
-	add_child(_derby)
+	_tables = HBoxContainer.new()
+	_tables.add_theme_constant_override("separation", 18)
+	_tables.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_tables.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_tables.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_tables.offset_bottom = -58
+	add_child(_tables)
 
 	_hub_coins = HBoxContainer.new()
 	_hub_coins.add_theme_constant_override("separation", 8)
@@ -474,7 +474,7 @@ func _update_hub(game) -> void:
 	var screen: bool = in_hub and (game.closet.is_open() or game.crate_screen.is_open())
 	_hub_coins.visible = in_hub and not screen
 	_hints.visible = not screen
-	_derby.visible = in_hub and game.derby_open.has(true)
+	_tables.visible = in_hub and game.table_open.any(func(t): return t != "")
 	if not in_hub:
 		return
 	# Coins, top right.
@@ -500,49 +500,91 @@ func _update_hub(game) -> void:
 		row.get_child(0).text = game.seat_name(p)
 		row.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
 		row.get_child(1).text = "%d COINS" % game.profiles.coins(p)
-	if not _derby.visible:
+	if not _tables.visible:
 		return
-	var derby: HorseRace = game.hub.derby
-	while _derby.get_child_count() < game.player_count:
-		_derby.add_child(_make_derby_panel())
-	_show_first(_derby, game.player_count)
+	while _tables.get_child_count() < game.player_count:
+		_tables.add_child(_make_table_panel())
+	_show_first(_tables, game.player_count)
 	for p in game.player_count:
-		var panel: PanelContainer = _derby.get_child(p)
-		panel.visible = game.derby_open[p]
+		var panel: PanelContainer = _tables.get_child(p)
+		var kind: String = game.table_open[p]
+		panel.visible = kind != ""
+		if kind == "":
+			continue
 		var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
 		style.border_color = game.player_colors[p]
 		var box := panel.get_child(0)
 		var head: HBoxContainer = box.get_child(0)
-		head.get_child(0).text = game.seat_name(p) + "  DERBY"
+		head.get_child(0).text = "%s  %s" % [game.seat_name(p), kind.to_upper()]
 		head.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
 		head.get_child(2).text = "%d COINS" % game.profiles.coins(p)
-		var placed: bool = derby.bets.has(p)
-		var h: int = derby.bets[p].horse if placed else derby.pick[p]
-		var amount: int = derby.bets[p].amount if placed else derby.wager[p]
-		var horse_row: HBoxContainer = box.get_child(1)
-		horse_row.get_child(0).text = "HORSE"
-		horse_row.get_child(1).text = ("%d %s" if placed else "<  %d %s  >") % [h + 1, HorseRace.HORSES[h].name]
-		horse_row.get_child(1).add_theme_color_override("font_color", HorseRace.HORSES[h].color.lightened(0.3))
-		horse_row.get_child(2).text = "pays %.1fx" % derby.odds[h]
-		var wager_row: HBoxContainer = box.get_child(2)
-		wager_row.get_child(0).text = "WAGER"
-		wager_row.get_child(1).text = ("%d" if placed else "-  %d  +") % amount
-		wager_row.get_child(2).text = "win %d" % roundi(amount * derby.odds[h])
-		var foot: Label = box.get_child(3)
-		if derby.message[p] != "":
-			foot.text = derby.message[p]
-		elif not placed:
-			foot.text = "%s  Place bet" % _key_names(game.seat_keys[p]).confirm
-		else:
-			foot.text = ""
+		var rows: Array = []   # [key, value, right, value colour] per row
+		var foot := ""
+		var confirm: String = _key_names(game.seat_keys[p]).confirm
+		match kind:
+			"derby":
+				var derby: HorseRace = game.hub.casino.derby
+				var placed: bool = derby.bets.has(p)
+				var h: int = derby.bets[p].horse if placed else derby.pick[p]
+				var amount: int = derby.bets[p].amount if placed else derby.wager[p]
+				rows.append(["HORSE", ("%d %s" if placed else "<  %d %s  >") % [h + 1, HorseRace.HORSES[h].name],
+						"pays %.1fx" % derby.odds[h], HorseRace.HORSES[h].color.lightened(0.3)])
+				rows.append(["WAGER", ("%d" if placed else "-  %d  +") % amount, "win %d" % roundi(amount * derby.odds[h]), Color.WHITE])
+				if derby.message[p] != "":
+					foot = derby.message[p]
+				elif not placed:
+					foot = "%s  Place bet" % confirm
+			"blackjack":
+				var bj: Blackjack = game.hub.casino.blackjack
+				var s: Dictionary = bj.seats[p]
+				if not s.cards.is_empty():
+					var shown: Array = s.dealer.slice(0, 1) if s.hidden else s.dealer
+					rows.append(["DEALER", _cards_text(shown) + ("  ??" if s.hidden else ""),
+							str(Blackjack.value(shown)), Color(1, 1, 1, 0.85)])
+					rows.append(["YOU", _cards_text(s.cards), str(Blackjack.value(s.cards)), Color.WHITE])
+				var betting: bool = s.phase == Blackjack.Phase.BETTING or s.phase == Blackjack.Phase.DONE
+				rows.append(["WAGER", ("-  %d  +" if betting else "%d") % s.wager, "", Color.WHITE])
+				if s.message != "":
+					foot = s.message
+				elif s.phase == Blackjack.Phase.PLAYING:
+					foot = "%s  Hit     %s  Stand" % [confirm, _key_names(game.seat_keys[p]).rotate]
+				elif s.phase == Blackjack.Phase.DEALER:
+					foot = "Dealer's turn..."
+				else:
+					foot = "%s  Deal" % confirm
+			"bar":
+				var casino: CasinoIsland = game.hub.casino
+				var d: Dictionary = CasinoIsland.DRINKS[casino.drink_pick[p]]
+				rows.append(["DRINK", "<  %s  >" % d.name, "%d coins" % d.price, d.color.lightened(0.3)])
+				foot = casino.bar_message[p] if casino.bar_message[p] != "" else "%s  Order" % confirm
+		for r in 3:
+			var row: HBoxContainer = box.get_child(1 + r)
+			row.visible = r < rows.size()
+			if not row.visible:
+				continue
+			row.get_child(0).text = rows[r][0]
+			row.get_child(1).text = rows[r][1]
+			row.get_child(1).add_theme_color_override("font_color", rows[r][3])
+			row.get_child(2).text = rows[r][2]
+		(box.get_child(4) as Label).text = foot
 
 
-func _make_derby_panel() -> PanelContainer:
+## Cards as short text, like "A♠ 10♥". Hearts and diamonds aren't coloured
+## here (one label), but the suits still read clearly.
+func _cards_text(cards: Array) -> String:
+	var suits := ["\u2660", "\u2665", "\u2666", "\u2663"]
+	var out: PackedStringArray = []
+	for c in cards:
+		out.append(Blackjack.card_name(c) + suits[c[1]])
+	return " ".join(out)
+
+
+func _make_table_panel() -> PanelContainer:
 	var panel := PanelContainer.new()
 	var style := _pill(PANEL_BG, 14, 12)
 	style.border_width_top = 5
 	panel.add_theme_stylebox_override("panel", style)
-	panel.custom_minimum_size = Vector2(320, 0)
+	panel.custom_minimum_size = Vector2(340, 0)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	panel.add_child(box)
@@ -556,11 +598,11 @@ func _make_derby_panel() -> PanelContainer:
 	head.add_child(spacer)
 	head.add_child(_coin_label(20))
 	box.add_child(head)
-	for r in 2:
+	for r in 3:
 		var cols := HBoxContainer.new()
 		cols.add_theme_constant_override("separation", 10)
 		var key := Label.new()
-		key.custom_minimum_size = Vector2(62, 0)
+		key.custom_minimum_size = Vector2(70, 0)
 		key.add_theme_font_size_override("font_size", 13)
 		key.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
 		cols.add_child(key)
@@ -949,8 +991,13 @@ func _update_hints(game) -> void:
 		game.State.HUB:
 			for p in game.local_seats():
 				var k := _key_names(game.seat_keys[p])
-				if game.derby_open[p]:
+				var kind: String = game.table_open[p]
+				if kind == "derby":
 					items += [[k.move, game.seat_name(p) + " Horse/Wager"], [k.confirm, "Bet"], [k.rotate, "Leave"], "|"]
+				elif kind == "blackjack":
+					items += [[k.move, game.seat_name(p) + " Wager"], [k.confirm, "Deal/Hit"], [k.rotate, "Stand/Leave"], "|"]
+				elif kind == "bar":
+					items += [[k.move, game.seat_name(p) + " Drink"], [k.confirm, "Order"], [k.rotate, "Leave"], "|"]
 				else:
 					items += [[k.move, game.seat_name(p) + " Roll"], [k.confirm, "Hop"], "|"]
 			items += [[_gk("Z X"), "Camera"], [_gk("ESC"), "Pause"]]

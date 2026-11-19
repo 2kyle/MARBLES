@@ -44,8 +44,7 @@ func _process(_delta: float) -> bool:
 		hub.marbles[2].global_position = hub.to_global(Hub.PLATE_POS + Vector3(0, 0.4, 2.0))
 		hub.marbles[2].linear_velocity = hub.global_basis.z * -3.0
 		# P4 onto the Marble Derby betting plate.
-		hub.marbles[3].global_position = hub.to_global(Hub.BET_PLATE_POS + Vector3(0, 0.4, 2.0))
-		hub.marbles[3].linear_velocity = hub.global_basis.z * -3.0
+		_drop(hub.marbles[3], CasinoIsland.BET_PLATE)
 		print("derby odds: ", hub.derby.odds)
 	if _ticks > 30 and game.state == game.State.HUB:
 		var run: Track = hub._course
@@ -79,8 +78,7 @@ func _process(_delta: float) -> bool:
 			print("after close: open=%s P3 frozen: %s" % [game.closet.is_open(), hub.marbles[2].freeze])
 			# Then P3 heads for the loot crates.
 			game.profiles.add_coins(2, 300)
-			hub.marbles[2].global_position = hub.to_global(Hub.CRATE_POS + Vector3(0, 0.4, 2.0))
-			hub.marbles[2].linear_velocity = hub.global_basis.z * -3.0
+			_drop(hub.marbles[2], CasinoIsland.CRATE_PLATE)
 		if _ticks == 420:
 			print("crates open for P%d" % (game.crate_screen.player + 1))
 			_coins_crate = game.profiles.coins(2)
@@ -93,7 +91,7 @@ func _process(_delta: float) -> bool:
 			game._close_crates()
 			print("  crate closed: ", not game.crate_screen.is_open())
 		if _ticks == 200:
-			print("derby open: ", game.derby_open)
+			print("derby open: ", game.table_open)
 			_coins_before = game.profiles.coins(3)
 			hub.derby.request_pick(3, 2)
 			hub.derby.request_wager(3, 2)
@@ -103,8 +101,29 @@ func _process(_delta: float) -> bool:
 			print("  derby: ", hub.derby.status(), "  progress ", hub.derby.progress.map(func(x): return snappedf(x, 0.1)))
 		if _ticks == 120 * 28:
 			print("derby result: winner %d, P4 says '%s', coins %d -> %d" % [hub.derby.winner + 1, hub.derby.message[3], _coins_before, game.profiles.coins(3)])
-			game.derby_open[3] = false
+			game.table_open[3] = ""
 			hub.release_from_plate(3)
+		# P2 sits at blackjack, deals and stands; P3 orders a drink.
+		if _ticks == 120 * 8:
+			game.profiles.add_coins(1, 100)
+			_drop(hub.marbles[1], hub.casino._seat(1))
+		if _ticks == 120 * 9:
+			var bj: Blackjack = hub.casino.blackjack
+			print("blackjack seat: ", game.table_open[1])
+			game.hub.casino.blackjack.request_confirm(1)
+			print("  dealt: you %s (%d)  dealer shows %s" % [bj.seats[1].cards, Blackjack.value(bj.seats[1].cards), bj.seats[1].dealer[0]])
+			bj.request_stand(1)
+		if _ticks == 120 * 14:
+			var bj: Blackjack = hub.casino.blackjack
+			print("  blackjack: %s  dealer %d  coins %d" % [bj.seats[1].message, Blackjack.value(bj.seats[1].dealer), game.profiles.coins(1)])
+			game.table_open[1] = ""
+			hub.release_from_plate(1)
+			_drop(hub.marbles[2], CasinoIsland.BAR_PLATE)
+		if _ticks == 120 * 15:
+			print("bar seat: ", game.table_open[2])
+			hub.casino.request_drink_pick(2, 1)
+			hub.casino.request_drink(2, hub.marbles[2])
+			print("  bar: ", hub.casino.bar_message[2], "  fizzy: ", hub.casino.is_fizzy(hub.marbles[2]))
 		if _ticks == 120 * 30:
 			var m3: Marble = hub.marbles[3]
 			m3.global_position = hub.to_global(Hub.PORTAL_POS + Vector3(0, 0.4, -1.5))
@@ -114,3 +133,9 @@ func _process(_delta: float) -> bool:
 		print("after PLAY arch: state WAITING = ", game.state == game.State.WAITING, ", hub visible = ", hub.visible)
 		return true
 	return false
+
+
+## Put a marble right on a casino plate.
+func _drop(m: Marble, at: Vector3) -> void:
+	m.global_position = game.hub.to_global(CasinoIsland.OFFSET + at + Vector3(0, 0.4, 0))
+	m.linear_velocity = Vector3.ZERO

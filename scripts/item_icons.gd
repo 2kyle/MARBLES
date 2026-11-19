@@ -277,3 +277,32 @@ class CoinIcon extends Control:
 			draw_circle(p + Vector2(0, 3), r, Color(0.7, 0.45, 0.05))
 			draw_circle(p, r, Color(1.0, 0.8, 0.25))
 			draw_arc(p, r * 0.7, 0, TAU, 20, Color(0.85, 0.6, 0.1), 2.5)
+
+
+## The loot crate: a chunky wooden crate with gold corners. Its glowing
+## seam is the child "Seam" (with its own material) and its lid "Lid", so
+## the crate screen can make it glow and pop open.
+static func crate_model() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Crate"
+	var wood := Color(0.78, 0.52, 0.3)
+	var dark := Color(0.55, 0.34, 0.18)
+	var gold := Color(1.0, 0.78, 0.25)
+	LowPoly.box(root, Vector3(1.4, 0.9, 1.0), Vector3(0, 0.45, 0), wood)
+	for y in [0.2, 0.45, 0.7]:
+		LowPoly.box(root, Vector3(1.42, 0.05, 1.02), Vector3(0, y, 0), dark)
+	for x in [-0.68, 0.68]:
+		for z in [-0.48, 0.48]:
+			LowPoly.box(root, Vector3(0.1, 0.92, 0.1), Vector3(x, 0.46, z), gold)
+	var seam := LowPoly.box(root, Vector3(1.38, 0.1, 0.98), Vector3(0, 0.93, 0), Color(1, 0.95, 0.8))
+	seam.name = "Seam"
+	var glow := LowPoly.own_mat(seam)
+	glow.emission_enabled = true
+	glow.emission = Color(1, 0.95, 0.8)
+	var lid := Node3D.new()
+	lid.name = "Lid"
+	root.add_child(lid)
+	LowPoly.box(lid, Vector3(1.5, 0.24, 1.1), Vector3(0, 1.06, 0), wood)
+	LowPoly.box(lid, Vector3(1.52, 0.06, 1.12), Vector3(0, 0.98, 0), gold)
+	LowPoly.box(lid, Vector3(0.3, 0.3, 0.08), Vector3(0, 0.94, 0.56), gold)
+	return root

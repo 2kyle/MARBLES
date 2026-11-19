@@ -392,7 +392,9 @@ func _blackjack(plate: Callable, on_table: Callable) -> void:
 	for k in 4:
 		var at := _seat(k)
 		b.cyl(1.0, 1.1, 0.1, at + Vector3.UP * 0.05, Color(0.25, 0.12, 0.08), 20)
-		plate.call(OFFSET + at, NEON[k], func(p): on_table.call(p, "blackjack"))
+		plate.call(OFFSET + at, NEON[k], func(p):
+			blackjack.seat_of[p] = k
+			on_table.call(p, "blackjack"))
 	add_child(b.make())
 	_dealer(TABLE_POS + Vector3(0, 0, -2.9), 0.0, Color(0.85, 0.85, 0.9))
 
@@ -559,7 +561,7 @@ func _lounge() -> void:
 		b.cyl(1.6, 1.6, 0.6, at + Vector3(0, 0.3, 0), ORANGE.darkened(0.1), 16)
 		b.cyl(0.7, 0.7, 0.8, at + Vector3(0, 0.4, 0), BROWN, 12)
 		b.cyl(0.8, 0.8, 0.06, at + Vector3(0, 0.82, 0), Color(0.95, 0.9, 0.8), 12)
-		var lamp := at + Vector3(0, 0.85, 0)
+		var lamp: Vector3 = at + Vector3(0, 0.85, 0)
 		b.cyl(0.12, 0.18, 0.25, lamp + Vector3(0, 0.12, 0), GOLD, 8)
 		b.cyl(0.18, 0.12, 0.5, lamp + Vector3(0, 0.5, 0), Color(1.0, 0.4, 0.3), 8, true)
 		b.cyl(0.0, 0.12, 0.15, lamp + Vector3(0, 0.82, 0), GOLD, 8)
@@ -712,7 +714,7 @@ func _dealer(at: Vector3, yaw: float, shirt: Color, bartender := false) -> void:
 		body.rotation.z = sin(t * 0.9 + phase) * 0.05
 		# Glance toward the closest marble now and then.
 		var look := base_yaw + sin(t * 0.35 + phase) * 0.35
-		var near := _nearest_marble(root.global_position, 8.0)
+		var near: Variant = _nearest_marble(root.global_position, 8.0)
 		if near != null:
 			var d: Vector3 = (near as Node3D).global_position - root.global_position
 			look = atan2(d.x, d.z)

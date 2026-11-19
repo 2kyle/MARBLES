@@ -8,7 +8,8 @@ extends Node3D
 ##     a gap to hop and a drop. A pad at the bottom sends you back to the
 ##     top, and the PRACTICE RUN pad on the plaza takes you up too.
 ##   - a CUSTOMIZE pressure plate: roll onto it to open the closet
-##   - a LOOT CRATES plate: spend coins on crates to win new looks
+##   - the casino island over the west bridge (casino/casino_island.gd):
+##     the Marble Derby, blackjack, the bar and the loot crates
 ##   - a trophy stand for anyone who's won the Golden Marble Trophy
 ##   - hurdles to practise hopping, and a few pieces to bump into
 ##   - a PLAY arch that starts a real match (online, rolling through it
@@ -22,20 +23,17 @@ extends Node3D
 signal customize_requested(player: int)
 ## Someone rolled through the PLAY arch.
 signal play_requested(player: int)
-## A player rolled onto the Marble Derby betting plate.
-signal derby_requested(player: int)
+## A player rolled onto a casino game's plate: `kind` is "derby",
+## "blackjack" or "bar".
+signal table_requested(player: int, kind: String)
 ## A player rolled onto the Loot Crates plate.
 signal crates_requested(player: int)
 
 const ISLAND_RADIUS := 34.0
 const SPAWN := Vector3(0, 0.4, 12)
 const PLATE_POS := Vector3(-8, 0, 8)
-## The Marble Derby (horse race) on the west lawn, and its betting plate.
-const DERBY_POS := Vector3(-25.5, 0, 9)
-const BET_PLATE_POS := Vector3(-19.5, 0, 13.5)
 const LIFT_POS := Vector3(8, 0, 8)
 const PORTAL_POS := Vector3(0, 0, 21)
-const CRATE_POS := Vector3(-10, 0, 14.5)
 ## Where Golden Marble Trophies stand (one per player who's won one).
 const TROPHY_POS := Vector3(10.8, 0, 11.2)
 const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
@@ -51,7 +49,8 @@ var built := false
 var mirror := false
 ## Players whose marble is sitting on the Customize plate right now.
 var on_plate: Array = [false, false, false, false]
-## The horse race minigame.
+## The casino island (west), and its horse race.
+var casino: CasinoIsland
 var derby: HorseRace
 ## The sports island off the east edge (soccer and basketball).
 var sports: SportsIsland
@@ -69,7 +68,6 @@ var _bobbers: Array = []
 var _time := 0.0
 var _rng := RandomNumberGenerator.new()
 var _trophies: Array = []   # trophy nodes on the island right now
-var _crate_deco: Node3D
 var _tags: Array = []      # per marble: the floating "P1" tag over it
 
 
@@ -88,9 +86,6 @@ func _process(delta: float) -> void:
 		var ball := (t as Node3D).get_node("Trophy/Ball") as Node3D
 		ball.position.y = 1.14 + sin(_time * 2.0) * 0.05
 		ball.rotate_y(delta)
-	if _crate_deco:
-		_crate_deco.rotation.y = sin(_time * 0.7) * 0.4
-		_crate_deco.position.y = 1.6 + sin(_time * 1.8) * 0.12
 	for b in _bobbers:
 		(b.node as Node3D).position.y = b.y + sin(_time * b.speed + b.phase) * b.amount
 	var cam := get_viewport().get_camera_3d()
@@ -226,13 +221,18 @@ func spawn_point(p: int) -> Vector3:
 
 ## Called every physics tick while the hub is open.
 func physics_update(delta: float) -> void:
-	derby.update(delta)
+	casino.update(delta, marbles)
 	sports.update(delta)
 	for m in marbles:
 		if m.global_position.y < global_position.y - 8.0:
 			# Back onto whichever island they fell off.
-			var on_sports := to_local(m.global_position).x > ISLAND_RADIUS + 4.0
-			m.global_position = (sports.spawn_point() if on_sports else spawn_point(m.player_id)) + Vector3.UP * 1.5
+			var x := to_local(m.global_position).x
+			var back := spawn_point(m.player_id)
+			if x > ISLAND_RADIUS + 4.0:
+				back = sports.spawn_point()
+			elif x < -ISLAND_RADIUS - 4.0:
+				back = casino.spawn_point()
+			m.global_position = back + Vector3.UP * 1.5
 			_poof(m.global_position)
 			m.linear_velocity = Vector3.ZERO
 			m.angular_velocity = Vector3.ZERO
@@ -259,8 +259,7 @@ func _build() -> void:
 	_fence()
 	_practice_run()
 	_customize_plate()
-	_crate_plate()
-	_derby()
+	_casino_island()
 	_sports_island()
 	_play_portal()
 	_hurdles()
@@ -326,8 +325,8 @@ func _fence() -> void:
 		var a1 := TAU * (i + 1) / n
 		var p0 := Vector3(cos(a0), 0, sin(a0)) * (ISLAND_RADIUS - 0.6)
 		var p1 := Vector3(cos(a1), 0, sin(a1)) * (ISLAND_RADIUS - 0.6)
-		if i == 53 or i == 54 or i == 0 or i == 1:
-			continue  # openings for the bridges (lookout north, sports east)
+		if i in [53, 54, 0, 1, 34, 35]:
+			continue  # openings for the bridges (lookout north, sports east, casino west)
 		LowPoly.box(self, Vector3(0.14, 0.7, 0.14), p0 + Vector3.UP * 0.35, wood, 0.0)
 		if i % 9 == 4:
 			continue  # a gap in the fence
@@ -451,31 +450,6 @@ func _customize_plate() -> void:
 
 
 
-## The LOOT CRATES plate, with a big crate floating over it.
-func _crate_plate() -> void:
-	var gold := Color(1.0, 0.78, 0.25)
-	LowPoly.cyl(self, 1.3, 1.4, 0.12, CRATE_POS + Vector3.UP * 0.06, Color(0.3, 0.2, 0.12), 24)
-	_pressure_plate(CRATE_POS, Color(1.0, 0.6, 0.2), func(p): crates_requested.emit(p))
-	_crate_deco = Node3D.new()
-	_crate_deco.position = CRATE_POS + Vector3(0, 1.6, -1.6)
-	add_child(_crate_deco)
-	var wood := Color(0.78, 0.52, 0.3)
-	LowPoly.box(_crate_deco, Vector3(1.4, 0.9, 1.0), Vector3.ZERO, wood, 0.0)
-	LowPoly.box(_crate_deco, Vector3(1.5, 0.24, 1.1), Vector3(0, 0.55, 0), wood, 0.0)
-	LowPoly.box(_crate_deco, Vector3(1.52, 0.06, 1.12), Vector3(0, 0.45, 0), gold, 0.0)
-	LowPoly.box(_crate_deco, Vector3(0.3, 0.3, 0.08), Vector3(0, 0.38, 0.56), gold, 0.0)
-	for x in [-0.68, 0.68]:
-		for z in [-0.48, 0.48]:
-			LowPoly.box(_crate_deco, Vector3(0.1, 0.92, 0.1), Vector3(x, 0, z), gold, 0.0)
-	var seam := LowPoly.box(_crate_deco, Vector3(1.36, 0.06, 0.96), Vector3(0, 0.47, 0), Color(1, 0.95, 0.8), 0.0)
-	var sm := LowPoly.own_mat(seam)
-	sm.emission_enabled = true
-	sm.emission = Color(1.0, 0.85, 0.4)
-	sm.emission_energy_multiplier = 2.0
-	_sparkles(CRATE_POS + Vector3(0, 1.8, -1.6), Vector3(1.0, 0.8, 1.0), gold, 16)
-	LowPoly.label(self, CRATE_POS + Vector3(0, 3.3, -1.6), "LOOT CRATES", 64, Color(0.45, 0.25, 0.0), 0.0, true)
-
-
 ## Put a Golden Marble Trophy on the island for each player who owns one.
 func refresh_trophies(profiles: Profiles, count: int) -> void:
 	for t in _trophies:
@@ -538,23 +512,6 @@ func _hold_on_plate(m: Marble) -> void:
 	m.angular_velocity = Vector3.ZERO
 	m.freeze = true
 	m.preview = true
-
-
-func _derby() -> void:
-	derby = HorseRace.new()
-	derby.name = "MarbleDerby"
-	derby.position = DERBY_POS
-	add_child(derby)
-	# The betting plate under a striped awning.
-	var gold := Color(1.0, 0.78, 0.25)
-	LowPoly.cyl(self, 1.3, 1.4, 0.12, BET_PLATE_POS + Vector3.UP * 0.06, Color(0.3, 0.22, 0.12), 24)
-	_pressure_plate(BET_PLATE_POS, gold, func(p): derby_requested.emit(p))
-	for x in [-1.6, 1.6]:
-		LowPoly.box(self, Vector3(0.18, 2.6, 0.18), BET_PLATE_POS + Vector3(x, 1.3, -1.2), Color(0.95, 0.93, 0.88), 0.0)
-	for k in 6:
-		LowPoly.box(self, Vector3(3.6 / 6.0, 0.12, 1.4), BET_PLATE_POS + Vector3(-1.5 + k * 0.6, 2.65, -0.7),
-				Color(0.9, 0.25, 0.25) if k % 2 == 0 else Color.WHITE, 0.0)
-	LowPoly.label(self, BET_PLATE_POS + Vector3(0, 3.1, -1.2), "PLACE BETS", 54, Color(0.5, 0.3, 0.05))
 
 
 func _play_portal() -> void:
@@ -722,7 +679,7 @@ func _trees() -> void:
 		var a := _rng.randf() * TAU
 		var r := _rng.randf_range(16.0, 31.0)
 		var at := Vector3(cos(a) * r, 0, sin(a) * r)
-		if _near_run(at, 2.5) or _in_derby(at):
+		if _near_run(at, 2.5):
 			continue
 		LowPoly.cyl(self, 0.06, 0.08, 0.3, at + Vector3.UP * 0.15, Color(0.95, 0.92, 0.85), 6)
 		var cap := LowPoly.ball(self, at + Vector3.UP * 0.32, 0.2, Color(0.9, 0.2, 0.2))
@@ -857,7 +814,7 @@ func _sky_life() -> void:
 		var a := PI * (0.15 + 0.7 * i / 5.0)
 		var at := Vector3(cos(a) * 15.0, 0, 10.0 + sin(a) * 6.0)
 		if _near_run(at, 2.5) or at.distance_to(Vector3(4, 0, 15)) < 3.0 or at.distance_to(Vector3(-5, 0, 16)) < 3.0 \
-				or at.distance_to(CRATE_POS) < 3.0 or at.distance_to(TROPHY_POS + Vector3(0.9, 0, 0.9)) < 3.0:
+				or at.distance_to(TROPHY_POS + Vector3(0.9, 0, 0.9)) < 3.0:
 			continue  # not on the practice run, the playground pieces, crates or trophies
 		LowPoly.box(self, Vector3(0.1, 2.2, 0.1), at + Vector3.UP * 1.1, Color(0.2, 0.18, 0.16), 0.0)
 		var bulb := LowPoly.ball(self, at + Vector3.UP * 2.3, 0.18, Color(1.0, 0.75, 0.4))
@@ -942,6 +899,23 @@ func _bridge(start: Vector3, end: Vector3) -> void:
 		for k in 5:
 			LowPoly.box(self, Vector3(0.1, 0.7, 0.1), start + dir * k * length / 4.0 + right * side + Vector3.UP * 0.3, wood.darkened(0.2))
 		LowPoly.box(self, Vector3(0.04, 0.04, length), mid + right * side + Vector3.UP * 0.5, Color(0.85, 0.75, 0.55), yaw)
+
+
+## The casino island to the west, and a long bridge over to it.
+func _casino_island() -> void:
+	casino = CasinoIsland.new()
+	casino.name = "Casino"
+	casino.position = CasinoIsland.OFFSET
+	add_child(casino)
+	casino.build(_pressure_plate, func(p, kind): table_requested.emit(p, kind), func(p): crates_requested.emit(p))
+	derby = casino.derby
+	var z := CasinoIsland.OFFSET.z
+	_bridge(Vector3(-ISLAND_RADIUS + 1.0, 0.05, z), Vector3(CasinoIsland.OFFSET.x + CasinoIsland.RADIUS - 0.8, 0.05, z))
+	# A signpost by the bridge pointing the way.
+	LowPoly.box(self, Vector3(0.18, 2.6, 0.18), Vector3(-ISLAND_RADIUS + 3.0, 1.3, z + 2.2), Color(0.5, 0.35, 0.22), 0.0)
+	LowPoly.box(self, Vector3(2.6, 0.7, 0.12), Vector3(-ISLAND_RADIUS + 3.0, 2.3, z + 2.2), Color(0.45, 0.22, 0.5), 0.0)
+	var l := LowPoly.label(self, Vector3(-ISLAND_RADIUS + 3.0, 2.3, z + 2.27), "< CASINO", 44, Color(0.2, 0.0, 0.2))
+	l.modulate = Color(1.0, 0.85, 0.4)
 
 
 ## The sports island to the east, and the bridge over to it.
@@ -1104,12 +1078,6 @@ func _birds() -> void:
 			_bobbers.append({"node": bird, "y": bird.position.y, "speed": 6.0, "phase": k * 0.7, "amount": 0.12})
 		_clouds.append({"node": flock, "angle": TAU * f / 3.0, "radius": 22.0 + f * 9.0,
 				"y": 14.0 + f * 4.0, "speed": 0.08 + f * 0.02})
-
-
-## True if `at` is on the Marble Derby's track or stands.
-func _in_derby(at: Vector3) -> bool:
-	var local := at - DERBY_POS
-	return local.x > -7.0 and local.x < 8.0 and local.z > -23.0 and local.z < 6.0
 
 
 ## True if `at` (on the island) is within `r` metres of the practice run.

@@ -30,8 +30,9 @@ const SUIT_LETTERS := ["S", "H", "D", "C"]
 
 ## Where each seat's cards lie on the felt (this node's own space), and
 ## where the dealer's go.
-const SEAT_SPOTS := [Vector3(-1.5, 0, 0.9), Vector3(-0.5, 0, 1.25), Vector3(0.5, 0, 1.25), Vector3(1.5, 0, 0.9)]
-const DEALER_SPOT := Vector3(0, 0, -0.6)
+const SEAT_SPOTS := [Vector3(-1.4, 0, 1.0), Vector3(-0.5, 0, 1.45), Vector3(0.5, 0, 1.45), Vector3(1.4, 0, 1.0)]
+const DEALER_SPOT := Vector3(0, 0, -0.7)
+const CARD_SIZE := Vector2(0.34, 0.48)
 const TABLE_TOP := 1.02
 
 var profiles: Profiles
@@ -39,6 +40,8 @@ var profiles: Profiles
 ## dealer: [[rank, suit]...], hidden (dealer's 2nd card face down),
 ## message, timer}.
 var seats: Array = []
+## Which of the four stools each player sat down at (their cards go there).
+var seat_of: Array = [0, 1, 2, 3]
 
 var _rng := RandomNumberGenerator.new()
 var _card_nodes: Array = [[], [], [], []]
@@ -210,13 +213,14 @@ func _show_cards(p: int) -> void:
 		n.queue_free()
 	_card_nodes[p] = []
 	var s: Dictionary = seats[p]
-	var spot: Vector3 = SEAT_SPOTS[p]
+	var k: int = seat_of[p]
+	var spot: Vector3 = SEAT_SPOTS[k]
 	for i in s.cards.size():
-		_card_nodes[p].append(_card(s.cards[i], spot + Vector3(i * 0.18 - 0.2, 0, -i * 0.04), false, -spot.x * 0.25))
+		_card_nodes[p].append(_card(s.cards[i], spot + Vector3(i * 0.37 - 0.3, 0, -i * 0.04), false, -spot.x * 0.25))
 	# The dealer deals each seat's hand in its own little row.
-	var drow := DEALER_SPOT + Vector3((p - 1.5) * 0.85, 0, 0)
+	var drow := DEALER_SPOT + Vector3((k - 1.5) * 1.15, 0, 0)
 	for i in s.dealer.size():
-		_card_nodes[p].append(_card(s.dealer[i], drow + Vector3(i * 0.16 - 0.15, 0, 0), i == 1 and s.hidden, 0.0))
+		_card_nodes[p].append(_card(s.dealer[i], drow + Vector3(i * 0.3 - 0.3, 0, 0), i == 1 and s.hidden, 0.0))
 
 
 func _card(c: Array, at: Vector3, face_down: bool, yaw: float) -> Node3D:
@@ -225,14 +229,14 @@ func _card(c: Array, at: Vector3, face_down: bool, yaw: float) -> Node3D:
 	card.rotation.y = yaw
 	add_child(card)
 	var red: bool = c[1] == 1 or c[1] == 2
-	LowPoly.box(card, Vector3(0.26, 0.012, 0.36), Vector3.ZERO, Color(0.95, 0.15, 0.25) if face_down else Color(0.98, 0.97, 0.94))
+	LowPoly.box(card, Vector3(CARD_SIZE.x, 0.012, CARD_SIZE.y), Vector3.ZERO, Color(0.95, 0.15, 0.25) if face_down else Color(0.98, 0.97, 0.94))
 	if not face_down:
 		var l := LowPoly.label(card, Vector3(0, 0.012, 0), card_name(c) + SUIT_LETTERS[c[1]], 40,
 				Color(1, 1, 1, 0), 0.0)
 		l.rotation.x = -PI / 2
 		l.modulate = Color(0.85, 0.1, 0.15) if red else Color(0.08, 0.08, 0.1)
 		l.outline_size = 0
-		l.pixel_size = 0.004
+		l.pixel_size = 0.0042
 	# Cards land with a little drop.
 	card.position.y += 0.3
 	card.create_tween().tween_property(card, "position:y", at.y + TABLE_TOP + 0.01, 0.18)

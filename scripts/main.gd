@@ -122,8 +122,8 @@ var hub: Hub
 ## One player uses each at a time.
 var closet: Closet
 var crate_screen: CrateScreen
-## Players who have the Marble Derby betting panel open.
-var derby_open: Array = [false, false, false, false]
+## Which casino game each player is sat at: "", "derby", "blackjack" or "bar".
+var table_open: Array = ["", "", "", ""]
 ## The world round the track this match (sky, ground, scenery).
 var arena: Arena
 var _hub_env: Environment
@@ -287,7 +287,7 @@ func _enter_hub() -> void:
 	_ensure_hub()
 	hub.mirror = false
 	_close_screens()
-	derby_open = [false, false, false, false]
+	table_open = ["", "", "", ""]
 	hub.start(player_count, seat_looks, marble_scene)
 	hub.refresh_trophies(profiles, settings.player_count)
 	_arrive_on_hub()
@@ -301,7 +301,7 @@ func _ensure_hub() -> void:
 	add_child(hub)
 	hub.customize_requested.connect(_on_hub_customize)
 	hub.play_requested.connect(_on_hub_play)
-	hub.derby_requested.connect(_on_hub_derby)
+	hub.table_requested.connect(_on_hub_table)
 	hub.crates_requested.connect(_on_hub_crates)
 	if not hub.built:
 		hub._build()
@@ -311,7 +311,7 @@ func _ensure_hub() -> void:
 
 ## The island's world, state and camera, once its marbles are placed.
 func _arrive_on_hub() -> void:
-	hub.derby.profiles = profiles
+	hub.casino.profiles = profiles
 	_show_hub_world(true)
 	state = State.HUB
 	_refresh_colors()
@@ -352,7 +352,7 @@ func _enter_online_hub() -> void:
 	hub.mirror = net.is_client()
 	hub_ready = [false, false, false, false]
 	_ready_countdown = -1.0
-	derby_open = [false, false, false, false]
+	table_open = ["", "", "", ""]
 	hub.start(player_count, seat_looks, marble_scene, _hub_names())
 	hub.refresh_trophies(profiles, 1)
 	_arrive_on_hub()
@@ -548,14 +548,14 @@ func _show_hub_world(on: bool) -> void:
 		m.visible = not on
 
 
-## A marble rolled onto the Marble Derby betting plate.
-func _on_hub_derby(p: int) -> void:
+## A marble rolled onto a casino plate: the derby, a blackjack seat or the bar.
+func _on_hub_table(p: int, kind: String) -> void:
 	if p < player_count and seat_kinds[p] == Seat.LOCAL:
-		derby_open[p] = true
+		table_open[p] = kind
 	elif hub:
 		hub.release_from_plate.call_deferred(p)
 		if seat_kinds[p] == Seat.REMOTE:
-			net.send_event("toast", {"seat": p, "text": "The Marble Derby is for players at the host's computer, for now"})
+			net.send_event("toast", {"seat": p, "text": "The casino games are for players at the host's computer, for now"})
 
 
 ## Someone rolled through the PLAY arch: start a real match (online, it
@@ -594,7 +594,7 @@ func _on_restart_frame_requested() -> void:
 		hub.stop_marbles()
 		_close_screens()
 		hub.start(player_count, seat_looks, marble_scene)
-		derby_open = [false, false, false, false]
+		table_open = ["", "", "", ""]
 	elif state in [State.COUNTDOWN, State.ROLLING, State.RESULTS]:
 		_prepare_roll()
 		_start_countdown()
@@ -882,29 +882,58 @@ func _gather_hub_inputs() -> void:
 		if screen_open or menu.is_open():
 			m.lean = Vector2.ZERO
 			continue
-		if derby_open[p]:
-			# Betting: left/right picks a horse, up/down the wager,
-			# place key bets, turn key leaves.
+		if table_open[p] != "":
 			m.lean = Vector2.ZERO
-			var derby := hub.derby
-			if seat_pressed(p, "left"):
-				derby.request_pick(p, -1)
-			if seat_pressed(p, "right"):
-				derby.request_pick(p, 1)
-			if seat_pressed(p, "forward"):
-				derby.request_wager(p, 1)
-			if seat_pressed(p, "back"):
-				derby.request_wager(p, -1)
-			if seat_pressed(p, "confirm"):
-				derby.request_bet(p)
-			if _leave_pressed(p):
-				derby_open[p] = false
+			if _casino_input(p):
+				table_open[p] = ""
 				hub.release_from_plate(p)
 			continue
 		m.lean = seat_lean(p)
 		m.lane_basis = flat
 		if seat_pressed(p, "confirm"):
 			m.request_hop()
+
+
+## Keys for a player sat at a casino game. Returns true when they leave.
+func _casino_input(p: int) -> bool:
+	var casino := hub.casino
+	match table_open[p]:
+		"derby":
+			# Left/right picks a horse, up/down the wager, place key bets.
+			if seat_pressed(p, "left"):
+				casino.derby.request_pick(p, -1)
+			if seat_pressed(p, "right"):
+				casino.derby.request_pick(p, 1)
+			if seat_pressed(p, "forward"):
+				casino.derby.request_wager(p, 1)
+			if seat_pressed(p, "back"):
+				casino.derby.request_wager(p, -1)
+			if seat_pressed(p, "confirm"):
+				casino.derby.request_bet(p)
+		"blackjack":
+			# Up/down the wager, place key deals or hits, turn key stands.
+			var bj := casino.blackjack
+			if seat_pressed(p, "forward"):
+				bj.request_wager(p, 1)
+			if seat_pressed(p, "back"):
+				bj.request_wager(p, -1)
+			if seat_pressed(p, "confirm"):
+				bj.request_confirm(p)
+			if seat_pressed(p, "rotate") and bj.request_stand(p):
+				return false
+			if _leave_pressed(p) and not bj.busy(p):
+				bj.leave(p)
+				return true
+			return false
+		"bar":
+			# Left/right picks a drink, place key orders it.
+			if seat_pressed(p, "left"):
+				casino.request_drink_pick(p, -1)
+			if seat_pressed(p, "right"):
+				casino.request_drink_pick(p, 1)
+			if seat_pressed(p, "confirm"):
+				casino.request_drink(p, hub.marbles[p])
+	return _leave_pressed(p)
 
 
 ## Guest: my closet or loot crate screen, worked by my own keys.
@@ -1730,13 +1759,13 @@ func _update_hub_camera(delta: float) -> void:
 	# Left alone for a moment: drift round behind the way we're rolling,
 	# but never spin right round when rolling back toward the camera.
 	var flat := Vector2(vel.x, vel.z)
-	if _cam_hands_off > 1.0 and flat.length() > 1.5 and not derby_open.has(true):
+	if _cam_hands_off > 1.0 and flat.length() > 1.5 and not table_open.has("derby"):
 		var behind := atan2(-vel.x, -vel.z)
 		if absf(angle_difference(camera.orbit_yaw, behind)) < 2.0:
 			var k := 1.0 - exp(-1.1 * delta * clampf(flat.length() / 5.0, 0.3, 1.0))
 			camera.orbit_yaw = lerp_angle(camera.orbit_yaw, behind, k)
 	# Watching the derby: look at the horses, keeping the bettors in shot.
-	if derby_open.has(true) and hub.derby.phase != HorseRace.Phase.OPEN:
+	if table_open.has("derby") and hub.derby.phase != HorseRace.Phase.OPEN:
 		camera.frame_points = []
 		var horses := hub.derby.horse_positions()
 		var mid := Vector3.ZERO
@@ -1745,7 +1774,7 @@ func _update_hub_camera(delta: float) -> void:
 		camera.target = mid / horses.size()
 		camera.frame_points.append_array(horses)
 		for m in hub.marbles:
-			if derby_open[m.player_id]:
+			if table_open[m.player_id] == "derby":
 				camera.frame_points.append(m.global_position)
 
 

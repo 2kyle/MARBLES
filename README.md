@@ -38,9 +38,9 @@ Only people come to the island (no bots). The camera is a free third-person came
 
 - **Practice run:** a winding track down from the stone START tower, with a gap to hop and a steep drop. It ends on the plaza, where a big blue pad sends you straight back to the top. The **PRACTICE RUN** pad on the plaza takes you up too.
 - **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch to open your **closet** (see below). One player at a time.
-- **Loot Crates plate** (by the welcome sign, under the floating crate): spend coins on loot crates to win new looks (see below).
 - **Golden Marble Trophy:** anyone who has pulled the ultra-rare trophy gets it on a little stand on the east side of the plaza.
-- **Marble Derby** (west lawn): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four marble "horses" (Frank, Trunk, Fatty and Jakob) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
+- **Casino island:** a bridge off the west edge (follow the CASINO sign) leads to **The Groovy Marble**, an indoor 70s casino (see below). The derby, blackjack, the bar and the loot crates are all in there.
+- **Marble Derby** (in the casino): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four marble "horses" (Frank, Trunk, Fatty and Jakob) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
 - **Your coins** show in the top right corner the whole time you're on the island.
 - **Sports island:** a wooden bridge off the east edge (follow the SPORTS sign) leads to a second island (see below).
 - A rope bridge off the north edge leads to a tiny lookout islet, and there's a cottage with a smoking chimney and a vegetable garden, benches, bunting over the plaza, hot-air balloons and flocks of birds.
@@ -49,6 +49,19 @@ Only people come to the island (no bots). The camera is a free third-person came
 - Fall off the edge and you pop back on the plaza. **Esc** opens the pause menu, where Retry puts everyone back at the start.
 
 ![The Marble Derby](docs/derby.png)
+
+#### Casino island
+
+![Blackjack at the casino](docs/casino.png)
+
+An indoor casino with a groovy 70s theme: swirly carpet, wood panels, neon signs, a disco ball over the dance floor, a roulette wheel, slot machines, lava lamps, and a marquee of chasing light bulbs out front. Every dealer and the bartender wears shady sunglasses and keeps an eye on the nearest marble.
+
+- **Blackjack:** roll onto one of the four stools round the table. Up and down set your wager (10 coins a step); your place key deals, then **hits** (takes a card); your turn key **stands**. Get closer to 21 than the dealer without going over. The dealer draws until they have 17. A win pays double your wager back, a blackjack (21 with your first two cards) pays 2.5x, and a tie gives your wager back. You can't walk away mid-hand. The cards land on the felt, so people watching can follow along.
+- **The bar:** roll onto the plate at the bar, pick a drink with left and right, and order with your place key. Fizzy drinks give your marble the hiccups for a while (little hops and bubbles). Fizzy Lemonade 5 coins, Root Beer Float 10, Galaxy Soda 20 (the biggest hiccups).
+- **Loot crates:** the crate machine in the corner (see Loot crates below).
+- **Marble Derby:** the horse track along the side wall (see above).
+
+Built in code in `scripts/casino/casino_island.gd`, with blackjack in `scripts/casino/blackjack.gd`.
 
 #### Sports island
 
@@ -150,7 +163,7 @@ The eyes: Classic, Dots and None (everyone has these), Googly, Sleepy and Happy 
 
 ![Opening a loot crate](docs/crate.png)
 
-Every other look is won from loot crates on the practice island. A crate costs **100 coins**. It shakes, glows in the colour of what's inside, and pops open:
+Every other look is won from loot crates at the casino. A crate costs **100 coins**. The lid pops and a reel of prizes spins past a gold marker, slowing down until it stops on what you won, then the prize card shows. The tiles are edged in their rarity colour, so you can see the rare ones fly past:
 
 | Prize | Chance |
 | --- | --- |
@@ -224,6 +237,8 @@ Everything works with the keyboard or controllers, and the **Controls** page in 
 | Menus: move / pick / back | W S or arrows / E or Enter / Esc | | D-pad or left stick / A / B |
 | Closet: browse / wear / close | W A S D / E / Q | Arrows / Enter / Right Shift | D-pad or stick / A / B |
 | Loot crate: open / leave | E / Q | Enter / Right Shift | A / B |
+| Blackjack: wager / deal or hit / stand or leave | W S / E / Q | Up Down / Enter / Right Shift | Stick / A / B or X |
+| Bar: pick drink / order / leave | A D / E / Q | Left Right / Enter / Right Shift | Stick / A / B or X |
 | Draft: move pointer / grab | W A S D / E | Arrows / Enter | Left stick / A |
 | Build: move / rotate (flip for track cards) / place | W A S D / Q / E | Arrow keys / Right Shift / Enter | Left stick / X or RB / A |
 | Roll: lean / hop | W A S D / E | Arrow keys / Enter | Left stick (analog) / A |
@@ -243,7 +258,25 @@ Everything works with the keyboard or controllers, and the **Controls** page in 
 
 ## Art direction (work in progress)
 
-The current look is a starting point called **toy diorama in the sky**: soft, matte, low-poly shapes in a pastel palette, like painted wooden toys, under a plain sunny sky with puffy 3D clouds and a little haze. There's no heavy bloom, no screen-space shading effects and no noise-heavy sky shader, so it stays light on the graphics card. Both the match lake and the practice island use the same sky and clouds (`scripts/art_style.gd`).
+The look is **toy diorama**: soft, matte, low-poly shapes like painted wooden toys. The practice island floats in a sunny sky with puffy 3D clouds (`scripts/art_style.gd`).
+
+### Match worlds
+
+Every match picks one of five worlds at random for the scenery round the track: its own sky, ground, lighting, track colours and moving details. Online, the host picks and everyone sees the same one.
+
+| World | What's there | File |
+| --- | --- | --- |
+| Beach island | Turquoise sea, palm islands with huts and a pier, a lighthouse with a turning beam, sailboats, a smoking volcano, gulls | `scripts/arena/arena_beach.gd` |
+| City | Sunset city blocks with lit windows, roads, parks, neon billboards, traffic | `scripts/arena/arena_city.gd` |
+| Crystal caverns | Dark cave with glowing gem clusters, cracks and pools, stalactites, mushrooms, mine carts on rails | `scripts/arena/arena_caves.gd` |
+| Frosty village | Cottages with lit windows and chimney smoke, a church, a frozen pond with skating marbles, snowmen, falling snow | `scripts/arena/arena_snow.gd` |
+| Cloud kingdom | Floating castle islands, a golden palace, rainbows, balloons, sparkles | `scripts/arena/arena_clouds.gd` |
+
+To always get one world while you work on it, click the **Main** node in `scenes/main.tscn` and set **Force Theme**. The shared helpers are in `scripts/arena/arena.gd`, and `scripts/arena/mesh_batch.gd` merges lots of little shapes into one mesh so a big scene stays fast.
+
+### The bowling end
+
+The track finishes in a bowling alley: a maple lane with arrows, gutters either side, the pin pit with a curtain behind it, and a ball return. Marbles that drop into the pit roll back out along the return rail to the rack at the side, like bowling balls. It's built in `scripts/ball_return.gd`.
 
 ## Scoring
 
@@ -273,13 +306,15 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | How big pieces are | `scripts/piece_catalog.gd` | `PIECE_SCALE` (1.4). If you change it, scale each piece's `radius` the same way |
 | Wind strength | `scripts/wind_fan.gd` | `push` |
 | How long a Wall Breaker stretch is | `scripts/piece_catalog.gd` | `OPEN_LENGTH` |
-| Lanterns, rocks, islands, buoys | `scenes/course.tscn`, `Decor` node | Lantern Lights, Lantern Spacing, Rock Count, Island Count, Buoy Count |
+| Lanterns and the START / FINISH gates | `scenes/course.tscn`, `Decor` node | Lantern Lights, Lantern Spacing, Arch Height |
+| Which world a match is in | `scenes/main.tscn`, `Main` node | Force Theme (random by default) |
 | Glow, fog and sunlight | `scenes/main.tscn`, `WorldEnvironment` and `Sun` nodes | Glow, Fog, Light Color |
 | Pin weight and wobble | `scenes/pin.tscn`, root node | Mass, Center Of Mass |
 | The shape of the track | `scenes/course.tscn`, `Track/Path` node | See "Reshaping the track" below |
 | Track width, wall height, how much corners bank | `scenes/course.tscn`, `Track` node | Lane Width, Wall Height, Bank Speed, Max Bank Deg |
 | Water colours | `shaders/water.gdshader` | The `uniform` lines at the top |
-| Sky, haze and cloud colours | `scripts/art_style.gd` | The constants at the top |
+| Island sky, haze and cloud colours | `scripts/art_style.gd` | The constants at the top |
+| A match world's sky, fog and light | `scripts/arena/arena_*.gd` | `make_environment()` and `light_sun()` |
 | Players, frames, timers, crate size, collision | `scenes/main.tscn`, `Main` node | Player Count, Frames Per Match, Draft Time, Build Time, Crate Extra, Roll Time Limit, Marbles Collide |
 | Build area and how close pieces can go | `scenes/course.tscn`, `Track/Placed` node | Half Width, Top Z, End Margin, Overlap Allowed |
 | Build cursor speed and rotate step | `scenes/main.tscn`, `Main` node | Cursor Speed, Rotate Step |
@@ -308,7 +343,7 @@ Text uses one free font, under the SIL Open Font License (the licence files are 
 ```
 scenes/
   main.tscn          the game: lane, rack, camera, scoreboard
-  course.tscn        the track curve, pin deck, and water
+  course.tscn        the track curve and pin deck
   marble.tscn        a player's marble
   pin.tscn           one bowling pin
   pieces/            every lane piece, one scene each
@@ -340,7 +375,10 @@ scripts/
   steam_service.gd   everything that talks to Steam: lobbies, invites, presence, achievements
   achievements.gd    the achievement list, unlocking and saving
   achievement_icon.gd  draws the achievement badges
-  hub.gd             the practice island (practice run, closet and crate plates, trophies, PLAY arch, name tags)
+  hub.gd             the practice island (practice run, closet plate, trophies, PLAY arch, name tags)
+  ball_return.gd     the bowling end: lane, gutters, pit and ball return
+  arena/             the five match worlds, one file each, plus shared helpers
+  casino/            the casino island and blackjack
   sports_island.gd   the sports island: soccer pitch and scoreboard, trampoline and hoop
   low_poly.gd        shared helpers for building simple shapes, labels and confetti in code
   piece_style.gd     the painted-toy colours and patterns for every lane piece

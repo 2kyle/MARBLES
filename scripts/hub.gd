@@ -1010,7 +1010,7 @@ func _bunting() -> void:
 
 func _benches() -> void:
 	var wood := Color(0.62, 0.42, 0.26)
-	for spot in [[Vector3(-5, 0, 17.5), 0.0], [Vector3(5, 0, 17.5), 0.0], [Vector3(-14, 0, 11), PI / 2], [Vector3(11, 0, 22), -0.4]]:
+	for spot in [[Vector3(-5, 0, 18.8), 0.0], [Vector3(5, 0, 18.8), 0.0], [Vector3(-14, 0, 11), PI / 2], [Vector3(11, 0, 22), -0.4]]:
 		var at: Vector3 = spot[0]
 		var bench := Node3D.new()
 		bench.position = at

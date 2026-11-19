@@ -9,6 +9,7 @@ var _ticks := 0
 var _last_y := {}
 var _lowest_d := {}
 var _done := false
+var _coins_before := 0
 
 
 func _initialize() -> void:
@@ -39,6 +40,10 @@ func _process(_delta: float) -> bool:
 		hub.marbles[1].linear_velocity = hub.global_basis.z * -3.0
 		hub.marbles[2].global_position = hub.to_global(Hub.PLATE_POS + Vector3(0, 0.4, 2.0))
 		hub.marbles[2].linear_velocity = hub.global_basis.z * -3.0
+		# P4 onto the Marble Derby betting plate.
+		hub.marbles[3].global_position = hub.to_global(Hub.BET_PLATE_POS + Vector3(0, 0.4, 2.0))
+		hub.marbles[3].linear_velocity = hub.global_basis.z * -3.0
+		print("derby odds: ", hub.derby.odds)
 	if _ticks > 30 and game.state == game.State.HUB:
 		var run: Track = hub._course
 		for m in hub.marbles:
@@ -60,6 +65,19 @@ func _process(_delta: float) -> bool:
 			game.request_customize_browse(2, 1)
 			game._close_hub_customize(2)
 			print("after close: ", game.customize_open, " P3 frozen: ", hub.marbles[2].freeze)
+		if _ticks == 200:
+			print("derby open: ", game.derby_open)
+			_coins_before = game.profiles.coins(3)
+			hub.derby.request_pick(3, 2)
+			hub.derby.request_wager(3, 2)
+			hub.derby.request_bet(3)
+			print("bet: ", hub.derby.bets, "  ", hub.derby.message[3], "  coins %d -> %d" % [_coins_before, game.profiles.coins(3)])
+		if _ticks % 240 == 0 and _ticks < 120 * 28:
+			print("  derby: ", hub.derby.status(), "  progress ", hub.derby.progress.map(func(x): return snappedf(x, 0.1)))
+		if _ticks == 120 * 28:
+			print("derby result: winner %d, P4 says '%s', coins %d -> %d" % [hub.derby.winner + 1, hub.derby.message[3], _coins_before, game.profiles.coins(3)])
+			game.derby_open[3] = false
+			hub.release_from_plate(3)
 		if _ticks == 120 * 30:
 			var m3: Marble = hub.marbles[3]
 			m3.global_position = hub.to_global(Hub.PORTAL_POS + Vector3(0, 0.4, -1.5))

@@ -32,6 +32,8 @@ var _hints_key := ""
 var _chips: HBoxContainer    # build-phase status, bottom centre
 var _customize: HBoxContainer
 var _customize_title: Label
+var _derby: HBoxContainer        # Marble Derby betting panels (practice island)
+var _hub_coins: HBoxContainer    # everyone's coins, top right on the island
 
 var _draft_root: Control
 var _draft_dim: ColorRect
@@ -106,6 +108,22 @@ func _ready() -> void:
 	_customize_title.offset_top = 62
 	_customize_title.text = "CUSTOMIZE"
 
+	_derby = HBoxContainer.new()
+	_derby.add_theme_constant_override("separation", 18)
+	_derby.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_derby.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_derby.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_derby.offset_bottom = -58
+	add_child(_derby)
+
+	_hub_coins = HBoxContainer.new()
+	_hub_coins.add_theme_constant_override("separation", 8)
+	_hub_coins.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_hub_coins.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_hub_coins.offset_right = -16
+	_hub_coins.offset_top = 14
+	add_child(_hub_coins)
+
 	_hints = HBoxContainer.new()
 	_hints.add_theme_constant_override("separation", 6)
 	_hints.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -128,6 +146,7 @@ func refresh(game) -> void:
 	_update_draft(game)
 	_update_chips(game)
 	_update_customize(game)
+	_update_hub(game)
 
 	var show_board: bool = game.state in [game.State.RESULTS, game.State.MATCH_OVER] \
 			or (Input.is_action_pressed("scoreboard") and not game.state in [game.State.WAITING, game.State.HUB])
@@ -188,6 +207,9 @@ func _update_top(game) -> void:
 		text += "      %ds" % ceili(game.time_left())
 	_badge.text = text
 	_badge.visible = not game.state in [game.State.WAITING, game.State.HUB]
+	if game.state == game.State.HUB and game.hub.derby.status() != "":
+		_badge.text = game.hub.derby.status()
+		_badge.visible = true
 
 	var banner := ""
 	match game.state:
@@ -517,6 +539,118 @@ func _coin_label(size: int) -> Label:
 	return l
 
 
+# ------------------------------------------------------------ Practice island
+
+func _update_hub(game) -> void:
+	var in_hub: bool = game.state == game.State.HUB
+	_hub_coins.visible = in_hub
+	_derby.visible = in_hub and game.derby_open.has(true)
+	if not in_hub:
+		return
+	# Coins, top right.
+	while _hub_coins.get_child_count() < game.player_count:
+		var chip := PanelContainer.new()
+		chip.add_theme_stylebox_override("panel", _pill(PANEL_BG, 12, 4))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		chip.add_child(row)
+		var tag := Label.new()
+		tag.add_theme_font_override("font", TITLE_FONT)
+		tag.add_theme_font_size_override("font_size", 20)
+		row.add_child(tag)
+		row.add_child(_coin_label(24))
+		_hub_coins.add_child(chip)
+	_show_first(_hub_coins, game.player_count)
+	for p in game.player_count:
+		var chip: PanelContainer = _hub_coins.get_child(p)
+		var style: StyleBoxFlat = chip.get_theme_stylebox("panel")
+		style.border_color = game.player_colors[p]
+		style.border_width_bottom = 4
+		var row := chip.get_child(0)
+		row.get_child(0).text = "P%d" % (p + 1)
+		row.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
+		row.get_child(1).text = "%d COINS" % game.profiles.coins(p)
+	if not _derby.visible:
+		return
+	# Sit above the Customize panels if both are open.
+	_derby.offset_bottom = -300 if _customize.visible else -58
+	var derby: HorseRace = game.hub.derby
+	while _derby.get_child_count() < game.player_count:
+		_derby.add_child(_make_derby_panel())
+	_show_first(_derby, game.player_count)
+	for p in game.player_count:
+		var panel: PanelContainer = _derby.get_child(p)
+		panel.visible = game.derby_open[p]
+		var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
+		style.border_color = game.player_colors[p]
+		var box := panel.get_child(0)
+		var head: HBoxContainer = box.get_child(0)
+		head.get_child(0).text = "P%d  DERBY" % (p + 1)
+		head.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
+		head.get_child(2).text = "%d COINS" % game.profiles.coins(p)
+		var placed: bool = derby.bets.has(p)
+		var h: int = derby.bets[p].horse if placed else derby.pick[p]
+		var amount: int = derby.bets[p].amount if placed else derby.wager[p]
+		var horse_row: HBoxContainer = box.get_child(1)
+		horse_row.get_child(0).text = "HORSE"
+		horse_row.get_child(1).text = ("%d %s" if placed else "<  %d %s  >") % [h + 1, HorseRace.HORSES[h].name]
+		horse_row.get_child(1).add_theme_color_override("font_color", HorseRace.HORSES[h].color.lightened(0.3))
+		horse_row.get_child(2).text = "pays %.1fx" % derby.odds[h]
+		var wager_row: HBoxContainer = box.get_child(2)
+		wager_row.get_child(0).text = "WAGER"
+		wager_row.get_child(1).text = ("%d" if placed else "-  %d  +") % amount
+		wager_row.get_child(2).text = "win %d" % roundi(amount * derby.odds[h])
+		var foot: Label = box.get_child(3)
+		if derby.message[p] != "":
+			foot.text = derby.message[p]
+		elif not placed:
+			foot.text = "%s  Place bet" % _key_names(p).confirm
+		else:
+			foot.text = ""
+
+
+func _make_derby_panel() -> PanelContainer:
+	var panel := PanelContainer.new()
+	var style := _pill(PANEL_BG, 14, 12)
+	style.border_width_top = 5
+	panel.add_theme_stylebox_override("panel", style)
+	panel.custom_minimum_size = Vector2(320, 0)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	panel.add_child(box)
+	var head := HBoxContainer.new()
+	var tag := Label.new()
+	tag.add_theme_font_override("font", TITLE_FONT)
+	tag.add_theme_font_size_override("font_size", 24)
+	head.add_child(tag)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(spacer)
+	head.add_child(_coin_label(20))
+	box.add_child(head)
+	for r in 2:
+		var cols := HBoxContainer.new()
+		cols.add_theme_constant_override("separation", 10)
+		var key := Label.new()
+		key.custom_minimum_size = Vector2(62, 0)
+		key.add_theme_font_size_override("font_size", 13)
+		key.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
+		cols.add_child(key)
+		var value := Label.new()
+		value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		value.add_theme_font_size_override("font_size", 19)
+		cols.add_child(value)
+		cols.add_child(_coin_label(16))
+		box.add_child(cols)
+	var foot := Label.new()
+	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	foot.add_theme_font_size_override("font_size", 15)
+	foot.add_theme_color_override("font_color", GOLD)
+	foot.custom_minimum_size = Vector2(0, 22)
+	box.add_child(foot)
+	return panel
+
+
 # ------------------------------------------------------------ Scoreboard
 
 func _build_board() -> void:
@@ -668,6 +802,8 @@ func _update_hints(game) -> void:
 				var k := _key_names(p)
 				if game.customize_open[p]:
 					items += [[k.move, "P%d Browse" % (p + 1)], [k.confirm, "Buy"], [k.rotate, "Done"], "|"]
+				elif game.derby_open[p]:
+					items += [[k.move, "P%d Horse/Wager" % (p + 1)], [k.confirm, "Bet"], [k.rotate, "Leave"], "|"]
 				else:
 					items += [[k.move, "P%d Roll" % (p + 1)], [k.confirm, "Hop"], "|"]
 			items += [["ESC", "Pause"]]

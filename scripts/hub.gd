@@ -19,10 +19,15 @@ extends Node3D
 signal customize_requested(player: int)
 ## Someone rolled through the PLAY arch.
 signal play_requested
+## A player rolled onto the Marble Derby betting plate.
+signal derby_requested(player: int)
 
-const ISLAND_RADIUS := 26.0
+const ISLAND_RADIUS := 34.0
 const SPAWN := Vector3(0, 0.4, 12)
 const PLATE_POS := Vector3(-8, 0, 8)
+## The Marble Derby (horse race) on the west lawn, and its betting plate.
+const DERBY_POS := Vector3(-25.5, 0, 9)
+const BET_PLATE_POS := Vector3(-19.5, 0, 13.5)
 const LIFT_POS := Vector3(8, 0, 8)
 const PORTAL_POS := Vector3(0, 0, 21)
 const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
@@ -33,6 +38,12 @@ var marbles: Array[Marble] = []
 var built := false
 ## Players whose marble is sitting on the Customize plate right now.
 var on_plate: Array = [false, false, false, false]
+## The horse race minigame.
+var derby: HorseRace
+
+## Which plate each player is parked on (its position).
+var _plate_of: Array = [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]
+var _plates: Array = []   # [top mesh, position]
 
 var _course: Track
 var _run_points := PackedVector3Array()
@@ -40,7 +51,6 @@ var _top: Marker3D
 var _spinners: Array = []   # [node, axis, speed] things that turn forever
 var _clouds: Array = []
 var _bobbers: Array = []
-var _plate_top: MeshInstance3D
 var _time := 0.0
 var _rng := RandomNumberGenerator.new()
 var _mats := {}
@@ -58,9 +68,13 @@ func _process(delta: float) -> void:
 		node.position = Vector3(cos(a) * c.radius, c.y + sin(_time * 0.3 + c.angle) * 0.6, sin(a) * c.radius)
 	for b in _bobbers:
 		(b.node as Node3D).position.y = b.y + sin(_time * b.speed + b.phase) * b.amount
-	if _plate_top:
-		var pressed := on_plate.has(true)
-		_plate_top.position.y = lerpf(_plate_top.position.y, 0.03 if pressed else 0.1, 0.2)
+	for plate in _plates:
+		var pressed := false
+		for p in 4:
+			if on_plate[p] and _plate_of[p] == plate[1]:
+				pressed = true
+		var top: MeshInstance3D = plate[0]
+		top.position.y = lerpf(top.position.y, 0.03 if pressed else 0.1, 0.2)
 
 
 # ------------------------------------------------------------ Start / stop
@@ -100,7 +114,8 @@ func spawn_point(p: int) -> Vector3:
 
 
 ## Called every physics tick while the hub is open.
-func physics_update() -> void:
+func physics_update(delta: float) -> void:
+	derby.update(delta)
 	for m in marbles:
 		if m.global_position.y < global_position.y - 8.0:
 			m.global_position = spawn_point(m.player_id) + Vector3.UP * 1.5
@@ -116,7 +131,8 @@ func release_from_plate(p: int) -> void:
 	var m := marbles[p]
 	m.freeze = false
 	m.preview = false
-	m.global_position = to_global(PLATE_POS + Vector3(0, 0.4, 1.6))
+	on_plate[p] = false
+	m.global_position = to_global(_plate_of[p] + Vector3(0, 0.4, 1.8))
 	m.linear_velocity = global_basis.z * 2.0
 
 
@@ -129,10 +145,12 @@ func _build() -> void:
 	_fence()
 	_practice_run()
 	_customize_plate()
+	_derby()
+	_coming_soon(Vector3(27, 0, 2))
 	_play_portal()
 	_hurdles()
 	_playground()
-	_windmill(Vector3(-17, 0, 15))
+	_windmill(Vector3(-17, 0, -23))
 	_pond(Vector3(17, 0, 17))
 	_trees()
 	_flowers()
@@ -180,7 +198,7 @@ func _fence() -> void:
 	var wood := Color(0.62, 0.45, 0.3)
 	var body := StaticBody3D.new()
 	add_child(body)
-	var n := 56
+	var n := 72
 	for i in n:
 		var a0 := TAU * i / n
 		var a1 := TAU * (i + 1) / n
@@ -295,10 +313,7 @@ func _start_tower(start: Transform3D) -> void:
 func _customize_plate() -> void:
 	# A round pressure plate under a little wardrobe arch with a mirror.
 	_cyl(self, 1.3, 1.4, 0.12, PLATE_POS + Vector3.UP * 0.06, Color(0.25, 0.22, 0.3), 24)
-	_plate_top = _cyl(self, 1.0, 1.05, 0.12, PLATE_POS + Vector3.UP * 0.1, Color(0.85, 0.35, 0.9), 24)
-	var mat: StandardMaterial3D = _plate_top.material_override
-	mat.emission_enabled = true
-	mat.emission = Color(0.5, 0.15, 0.55)
+	_pressure_plate(PLATE_POS, Color(0.85, 0.35, 0.9), func(p): customize_requested.emit(p))
 	var frame_col := Color(0.95, 0.9, 0.85)
 	_box(self, Vector3(0.25, 3.0, 0.25), PLATE_POS + Vector3(-1.8, 1.5, -0.6), frame_col, 0.0)
 	_box(self, Vector3(0.25, 3.0, 0.25), PLATE_POS + Vector3(1.8, 1.5, -0.6), frame_col, 0.0)
@@ -310,6 +325,16 @@ func _customize_plate() -> void:
 	_box(self, Vector3(1.4, 2.0, 0.05), PLATE_POS + Vector3(0, 1.3, -1.44), frame_col, 0.0)
 	_label(PLATE_POS + Vector3(0, 3.1, -0.42), "CUSTOMIZE", 64, Color(0.4, 0.1, 0.45))
 
+
+
+## A round plate that sinks when a marble rolls on. The marble is parked
+## on it and `on_enter(player)` is called.
+func _pressure_plate(at: Vector3, color: Color, on_enter: Callable) -> void:
+	var top := _cyl(self, 1.0, 1.05, 0.12, at + Vector3.UP * 0.1, color, 24)
+	var mat: StandardMaterial3D = top.material_override
+	mat.emission_enabled = true
+	mat.emission = color.darkened(0.4)
+	_plates.append([top, at])
 	var area := Area3D.new()
 	area.collision_layer = 0
 	area.collision_mask = 2
@@ -319,27 +344,57 @@ func _customize_plate() -> void:
 	cyl.radius = 0.9
 	cyl.height = 0.8
 	shape.shape = cyl
-	shape.position = PLATE_POS + Vector3.UP * 0.4
+	shape.position = at + Vector3.UP * 0.4
 	area.add_child(shape)
 	add_child(area)
 	area.body_entered.connect(func(body):
 		if body is Marble and marbles.has(body) and not on_plate[body.player_id]:
 			on_plate[body.player_id] = true
+			_plate_of[body.player_id] = at
 			_hold_on_plate.call_deferred(body)
-			customize_requested.emit(body.player_id))
-	area.body_exited.connect(func(body):
-		if body is Marble and body.player_id < on_plate.size() and not body.freeze:
-			on_plate[body.player_id] = false)
+			on_enter.call(body.player_id))
 
 
 func _hold_on_plate(m: Marble) -> void:
 	# Park the marble in the middle of the plate, spinning like a display.
 	var spots := [Vector3(-0.35, 0, -0.35), Vector3(0.35, 0, -0.35), Vector3(-0.35, 0, 0.35), Vector3(0.35, 0, 0.35)]
-	m.global_position = to_global(PLATE_POS + Vector3.UP * 0.5 + spots[m.player_id % 4])
+	m.global_position = to_global(_plate_of[m.player_id] + Vector3.UP * 0.5 + spots[m.player_id % 4])
 	m.linear_velocity = Vector3.ZERO
 	m.angular_velocity = Vector3.ZERO
 	m.freeze = true
 	m.preview = true
+
+
+func _derby() -> void:
+	derby = HorseRace.new()
+	derby.name = "MarbleDerby"
+	derby.position = DERBY_POS
+	add_child(derby)
+	# The betting plate under a striped awning.
+	var gold := Color(1.0, 0.78, 0.25)
+	_cyl(self, 1.3, 1.4, 0.12, BET_PLATE_POS + Vector3.UP * 0.06, Color(0.3, 0.22, 0.12), 24)
+	_pressure_plate(BET_PLATE_POS, gold, func(p): derby_requested.emit(p))
+	for x in [-1.6, 1.6]:
+		_box(self, Vector3(0.18, 2.6, 0.18), BET_PLATE_POS + Vector3(x, 1.3, -1.2), Color(0.95, 0.93, 0.88), 0.0)
+	for k in 6:
+		_box(self, Vector3(3.6 / 6.0, 0.12, 1.4), BET_PLATE_POS + Vector3(-1.5 + k * 0.6, 2.65, -0.7),
+				Color(0.9, 0.25, 0.25) if k % 2 == 0 else Color.WHITE, 0.0)
+	_label(BET_PLATE_POS + Vector3(0, 3.1, -1.2), "PLACE BETS", 54, Color(0.5, 0.3, 0.05))
+
+
+## An empty fenced plot with cones, waiting for the next minigame.
+func _coming_soon(at: Vector3) -> void:
+	var wood := Color(0.62, 0.45, 0.3)
+	for k in 8:
+		var a := TAU * k / 8.0
+		_box(self, Vector3(0.12, 0.6, 0.12), at + Vector3(cos(a), 0, sin(a)) * 3.0 + Vector3.UP * 0.3, wood, 0.0)
+	for k in 4:
+		var a := TAU * k / 4.0 + 0.4
+		var cone := _cyl(self, 0.03, 0.22, 0.5, at + Vector3(cos(a), 0, sin(a)) * 1.6 + Vector3.UP * 0.25, Color(1.0, 0.5, 0.1), 8)
+		_cyl(cone, 0.12, 0.16, 0.08, Vector3.ZERO, Color.WHITE, 8)
+	_box(self, Vector3(0.12, 1.4, 0.12), at + Vector3(0, 0.7, 3.2), wood, 0.0)
+	_box(self, Vector3(2.4, 0.8, 0.1), at + Vector3(0, 1.4, 3.2), Color(1.0, 0.85, 0.3), 0.0)
+	_label(at + Vector3(0, 1.4, 3.26), "NEW GAME\nCOMING SOON", 34, Color(0.35, 0.2, 0.0))
 
 
 func _play_portal() -> void:
@@ -474,7 +529,10 @@ func _pond(at: Vector3) -> void:
 func _trees() -> void:
 	var spots := [Vector3(-20, 0, 4), Vector3(-21, 0, -6), Vector3(-12, 0, 19), Vector3(20, 0, 6),
 		Vector3(21, 0, -5), Vector3(-6, 0, 23), Vector3(7, 0, 23), Vector3(-19, 0, -14),
-		Vector3(19, 0, -15), Vector3(-2, 0, 4), Vector3(12, 0, 21), Vector3(-16, 0, 21)]
+		Vector3(19, 0, -15), Vector3(-2, 0, 4), Vector3(12, 0, 21), Vector3(-16, 0, 21),
+		Vector3(28, 0, -12), Vector3(-14, 0, 28), Vector3(14, 0, 28), Vector3(2, 0, -29),
+		Vector3(-11, 0, -27), Vector3(24, 0, 19), Vector3(13, 0, -27), Vector3(29, 0, 11),
+		Vector3(-24, 0, 21), Vector3(-25, 0, -18)]
 	for at in spots:
 		if _near_run(at, 3.5):
 			continue
@@ -501,9 +559,9 @@ func _trees() -> void:
 	# Mushrooms.
 	for i in 10:
 		var a := _rng.randf() * TAU
-		var r := _rng.randf_range(16.0, 23.0)
+		var r := _rng.randf_range(16.0, 31.0)
 		var at := Vector3(cos(a) * r, 0, sin(a) * r)
-		if _near_run(at, 2.5):
+		if _near_run(at, 2.5) or _in_derby(at):
 			continue
 		_cyl(self, 0.06, 0.08, 0.3, at + Vector3.UP * 0.15, Color(0.95, 0.92, 0.85), 6)
 		var cap := _ball(at + Vector3.UP * 0.32, 0.2, Color(0.9, 0.2, 0.2))
@@ -626,7 +684,7 @@ func _sky_life() -> void:
 			puff.position = Vector3(k * 1.6 - 3.0, _rng.randf_range(-0.4, 0.4), _rng.randf_range(-0.8, 0.8))
 			puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			cloud.add_child(puff)
-		_clouds.append({"node": cloud, "angle": _rng.randf() * TAU, "radius": _rng.randf_range(38.0, 60.0),
+		_clouds.append({"node": cloud, "angle": _rng.randf() * TAU, "radius": _rng.randf_range(46.0, 70.0),
 				"y": _rng.randf_range(-18.0, 10.0), "speed": _rng.randf_range(0.01, 0.025)})
 
 	# Little rocks floating around the island, bobbing gently.
@@ -659,6 +717,12 @@ func _sky_life() -> void:
 
 
 # ------------------------------------------------------------ Helpers
+
+## True if `at` is on the Marble Derby's track or stands.
+func _in_derby(at: Vector3) -> bool:
+	var local := at - DERBY_POS
+	return local.x > -7.0 and local.x < 8.0 and local.z > -23.0 and local.z < 6.0
+
 
 ## True if `at` (on the island) is within `r` metres of the practice run.
 func _near_run(at: Vector3, r: float) -> bool:

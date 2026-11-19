@@ -32,11 +32,16 @@ A small floating island to warm up on. Roll with your lean keys (forward is away
 
 - **Practice run:** a winding track down from the stone START tower, with a gap to hop and a steep drop. It ends on the plaza, where a big blue pad sends you straight back to the top. The **PRACTICE RUN** pad on the plaza takes you up too.
 - **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch. Your marble is parked on the plate and your Customize panel opens (same controls as before a match). Press your turn key (Q for P1) when you're done and you roll off.
+- **Marble Derby** (west lawn): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four marble "horses" (Thunder, Pebbles, Biscuit, Comet) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
+- **Your coins** show in the top right corner the whole time you're on the island.
+- An empty plot on the east lawn is saved for the next minigame.
 - **Hurdles** to practise hops, and a few real pieces (bumpers, a booster, a spinner, a jump ramp) to play with.
 - **PLAY arch:** roll through it to start a match with the options from the Play page.
 - Fall off the edge and you pop back on the plaza. **Esc** opens the pause menu, where Retry puts everyone back at the start.
 
-The island is built in code in `scripts/hub.gd`: windmill, pond and waterfall, trees, flowers, lanterns, butterflies, drifting clouds and little floating rocks.
+![The Marble Derby](docs/derby.png)
+
+The island is built in code in `scripts/hub.gd` (the derby is `scripts/horse_race.gd`): windmill, pond and waterfall, trees, flowers, lanterns, butterflies, drifting clouds and little floating rocks.
 
 
 Before each match, everyone picks their marble's look in the **Customize & Store** (see below). Then each frame has four steps, like the design doc:
@@ -206,6 +211,7 @@ scripts/
   teleporter.gd      the two-part teleporter pad
   wind_fan.gd        the wind fan piece
   hub.gd             the practice island (practice run, Customize plate, PLAY arch)
+  horse_race.gd      the Marble Derby betting minigame
   main_menu.gd       title screen, Play/Settings/Controls/Credits pages, pause menu
   game_settings.gd   saved settings (screen, sound, camera, match options)
   decor.gd           start/finish arches, lanterns, braces, rocks, islands, buoys
@@ -225,7 +231,7 @@ tests/
   sim_roll.gd        plays frames with no one at the keys and prints results
   sim_items.gd       tries the teleporter, wind fan and Wall Breaker
   sim_gap.gd         rolls over a gap, with or without well-timed hops
-  sim_hub.gd         checks the practice island's teleports, Customize plate and PLAY arch
+  sim_hub.gd         checks the practice island's teleports, Customize plate, derby bet and PLAY arch
 ```
 
 The code is set up for online play later: `main.gd` makes every decision (physics, who arrived first, who gets each pin), and player input only reaches the game through two functions: `_gather_inputs()` for marble lean and `_gather_build_inputs()` for draft and build requests. When online play arrives, the host runs `main.gd` and fills those in from the network instead of the keyboard.

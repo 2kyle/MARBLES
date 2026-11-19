@@ -85,6 +85,8 @@ var menu: MainMenu
 var hub: Hub
 ## Players who have the Customize panel open on the practice island.
 var customize_open: Array = [false, false, false, false]
+## Players who have the Marble Derby betting panel open.
+var derby_open: Array = [false, false, false, false]
 var _menu_time := 0.0
 ## Coins, bought looks and equipped looks for each seat (saved to disk).
 var profiles := Profiles.new()
@@ -190,6 +192,7 @@ func _enter_hub() -> void:
 		add_child(hub)
 		hub.customize_requested.connect(_on_hub_customize)
 		hub.play_requested.connect(_on_hub_play)
+		hub.derby_requested.connect(_on_hub_derby)
 	for p in player_count:
 		customize_row[p] = 0
 		customize_message[p] = ""
@@ -197,7 +200,9 @@ func _enter_hub() -> void:
 		for slot in Cosmetics.SLOTS:
 			customize_browse[p][slot] = profiles.equipped(p, slot)
 	customize_open = [false, false, false, false]
+	derby_open = [false, false, false, false]
 	hub.start(player_count, profiles, marble_scene)
+	hub.derby.profiles = profiles
 	state = State.HUB
 	_refresh_colors()
 	camera.snap_to(hub.to_global(Hub.SPAWN))
@@ -221,6 +226,12 @@ func _close_hub_customize(p: int) -> void:
 		hub.marbles[p].look = profiles.look(p)
 	hub.release_from_plate(p)
 	_refresh_colors()
+
+
+## A marble rolled onto the Marble Derby betting plate.
+func _on_hub_derby(p: int) -> void:
+	if p < player_count:
+		derby_open[p] = true
 
 
 ## Someone rolled through the PLAY arch: start a real match.
@@ -247,6 +258,7 @@ func _on_restart_frame_requested() -> void:
 		hub.stop_marbles()
 		hub.start(player_count, profiles, marble_scene)
 		customize_open = [false, false, false, false]
+		derby_open = [false, false, false, false]
 	elif state in [State.COUNTDOWN, State.ROLLING, State.RESULTS]:
 		_prepare_roll()
 		_start_countdown()
@@ -414,7 +426,7 @@ func _physics_process(delta: float) -> void:
 			_gather_inputs()
 			_update_roll(delta)
 		State.HUB:
-			hub.physics_update()
+			hub.physics_update(delta)
 
 
 # ------------------------------------------------------------ Input
@@ -471,6 +483,25 @@ func _gather_hub_inputs() -> void:
 			_customize_keys(p)
 			if Input.is_action_just_pressed(Controls.action_name(p, "rotate")):
 				_close_hub_customize(p)
+			continue
+		if derby_open[p]:
+			# Betting: left/right picks a horse, up/down the wager,
+			# place key bets, turn key leaves.
+			m.lean = Vector2.ZERO
+			var derby := hub.derby
+			if Input.is_action_just_pressed(Controls.action_name(p, "left")):
+				derby.request_pick(p, -1)
+			if Input.is_action_just_pressed(Controls.action_name(p, "right")):
+				derby.request_pick(p, 1)
+			if Input.is_action_just_pressed(Controls.action_name(p, "forward")):
+				derby.request_wager(p, 1)
+			if Input.is_action_just_pressed(Controls.action_name(p, "back")):
+				derby.request_wager(p, -1)
+			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+				derby.request_bet(p)
+			if Input.is_action_just_pressed(Controls.action_name(p, "rotate")):
+				derby_open[p] = false
+				hub.release_from_plate(p)
 			continue
 		m.lean = Controls.read_lean(p)
 		m.lane_basis = flat
@@ -807,6 +838,19 @@ func _update_camera() -> void:
 		camera.look_ahead = Vector3(0, -1.0, -6.0)
 		if not hub.marbles.is_empty():
 			camera.target = sum / hub.marbles.size()
+		# Watching the derby: follow the horses, keeping the bettors in shot.
+		if derby_open.has(true) and hub.derby.phase != HorseRace.Phase.OPEN:
+			camera.frame_points = []
+			var horses := hub.derby.horse_positions()
+			var mid := Vector3.ZERO
+			for h in horses:
+				mid += h
+			camera.target = mid / horses.size()
+			camera.follow_offset = Vector3(0, 6.0, 9.0)
+			camera.frame_points.append_array(horses)
+			for m in hub.marbles:
+				if derby_open[m.player_id]:
+					camera.frame_points.append(m.global_position)
 		return
 	if state == State.WAITING and not _overhead_camera:
 		# Customize: up close behind the marbles, looking down the track.

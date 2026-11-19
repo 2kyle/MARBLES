@@ -43,7 +43,7 @@ static func score_frame(player_count: int, arrival_order: Array,
 	var note := ""
 
 	if arrival_order.is_empty():
-		note = "Nobody reached the pins. No points this frame."
+		note = "Nobody made it!"
 		return _result(player_count, pins, race, sweep, ko, note)
 
 	for id in knockouts:
@@ -58,7 +58,7 @@ static func score_frame(player_count: int, arrival_order: Array,
 		sweep[sweep_player] = SWEEP_BONUS
 
 	if arrival_order.size() >= player_count:
-		note = "Everyone reached the pins, so no race bonus."
+		note = "Everyone made it. No race bonus."
 	else:
 		for i in mini(arrival_order.size(), RACE_BONUS.size()):
 			var id: int = arrival_order[i]

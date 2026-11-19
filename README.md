@@ -16,7 +16,7 @@ A party game where friends build a bowling lane together, then race physics marb
 
 Before each match, everyone picks their marble's look in the **Locker & Store** (see below). Then each frame has four steps, like the design doc:
 
-1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as picture cards down the right side. Everyone grabs one at the same time. First to grab a piece gets it.
+1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as big picture cards in the middle of the screen. Each player steers their own pointer onto a card and grabs it. First to grab a piece gets it.
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Pieces stay on the lane for the rest of the match.
 3. **Roll (45 s max):** marbles drop together, crash into each other, and race to one shared rack of 21 pins. You can lean your marble, but the lane does most of the work.
 4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
@@ -69,7 +69,7 @@ Every crate has at least one track card. While you place a track card, a yellow 
 
 | | Player 1 | Player 2 |
 | --- | --- | --- |
-| Draft: choose / grab | W S / E | Up Down / Enter |
+| Draft: move pointer / grab | W A S D / E | Arrows / Enter |
 | Build: move / rotate / place | W A S D / Q / E | Arrow keys / Right Shift / Enter |
 | Roll: lean | W A S D | Arrow keys |
 
@@ -126,6 +126,12 @@ To play on a track you've drawn yourself instead, click the **Main** node in `sc
 
 Tight corners send marbles over the wall, which is half the fun, but a corner sharper than about 4 m across will make the walls fold over each other.
 
+### Fonts
+
+Text uses two free fonts, both under the SIL Open Font License (the licence files are in `fonts/`):
+- **Lilita One** by Juan Montoreano for titles and big numbers
+- **Fredoka** by the Fredoka Project Authors for everything else (set for the whole game in `ui/theme.tres`)
+
 ## How the project is laid out
 
 ```
@@ -153,7 +159,9 @@ scripts/
   booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd, tilt_table.gd   piece behaviour
   controls.gd        all the key bindings
   camera_rig.gd      follow camera
-  hud.gd             scoreboard text
+  hud.gd             everything on screen: scores, draft cards, locker, scoreboard
+fonts/               the two fonts and their licences
+ui/theme.tres        default font and text size for all menus
 shaders/
   marble.gdshader    marble patterns (stripes, swirl, galaxy, lava...)
   sky.gdshader       the sky, clouds and distant hills

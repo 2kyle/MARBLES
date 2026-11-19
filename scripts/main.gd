@@ -40,6 +40,8 @@ const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 @export var build_time := 30.0
 ## How fast build cursors glide, metres per second.
 @export var cursor_speed := 7.0
+## How fast draft pointers move, in cards per second.
+@export var pointer_speed := 2.6
 ## Degrees per rotate tap (hold to keep turning).
 @export var rotate_step := 15.0
 ## Extra pieces in the crate beyond one per player.
@@ -277,13 +279,11 @@ func _gather_build_inputs(delta: float) -> void:
 	## The only place player input reaches the draft and build.
 	## Online play: each player's game sends these requests to the host.
 	for p in player_count:
-		var fwd := Controls.action_name(p, "forward")
-		var back := Controls.action_name(p, "back")
 		if state == State.DRAFT:
-			if _pressed_or_repeat(fwd, delta):
-				draft_build.request_draft_move(p, -1)
-			if _pressed_or_repeat(back, delta):
-				draft_build.request_draft_move(p, 1)
+			# Move the pointer over the cards (screen up = card space up).
+			var dir := Controls.read_lean(p)
+			if dir != Vector2.ZERO:
+				draft_build.request_pointer_move(p, dir * pointer_speed * delta)
 			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
 				draft_build.request_pick(p)
 		else:
@@ -335,15 +335,15 @@ func request_locker_buy(p: int) -> void:
 	var slot: String = Cosmetics.SLOTS[locker_row[p]]
 	var id: String = locker_browse[p][slot]
 	if profiles.owns(p, slot, id):
-		locker_message[p] = "You already own this"
+		locker_message[p] = "Owned"
 		return
 	var item := Cosmetics.find(slot, id)
 	if not profiles.buy(p, slot, id):
-		locker_message[p] = "Need %d more coins" % (item.price - profiles.coins(p))
+		locker_message[p] = "Need %d more" % (item.price - profiles.coins(p))
 		return
 	profiles.equip(p, slot, id)
 	profiles.save_to_disk()
-	locker_message[p] = "Bought %s!" % item.name
+	locker_message[p] = "Bought!"
 	_preview_look(p)
 
 

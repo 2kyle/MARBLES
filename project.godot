@@ -16,6 +16,10 @@ config/features=PackedStringArray("4.4", "Forward Plus")
 window/size/viewport_width=1600
 window/size/viewport_height=900
 
+[gui]
+
+theme/custom="res://ui/theme.tres"
+
 [layer_names]
 
 3d_physics/layer_1="world"

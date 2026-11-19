@@ -18,7 +18,10 @@ var colors: Array = []
 var crate: Array = []          # piece ids on offer
 var taken_by: Array = []       # per crate slot: player id or -1
 var picks: Array = []          # per player: piece id or ""
-var draft_cursor: Array = []   # per player: crate slot index
+## Each player's pointer over the row of cards, in "card units": card k
+## covers x from k to k+1 and y from 0 (top) to 1 (bottom). The HUD draws
+## the cards and pointers from these numbers.
+var draft_pointer: Array = []  # per player: Vector2
 
 ## Build
 var cursor_pos: Array = []     # per player: Vector2 lane position
@@ -44,24 +47,40 @@ func start_draft(crate_size: int, rng: RandomNumberGenerator) -> void:
 	crate = PieceCatalog.random_crate(crate_size, rng, not builder.track.layout.is_empty())
 	taken_by = _filled(crate.size(), -1)
 	picks = _filled(player_count, "")
-	draft_cursor = []
+	draft_pointer = []
 	for i in player_count:
-		draft_cursor.append(i % crate.size())
+		draft_pointer.append(Vector2((i + 0.5) * crate.size() / float(player_count), 1.45))
 	message = _filled(player_count, "")
 
 
-func request_draft_move(player: int, step: int) -> void:
+## Slide a player's pointer by `delta` card units.
+func request_pointer_move(player: int, delta: Vector2) -> void:
 	if picks[player] != "":
 		return
-	draft_cursor[player] = wrapi(draft_cursor[player] + step, 0, crate.size())
+	var p: Vector2 = draft_pointer[player] + delta
+	draft_pointer[player] = Vector2(clampf(p.x, -0.2, crate.size() + 0.2), clampf(p.y, -0.4, 1.7))
+
+
+## The card a player's pointer is over, or -1.
+func hovered_slot(player: int) -> int:
+	var p: Vector2 = draft_pointer[player]
+	var k := floori(p.x)
+	if k < 0 or k >= crate.size() or p.y < 0.0 or p.y > 1.0:
+		return -1
+	var fx := p.x - k
+	if fx < 0.06 or fx > 0.94:
+		return -1
+	return k
 
 
 func request_pick(player: int) -> bool:
 	if picks[player] != "":
 		return false
-	var slot: int = draft_cursor[player]
+	var slot := hovered_slot(player)
+	if slot == -1:
+		return false
 	if taken_by[slot] != -1:
-		message[player] = "Taken! Pick another."
+		message[player] = "Taken!"
 		return false
 	taken_by[slot] = player
 	picks[player] = crate[slot]
@@ -79,12 +98,15 @@ func auto_pick_remaining() -> void:
 	for p in player_count:
 		if picks[p] != "":
 			continue
-		for step in crate.size():
-			var slot: int = wrapi(draft_cursor[p] + step, 0, crate.size())
-			if taken_by[slot] == -1:
-				draft_cursor[p] = slot
-				request_pick(p)
-				break
+		var best := -1
+		for slot in crate.size():
+			if taken_by[slot] != -1:
+				continue
+			if best == -1 or absf(slot + 0.5 - draft_pointer[p].x) < absf(best + 0.5 - draft_pointer[p].x):
+				best = slot
+		if best != -1:
+			draft_pointer[p] = Vector2(best + 0.5, 0.5)
+			request_pick(p)
 
 
 # ---------------------------------------------------------------- Build
@@ -131,10 +153,10 @@ func request_place(player: int) -> bool:
 		return false
 	var id: String = picks[player]
 	if not builder.place(id, cursor_pos[player], cursor_angle[player], player):
-		message[player] = "The track would hit itself" if PieceCatalog.is_track(id) else "Too close to another piece"
+		message[player] = "Blocked"
 		return false
 	has_placed[player] = true
-	message[player] = "Boom!" if PieceCatalog.is_bomb(id) else ("Track changed!" if PieceCatalog.is_track(id) else "Placed!")
+	message[player] = "Boom!" if PieceCatalog.is_bomb(id) else "Placed!"
 	_free_cursor(player)
 	_update_visuals()  # other cursors may be blocked or freed now
 	return true

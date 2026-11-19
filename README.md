@@ -25,7 +25,7 @@ A match is 10 frames. Every match starts on a new random track that winds left a
 
 ### Hopping and gaps
 
-While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m (not enough to clear the walls), and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble is fished out and set down just past the gap, where it has to sit still for 1.5 seconds while everyone else rolls on. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
+While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m (not enough to clear the walls), and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
 
 ### Locker & Store
 
@@ -40,7 +40,7 @@ Before each match the camera sits behind the marbles and each player gets a pane
 
 ### Pieces
 
-Every crate has at least one track card (their names are gold on the cards). Track cards work a little differently from pieces:
+Track-altering cards are called **TAs**. They're in the same draft pool as everything else, with a gold **TA** badge and gold name on their cards. Every crate has at least one TA. They work a little differently from pieces:
 
 - A coloured bar goes across the whole track. You only slide it up and down the track, not side to side.
 - The new stretch of track it adds shows as a striped yellow ribbon with little rails, starting at the bar. The rest of the track after it shows faintly, so you can see where everything ends up. A gap shows as a red patch.
@@ -63,10 +63,13 @@ Pieces further down the track move with it, and the pins move to the new end.
 | Hump | Smooth hill across the lane that tosses marbles up |
 | Washboard | Row of little bumps that make marbles hop and skid |
 | Tilt table | A square of lane that rocks side to side |
-| Track Bend | Changes the track itself: adds a bend, left or right (rotate key flips it) |
-| Cliff Drop | Changes the track itself: adds a steep drop |
-| Hairpin | Changes the track itself: adds a tight U-turn, left or right (rotate key flips it) |
-| Gap Jump | Changes the track itself: adds a short gap that marbles have to hop over |
+| TA: Track Bend | Changes the track itself: adds a bend, left or right (rotate key flips it) |
+| TA: Cliff Drop | Changes the track itself: adds a steep drop |
+| TA: Hairpin | Changes the track itself: adds a tight U-turn, left or right (rotate key flips it) |
+| TA: Gap Jump | Changes the track itself: adds a short gap that marbles have to hop over |
+| Teleporter | Placed in two parts: drop the blue entry, then the orange exit (its arrow is the way marbles come out). A marble that rolls onto the entry pops out of the exit at the same speed. Each marble can use it once per frame |
+| Wind Fan | A big fan that blows any marble in front of it the way it faces. It starts blowing across the track; turn it to blow marbles toward a wall, off an open edge, or down the track |
+| TA: Wall Breaker | Takes the side walls off 10 m of track from where you drop it, without changing its shape. The stretch shows red and white stripes while you place it |
 | Bomb (item) | Drop it on the lane to blow up every piece inside the red circle. It doesn't stay |
 
 ## How to play it
@@ -119,7 +122,9 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | How heavy the marble is | `scenes/marble.tscn`, root node | Mass (heavier scatters pins harder) |
 | Bumper kick | `scenes/marble.tscn`, root node | Bumper Kick |
 | Hop height and how often | `scenes/marble.tscn`, root node | Hop Speed, Hop Cooldown |
-| How long a marble waits after missing a gap | `scenes/main.tscn`, `Main` node | Missed Jump Wait |
+| How big pieces are | `scripts/piece_catalog.gd` | `PIECE_SCALE` (1.4). If you change it, scale each piece's `radius` the same way |
+| Wind strength | `scripts/wind_fan.gd` | `push` |
+| How long a Wall Breaker stretch is | `scripts/piece_catalog.gd` | `OPEN_LENGTH` |
 | Lanterns, rocks, islands, buoys | `scenes/course.tscn`, `Decor` node | Lantern Lights, Lantern Spacing, Rock Count, Island Count, Buoy Count |
 | Glow, fog and sunlight | `scenes/main.tscn`, `WorldEnvironment` and `Sun` nodes | Glow, Fog, Light Color |
 | Pin weight and wobble | `scenes/pin.tscn`, root node | Mass, Center Of Mass |
@@ -174,6 +179,8 @@ scripts/
   track_gen.gd       makes random track layouts and applies track cards
   track.gd           builds the track's floor, walls and posts from the curve
   course_builder.gd  the build area, placed pieces, and the bomb
+  teleporter.gd      the two-part teleporter pad
+  wind_fan.gd        the wind fan piece
   decor.gd           start/finish arches, lanterns, braces, rocks, islands, buoys
   thumbnails.gd      live pictures of each piece for the draft cards
   booster_pad.gd, carpet_strip.gd, gutter_cut.gd, spinner.gd, tilt_table.gd   piece behaviour
@@ -189,6 +196,7 @@ shaders/
 tests/
   test_scoring.gd    checks the scoring rules
   sim_roll.gd        plays frames with no one at the keys and prints results
+  sim_items.gd       tries the teleporter, wind fan and Wall Breaker
   sim_gap.gd         rolls over a gap, with or without well-timed hops
 ```
 

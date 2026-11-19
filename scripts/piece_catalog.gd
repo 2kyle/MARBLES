@@ -4,9 +4,9 @@ extends RefCounted
 ## scenes/pieces/, then add an entry here.
 ##
 ## kind: "piece" stays on the lane; "bomb" is a one-shot item that blows up
-##     placed pieces near where it lands; "track" reshapes the track itself
-##     where it's dropped (the scene is only its picture). Which way a track
-##     card turns depends on which side of the track you drop it.
+##     placed pieces near where it lands; "track" is a TA (track-altering
+##     card): it reshapes the track itself where it's dropped (the scene is
+##     only its picture). TAs and pieces share the same draft pool.
 ## radius: rough footprint in metres. Pieces can't be placed with their
 ##     centres closer than about their two radii, and the bomb clears
 ##     anything within its radius.
@@ -18,73 +18,74 @@ const PIECES := {
 		"name": "Bumper post",
 		"about": "Kicks marbles sideways",
 		"scene": "res://scenes/pieces/bumper_post.tscn",
-		"kind": "piece", "radius": 0.45, "base_rotation": 0.0,
+		"kind": "piece", "radius": 0.63, "base_rotation": 0.0,
 	},
 	"angled_rail": {
 		"name": "Angled rail",
 		"about": "Turns marbles",
 		"scene": "res://scenes/pieces/angled_rail.tscn",
-		"kind": "piece", "radius": 1.0, "base_rotation": 45.0,
+		"kind": "piece", "radius": 1.4, "base_rotation": 45.0,
 	},
 	"ramp_jump": {
 		"name": "Ramp jump",
 		"about": "Launches marbles",
 		"scene": "res://scenes/pieces/ramp_jump.tscn",
-		"kind": "piece", "radius": 1.1, "base_rotation": 0.0,
+		"kind": "piece", "radius": 1.54, "base_rotation": 0.0,
 	},
 	"carpet_strip": {
 		"name": "Carpet strip",
 		"about": "Slows marbles down",
 		"scene": "res://scenes/pieces/carpet_strip.tscn",
-		"kind": "piece", "radius": 0.75, "base_rotation": 0.0,
+		"kind": "piece", "radius": 1.05, "base_rotation": 0.0,
 	},
 	"booster_pad": {
 		"name": "Booster pad",
 		"about": "Speed boost",
 		"scene": "res://scenes/pieces/booster_pad.tscn",
-		"kind": "piece", "radius": 0.7, "base_rotation": 0.0,
+		"kind": "piece", "radius": 0.98, "base_rotation": 0.0,
+		"aimed": true,
 	},
 	"spinner": {
 		"name": "Spinner",
 		"about": "Swats marbles",
 		"scene": "res://scenes/pieces/spinner.tscn",
-		"kind": "piece", "radius": 1.2, "base_rotation": 0.0,
+		"kind": "piece", "radius": 1.68, "base_rotation": 0.0,
 	},
 	"gutter_cut": {
 		"name": "Gutter cut",
 		"about": "Fall in, you're out",
 		"scene": "res://scenes/pieces/gutter_cut.tscn",
-		"kind": "piece", "radius": 0.6, "base_rotation": 0.0,
+		"kind": "piece", "radius": 0.84, "base_rotation": 0.0,
 	},
 	"curve": {
 		"name": "Curve Wall",
 		"about": "Swings marbles across",
 		"scene": "res://scenes/pieces/curve.tscn",
-		"kind": "piece", "radius": 0.9, "base_rotation": 0.0,
+		"kind": "piece", "radius": 1.26, "base_rotation": 0.0,
 	},
 	"drop_step": {
 		"name": "Ledge",
 		"about": "Ledge with a drop",
 		"scene": "res://scenes/pieces/drop_step.tscn",
-		"kind": "piece", "radius": 1.2, "base_rotation": 0.0,
+		"kind": "piece", "radius": 1.68, "base_rotation": 0.0,
 	},
 	"hump": {
 		"name": "Hump",
 		"about": "Tosses marbles up",
 		"scene": "res://scenes/pieces/hump.tscn",
-		"kind": "piece", "radius": 1.0, "base_rotation": 0.0,
+		"kind": "piece", "radius": 1.4, "base_rotation": 0.0,
 	},
 	"washboard": {
 		"name": "Washboard",
 		"about": "Bumpy and skiddy",
 		"scene": "res://scenes/pieces/washboard.tscn",
-		"kind": "piece", "radius": 1.1, "base_rotation": 0.0,
+		"kind": "piece", "radius": 1.54, "base_rotation": 0.0,
 	},
 	"tilt_table": {
 		"name": "Tilt table",
 		"about": "Rocks side to side",
 		"scene": "res://scenes/pieces/tilt_table.tscn",
-		"kind": "piece", "radius": 1.2, "base_rotation": 0.0,
+		"kind": "piece", "radius": 1.68, "base_rotation": 0.0,
 	},
 	"track_bend": {
 		"name": "Track Bend",
@@ -112,6 +113,34 @@ const PIECES := {
 		"scene": "res://scenes/pieces/track_gap.tscn",
 		"kind": "track", "segment": "gap", "radius": 1.6, "base_rotation": 0.0,
 	},
+	"teleporter": {
+		"name": "Teleporter",
+		"about": "Warps marbles to its exit",
+		"scene": "res://scenes/pieces/teleporter.tscn",
+		"kind": "piece", "radius": 1.1, "base_rotation": 0.0,
+		"parts": 2,
+	},
+	"teleporter_exit": {
+		"name": "Teleporter exit",
+		"about": "Where warped marbles come out",
+		"scene": "res://scenes/pieces/teleporter.tscn",
+		"kind": "piece", "radius": 1.1, "base_rotation": 0.0,
+		"hidden": true,
+		"aimed": true,
+	},
+	"wind_fan": {
+		"name": "Wind Fan",
+		"about": "Blows marbles along",
+		"scene": "res://scenes/pieces/wind_fan.tscn",
+		"kind": "piece", "radius": 1.7, "base_rotation": 90.0,
+		"aimed": true,
+	},
+	"track_open": {
+		"name": "Wall Breaker",
+		"about": "Knocks the walls off",
+		"scene": "res://scenes/pieces/track_open.tscn",
+		"kind": "track", "segment": "open", "radius": 1.6, "base_rotation": 0.0,
+	},
 	"bomb": {
 		"name": "Bomb",
 		"about": "Blows up pieces",
@@ -121,8 +150,46 @@ const PIECES := {
 }
 
 
+## How much bigger pieces are built than their scenes (scenes were made
+## small; 1.4 makes them matter more on the track). Footprint radii above
+## already include it.
+const PIECE_SCALE := 1.4
+## How far a Wall Breaker takes the walls off, in metres of track.
+const OPEN_LENGTH := 10.0
+
+
+## Every piece that can turn up in a crate.
 static func ids() -> Array:
-	return PIECES.keys()
+	var out := []
+	for id in PIECES:
+		if not PIECES[id].get("hidden", false):
+			out.append(id)
+	return out
+
+
+## How much to scale a piece's scene when it's placed.
+static func scale_of(id: String) -> float:
+	return PIECE_SCALE if PIECES.has(id) and PIECES[id].kind == "piece" else 1.0
+
+
+## Pieces that push or send marbles a set way (booster, fan, teleporter
+## exit). Their floor arrows point the way they push, not down the track.
+static func aimed(id: String) -> bool:
+	return PIECES.has(id) and PIECES[id].get("aimed", false)
+
+
+## Pieces placed in two parts (teleporter: entry, then exit).
+static func parts(id: String) -> int:
+	return PIECES[id].get("parts", 1) if PIECES.has(id) else 1
+
+
+## Short tag for cards and labels: "TA" for track-altering cards.
+static func tag(id: String) -> String:
+	if is_track(id):
+		return "TA"
+	if is_bomb(id):
+		return "ITEM"
+	return ""
 
 
 static func info(id: String) -> Dictionary:
@@ -160,6 +227,8 @@ static func track_segment(id: String, turn_left: bool) -> Dictionary:
 			return TrackGen.drop()
 		"gap":
 			return TrackGen.gap()
+		"open":
+			return {"len": OPEN_LENGTH, "open": true}
 		"hairpin":
 			return TrackGen.hairpin(sign)
 		_:

@@ -96,6 +96,8 @@ var layout: Array = []
 var start_xz := Vector2.ZERO
 ## Holes in the track, as [start, end] distances along it.
 var gaps: Array = []
+## Stretches with no side walls (Wall Breaker TA), as [start, end] distances.
+var open_edges: Array = []
 
 
 ## Replace the track with one built from a TrackGen layout.
@@ -111,6 +113,9 @@ func apply_layout(new_layout: Array, new_start_xz: Vector2) -> void:
 	gaps = []
 	for g in TrackGen.gap_ranges(layout):
 		gaps.append([along[clampi(int(g[0]), 0, pts.size() - 1)], along[clampi(int(g[1]), 0, pts.size() - 1)]])
+	open_edges = []
+	for g in TrackGen.open_ranges(layout):
+		open_edges.append([along[clampi(int(g[0]), 0, pts.size() - 1)], along[clampi(int(g[1]), 0, pts.size() - 1)]])
 	var curve := Curve3D.new()
 	curve.bake_interval = 0.2
 	var keep := []
@@ -133,6 +138,14 @@ func apply_layout(new_layout: Array, new_start_xz: Vector2) -> void:
 	_path.curve = curve
 	_path.curve_changed.connect(_queue_rebuild)
 	rebuild()
+
+
+## True if the walls are missing at `distance`.
+func is_open(distance: float) -> bool:
+	for g in open_edges:
+		if distance > g[0] and distance < g[1]:
+			return true
+	return false
 
 
 ## True if `distance` is inside a gap (or within `margin` metres of one).
@@ -282,6 +295,7 @@ func rebuild() -> void:
 	var collision: Array = []  # regular Array so _quad can append to it
 
 	var prev := {}
+	var prev_d := 0.0
 	for i in slices:
 		var d := len * i / float(slices - 1)
 		if in_gap(d):
@@ -303,7 +317,13 @@ func rebuild() -> void:
 		if i == 0:
 			# Back wall behind the start gate.
 			_quad(wall_st, collision, s.wlb, s.wrb, s.wro, s.wlo)
-		if not prev.is_empty():
+		if not prev.is_empty() and is_open((d + prev_d) / 2.0):
+			# No walls here: just the floor and its edges.
+			_quad(floor_st, collision, prev.fl, prev.fr, s.fr, s.fl)
+			_quad(floor_st, null, prev.br, prev.bl, s.bl, s.br)
+			_quad(wall_st, null, prev.bl, prev.fl, s.fl, s.bl)
+			_quad(wall_st, null, prev.fr, prev.br, s.br, s.fr)
+		elif not prev.is_empty():
 			# Rolling surface and underside.
 			_quad(floor_st, collision, prev.fl, prev.fr, s.fr, s.fl)
 			_quad(floor_st, null, prev.br, prev.bl, s.bl, s.br)
@@ -318,6 +338,7 @@ func rebuild() -> void:
 			_quad(wall_st, null, prev.bl, prev.wlb, s.wlb, s.bl)
 			_quad(wall_st, null, prev.wrb, prev.br, s.br, s.wrb)
 		prev = s
+		prev_d = d
 
 	floor_st.generate_normals()
 	wall_st.generate_normals()

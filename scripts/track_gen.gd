@@ -9,6 +9,7 @@ extends RefCounted
 ##   turn:  degrees the track turns over the segment (+ = left, - = right)
 ##   grade: how steep it is (0.25 = drops 0.25 m every metre)
 ##   gap:   (optional) true = no floor here, marbles have to hop or fly over
+##   open:  (optional) true = no side walls here (a Wall Breaker TA)
 ## The first segment is where marbles start; the last one is the straight
 ## run into the funnel and pins, and is never changed.
 ##
@@ -35,10 +36,19 @@ static func random_layout(rng: RandomNumberGenerator) -> Array:
 		var layout := [START.duplicate()]
 		var total: float = START.len + FINISH.len
 		var drops := 0
+		var gaps := 0
 		var target := rng.randf_range(MIN_LENGTH, MAX_LENGTH)
 		var last_turn_sign := 1.0 if rng.randf() < 0.5 else -1.0
 		while total < target:
 			var seg: Array = _random_segment(rng, last_turn_sign, drops)
+			# At most one gap per track: missing it puts you out.
+			var has_gap := false
+			for s in seg:
+				has_gap = has_gap or s.get("gap", false)
+			if has_gap:
+				gaps += 1
+				if gaps > 1:
+					continue
 			for s in seg:
 				layout.append(s)
 				total += s.len
@@ -108,6 +118,67 @@ static func gap_ranges(layout: Array) -> Array:
 			out.append([t, t + n])
 		t += n
 	return out
+
+
+## Where the side walls are missing, as [start, end] metres from the start.
+static func open_ranges(layout: Array) -> Array:
+	var out := []
+	var t := 0.0
+	for s in layout:
+		var n := float(maxi(1, roundi(s.len)))
+		if s.get("open", false):
+			if not out.is_empty() and absf(out[-1][1] - t) < 0.01:
+				out[-1][1] = t + n  # join with the stretch just before
+			else:
+				out.append([t, t + n])
+		t += n
+	return out
+
+
+## A copy of `layout` with the walls taken off from `from` for `length`
+## metres. The track keeps exactly the same shape: segments are only split
+## at whole metres and marked open. The start and finish keep their walls.
+static func open_range(layout: Array, from: float, length: float) -> Array:
+	var out := []
+	for s in layout:
+		out.append(s.duplicate())
+	var first_ok: int = maxi(1, roundi(out[0].len))
+	var last_ok := 0
+	for i in out.size() - 1:
+		last_ok += maxi(1, roundi(out[i].len))
+	var a := clampi(roundi(from), first_ok, last_ok - 1)
+	var b := clampi(roundi(from + length), a + 1, last_ok)
+	out = _split_at(out, a)
+	out = _split_at(out, b)
+	var t := 0
+	for s in out:
+		var n := maxi(1, roundi(s.len))
+		if t >= a and t + n <= b:
+			s.open = true
+		t += n
+	return out
+
+
+## Split the segment that whole-metre mark `at` falls inside, so a segment
+## starts exactly there. Shape is unchanged.
+static func _split_at(layout: Array, at: int) -> Array:
+	var t := 0
+	for i in layout.size():
+		var s: Dictionary = layout[i]
+		var n := maxi(1, roundi(s.len))
+		if at > t and at < t + n:
+			var k := at - t
+			var first := s.duplicate()
+			first.len = float(k)
+			first.turn = s.turn * k / n
+			var second := s.duplicate()
+			second.len = float(n - k)
+			second.turn = s.turn * (n - k) / n
+			layout[i] = first
+			layout.insert(i + 1, second)
+			return layout
+		t += n
+	return layout
 
 
 static func total_length(layout: Array) -> float:
@@ -205,8 +276,12 @@ static func insert(layout: Array, distance: float, seg: Dictionary) -> Array:
 	var s: Dictionary = out[i]
 	if into > 0.5 and into < s.len - 0.5:
 		var f: float = into / s.len
-		var a := {"len": s.len * f, "turn": s.turn * f, "grade": s.grade}
-		var b := {"len": s.len * (1.0 - f), "turn": s.turn * (1.0 - f), "grade": s.grade}
+		var a := s.duplicate()
+		a.len = s.len * f
+		a.turn = s.turn * f
+		var b := s.duplicate()
+		b.len = s.len * (1.0 - f)
+		b.turn = s.turn * (1.0 - f)
 		out[i] = a
 		out.insert(i + 1, b)
 		out.insert(i + 1, seg.duplicate())

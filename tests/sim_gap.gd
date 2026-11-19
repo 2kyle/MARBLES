@@ -1,6 +1,6 @@
 extends SceneTree
 ## Checks the hop and gap jumps. Builds a track with a gap in it, rolls the
-## marbles with nobody playing, and reports who missed the jump.
+## marbles with nobody playing, and reports who fell in (a marble that misses is out for the frame).
 ##   godot --headless --fixed-fps 120 --script res://tests/sim_gap.gd -- [hop] [gap_at=N]
 ## "hop": every marble hops 1.2 m before each gap (a well-timed jump).
 
@@ -34,9 +34,6 @@ func _process(_delta: float) -> bool:
 	if game.state == game.State.ROLLING:
 		_rolled = true
 		for m in game.marbles:
-			if m.hold_time > 0.0 and not _misses.has(m):
-				_misses[m] = true
-				print("  P%d missed the jump at t=%.1fs" % [m.player_id + 1, game._roll_time])
 			if m.out and not _misses.has(str(m)):
 				_misses[str(m)] = true
 				print("  P%d fell off near %.1f m at t=%.1fs" % [m.player_id + 1,

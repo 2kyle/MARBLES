@@ -167,8 +167,6 @@ func _update_scores(game) -> void:
 			var m: Marble = game.marbles[i]
 			if m.out:
 				status = "OUT"
-			elif m.hold_time > 0.0 or (i < game.missed_jumps.size() and game._roll_time - game.missed_jumps[i] < 2.0):
-				status = "MISSED!"
 			elif m.arrived:
 				status = _ordinal(game.arrival_order.find(i) + 1)
 		row.get_child(2).text = status
@@ -320,8 +318,20 @@ func _build_cards(crate: Array) -> void:
 		box.alignment = BoxContainer.ALIGNMENT_CENTER
 		box.add_theme_constant_override("separation", 2)
 		panel.add_child(box)
+		# TAs (track-altering cards) get a gold "TA" badge on top.
+		var badge := Label.new()
+		badge.text = PieceCatalog.tag(id) if PieceCatalog.is_track(id) else ""
+		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		badge.add_theme_font_override("font", TITLE_FONT)
+		badge.add_theme_font_size_override("font_size", 15)
+		badge.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
+		var badge_bg := _pill(GOLD, 10, 1)
+		badge_bg.set_corner_radius_all(8)
+		badge.add_theme_stylebox_override("normal", badge_bg if badge.text != "" else StyleBoxEmpty.new())
+		badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		box.add_child(badge)
 		var pic := TextureRect.new()
-		pic.custom_minimum_size = Vector2(136, 136)
+		pic.custom_minimum_size = Vector2(124, 124)
 		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		if thumbnails:
@@ -374,7 +384,11 @@ func _update_chips(game) -> void:
 		var style: StyleBoxFlat = chip.get_theme_stylebox("panel")
 		style.border_color = game.player_colors[p]
 		style.border_width_bottom = 4
-		var piece := PieceCatalog.display_name(db.picks[p])
+		var piece := PieceCatalog.display_name(db.current_id(p)) if db.picks[p] != "" else ""
+		if PieceCatalog.is_track(db.picks[p]):
+			piece = "TA  " + piece
+		if PieceCatalog.parts(db.picks[p]) > 1 and not db.has_placed[p]:
+			piece += "  %d/%d" % [db.part[p] + 1, PieceCatalog.parts(db.picks[p])]
 		if PieceCatalog.turns(db.picks[p]):
 			piece += "  < LEFT" if PieceCatalog.turns_left(db.cursor_angle[p]) else "  RIGHT >"
 		var state := ""

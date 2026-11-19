@@ -58,8 +58,6 @@ var still_time := 0.0
 ## marbles that stop making progress).
 var best_distance := 0.0
 var best_time := 0.0
-## Seconds left sitting still after missing a jump (the game sets it).
-var hold_time := 0.0
 
 var _hop_wait := 0.0
 var _lean_now := Vector2.ZERO
@@ -109,11 +107,6 @@ func _physics_process(delta: float) -> void:
 	if freeze or out:
 		return
 	_hop_wait = maxf(_hop_wait - delta, 0.0)
-	if hold_time > 0.0:
-		hold_time -= delta
-		linear_velocity = Vector3.ZERO
-		angular_velocity = Vector3.ZERO
-		return
 	# Ease the lean in and out so steering is smooth, not twitchy.
 	var want := lean.limit_length(1.0)
 	var rate := lean_attack if want.length() > _lean_now.length() - 0.01 else lean_release
@@ -149,7 +142,7 @@ func _track_landing(delta: float) -> void:
 ## after the last hop, so there's no flying. Returns true if it hopped.
 ## Like `lean`, the game calls this when the player presses the hop key.
 func request_hop() -> bool:
-	if freeze or out or arrived or hold_time > 0.0 or _hop_wait > 0.0:
+	if freeze or out or arrived or _hop_wait > 0.0:
 		return false
 	var normal := floor_normal()
 	if normal == Vector3.ZERO:

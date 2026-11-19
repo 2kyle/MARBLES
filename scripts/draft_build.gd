@@ -32,6 +32,9 @@ var message: Array = []        # per player: short status text for the HUD
 var _ghosts: Array = []
 var _markers: Array = []
 var _tags: Array = []      # per player: floating name + flow arrow
+## Which part of a two-part piece each player is placing (0 = first).
+var part: Array = []
+var _first_part: Array = []  # per player: the placed first part, or null
 
 const TITLE_FONT := preload("res://fonts/LilitaOne-Regular.ttf")
 
@@ -118,6 +121,8 @@ func start_build() -> void:
 	cursor_pos = []
 	cursor_angle = _filled(player_count, 0.0)
 	has_placed = _filled(player_count, false)
+	part = _filled(player_count, 0)
+	_first_part = _filled(player_count, null)
 	message = _filled(player_count, "")
 	_ghosts = []
 	_markers = []
@@ -171,13 +176,25 @@ func request_rotate(player: int, degrees: float) -> void:
 	_update_visuals()
 
 
+## The piece a player is placing right now. For a teleporter that's the
+## entry first, then its exit.
+func current_id(player: int) -> String:
+	if picks[player] == "teleporter" and part[player] == 1:
+		return "teleporter_exit"
+	return picks[player]
+
+
 ## What a player's piece will do, in a few words for the floating tag and
 ## the HUD, e.g. "TRACK BEND  < LEFT".
 func describe(player: int) -> String:
-	var id: String = picks[player]
+	var id: String = current_id(player)
 	if id == "":
 		return ""
 	var name := PieceCatalog.display_name(id).to_upper()
+	if PieceCatalog.is_track(id):
+		name = "TA: " + name
+	if PieceCatalog.parts(picks[player]) > 1:
+		name += "  (%d/%d)" % [part[player] + 1, PieceCatalog.parts(picks[player])]
 	if PieceCatalog.turns(id):
 		return name + ("  < LEFT" if PieceCatalog.turns_left(cursor_angle[player]) else "  RIGHT >")
 	return name
@@ -186,10 +203,24 @@ func describe(player: int) -> String:
 func request_place(player: int) -> bool:
 	if has_placed[player]:
 		return false
-	var id: String = picks[player]
+	var id: String = current_id(player)
 	if not builder.place(id, cursor_pos[player], cursor_angle[player], player):
 		message[player] = "Blocked"
 		return false
+	if part[player] + 1 < PieceCatalog.parts(picks[player]):
+		# First part down: keep the cursor and switch to the next part.
+		_first_part[player] = builder.last_placed
+		part[player] += 1
+		message[player] = "Now the exit"
+		_ghosts[player].queue_free()
+		_ghosts[player] = builder.make_ghost(current_id(player))
+		if "is_exit" in _ghosts[player]:
+			_ghosts[player].is_exit = true
+		_update_visuals()
+		return true
+	if _first_part[player] != null and "partner" in builder.last_placed:
+		_first_part[player].partner = builder.last_placed
+		builder.last_placed.partner = _first_part[player]
 	has_placed[player] = true
 	message[player] = "Boom!" if PieceCatalog.is_bomb(id) else "Placed!"
 	_free_cursor(player)
@@ -205,13 +236,18 @@ func all_placed() -> bool:
 ## spot where it fits.
 func auto_place_remaining() -> void:
 	for p in player_count:
-		if has_placed[p]:
-			continue
-		var spot = builder.nearest_free(picks[p], cursor_pos[p], cursor_angle[p])
-		if spot == null:
-			continue
-		cursor_pos[p] = spot
-		request_place(p)
+		for attempt in 2:  # two-part pieces need two goes
+			if has_placed[p]:
+				break
+			if part[p] == 1 and _first_part[p] != null:
+				# A teleporter exit right next to its entry is pointless:
+				# put it further down the track.
+				cursor_pos[p] = builder.clamp_pos(cursor_pos[p] + Vector2(0, -8))
+			var spot = builder.nearest_free(current_id(p), cursor_pos[p], cursor_angle[p])
+			if spot == null:
+				break
+			cursor_pos[p] = spot
+			request_place(p)
 
 
 func end_build() -> void:
@@ -229,7 +265,7 @@ func cursor_world_positions() -> Array:
 
 
 func cursor_blocked(player: int) -> bool:
-	return not has_placed[player] and not builder.can_place(picks[player], cursor_pos[player], cursor_angle[player])
+	return not has_placed[player] and not builder.can_place(current_id(player), cursor_pos[player], cursor_angle[player])
 
 
 # ---------------------------------------------------------------- Visuals
@@ -243,8 +279,9 @@ func _update_visuals() -> void:
 			# Track cards show the new track shape from the cursor onward.
 			(ghost as MeshInstance3D).mesh = builder.reshape_preview(picks[p], cursor_pos[p], cursor_angle[p])
 		else:
-			ghost.transform = builder.lane_xform(cursor_pos[p],
-				PieceCatalog.info(picks[p]).base_rotation + cursor_angle[p], 0.02)
+			var id := current_id(p)
+			ghost.transform = builder.piece_xform(id, cursor_pos[p], cursor_angle[p]) \
+					.translated(builder.lane_xform(cursor_pos[p]).basis.y * 0.02)
 		var marker: MeshInstance3D = _markers[p]
 		var blocked := cursor_blocked(p)
 		var floor_xf := builder.lane_xform(cursor_pos[p], 0.0, 0.012 + 0.004 * p)
@@ -258,6 +295,9 @@ func _update_visuals() -> void:
 		label.modulate = Color(1.0, 0.35, 0.3) if blocked else Color.WHITE
 		var arrow: Node3D = tag.get_node("Arrow")
 		arrow.visible = not ghost.has_meta("track_card")
+		var cur := current_id(p)
+		arrow.rotation.y = deg_to_rad(PieceCatalog.info(cur).base_rotation + cursor_angle[p]) \
+				if PieceCatalog.aimed(cur) else 0.0
 	changed.emit()
 
 

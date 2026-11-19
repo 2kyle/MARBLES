@@ -61,9 +61,6 @@ const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 ## A marble that hasn't got any further down the track for this many
 ## seconds is lifted out and put back a little further on.
 @export var rescue_time := 6.0
-## Seconds a marble sits still after falling into a gap in the track.
-@export var missed_jump_wait := 1.5
-
 ## Who the rolling camera keeps on screen. ALL_MARBLES frames every marble
 ## still rolling (couch play). ONE_MARBLE follows only `camera_player`'s
 ## marble, for online play where each screen shows its own player.
@@ -73,8 +70,6 @@ enum CameraFollow { ALL_MARBLES, ONE_MARBLE }
 ## How hard big crashes and landings shake the camera (0 = never).
 @export_range(0.0, 2.0) var camera_shake := 1.0
 
-## When each player last missed a jump (roll time), for the HUD.
-var missed_jumps: Array = []
 
 @export var marble_scene: PackedScene = preload("res://scenes/marble.tscn")
 
@@ -200,9 +195,6 @@ func _prepare_roll() -> void:
 	arrival_order.clear()
 	sweep_player = -1
 	_roll_time = 0.0
-	missed_jumps = []
-	for i in player_count:
-		missed_jumps.append(-10.0)
 	_settling = false
 	_last_arrival_time = -100.0
 
@@ -453,7 +445,6 @@ func _update_roll(delta: float) -> void:
 			m.out = true
 			m.freeze = true
 			_splash(m.global_position, m.color)
-		_check_missed_jump(m)
 		_unstick(m, delta)
 
 	var all_done := true
@@ -471,34 +462,7 @@ func _update_roll(delta: float) -> void:
 		_finish_frame()
 
 
-## A marble that drops into a gap in the track is fished out and put down
-## just past the gap, where it sits still for a moment. That lost time is
-## the price of missing the jump.
-func _check_missed_jump(m: Marble) -> void:
-	if m.out or m.arrived or m.freeze or m.hold_time > 0.0 or track.gaps.is_empty():
-		return
-	var d := track.distance_of(m.global_position)
-	for g in track.gaps:
-		if d < g[0] - 1.5 or d > g[1] + 1.5:
-			continue
-		var f := track.world_frame_at(d)
-		if f.basis.y.dot(m.global_position - f.origin) > -1.0:
-			return
-		_splash(m.global_position, m.color)
-		var spot := track.world_frame_at(g[1] + 1.2)
-		m.global_position = spot.origin + spot.basis.y * 0.35
-		m.linear_velocity = Vector3.ZERO
-		m.angular_velocity = Vector3.ZERO
-		m.hold_time = missed_jump_wait
-		m.best_distance = g[1] + 1.2
-		m.best_time = _roll_time + missed_jump_wait
-		missed_jumps[m.player_id] = _roll_time
-		return
-
-
 func _unstick(m: Marble, delta: float) -> void:
-	if m.hold_time > 0.0:
-		return
 	if m.out or m.arrived or m.freeze:
 		m.still_time = 0.0
 		return

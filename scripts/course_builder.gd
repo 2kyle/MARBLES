@@ -9,7 +9,7 @@ extends Node3D
 ## track toward the pins). Angles are degrees.
 
 ## How far from the centre line a piece's centre may go.
-@export var half_width := 2.2
+@export var half_width := 1.8
 ## The build area runs from this z (near the start gate)...
 @export var top_z := -3.5
 ## ...to this many metres before the end of the track (keeps the funnel clear).
@@ -77,6 +77,18 @@ func nearest_free(id: String, pos: Vector2, angle := 0.0) -> Variant:
 	return null
 
 
+## Where a placed piece goes: on the track at `pos`, turned, and scaled up
+## to its in-game size.
+func piece_xform(id: String, pos: Vector2, angle: float) -> Transform3D:
+	var xf := lane_xform(pos, PieceCatalog.info(id).base_rotation + angle)
+	return xf.scaled_local(Vector3.ONE * PieceCatalog.scale_of(id))
+
+
+## The node most recently placed by `place()` (the teleporter uses it to
+## link its entry and exit).
+var last_placed: Node3D = null
+
+
 ## Put a piece on the lane (or set off a bomb). Returns false if blocked.
 func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 	pos = clamp_pos(pos)
@@ -88,10 +100,13 @@ func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 	if not can_place(id, pos):
 		return false
 	var node: Node3D = load(PieceCatalog.info(id).scene).instantiate()
-	node.transform = lane_xform(pos, PieceCatalog.info(id).base_rotation + angle)
+	node.transform = piece_xform(id, pos, angle)
 	if "placed_by" in node:
 		node.placed_by = by_player
+	if "is_exit" in node:
+		node.is_exit = id == "teleporter_exit"
 	add_child(node)
+	last_placed = node
 	placed.append({"id": id, "pos": pos, "angle": angle, "by": by_player, "node": node})
 	return true
 
@@ -106,9 +121,14 @@ func _reshaped_layout(id: String, pos: Vector2, angle: float) -> Variant:
 	if _fit_cache.has(key):
 		return _fit_cache[key]
 	var seg := PieceCatalog.track_segment(id, left)
-	var result = TrackGen.insert(track.layout, -pos.y, seg)
-	if not TrackGen.fits(result, track.start_xz):
-		result = null
+	var result = null
+	if seg.get("open", false):
+		# Wall Breaker: same shape, the walls just come off.
+		result = TrackGen.open_range(track.layout, -pos.y, seg.len)
+	else:
+		result = TrackGen.insert(track.layout, -pos.y, seg)
+		if not TrackGen.fits(result, track.start_xz):
+			result = null
 	if _fit_cache.size() > 200:
 		_fit_cache.clear()
 	_fit_cache[key] = result
@@ -126,7 +146,8 @@ func _reshape(id: String, pos: Vector2, angle: float) -> bool:
 	for p in placed:
 		if -p.pos.y > at:
 			p.pos.y -= added
-		p.node.transform = lane_xform(p.pos, PieceCatalog.info(p.id).base_rotation + p.angle)
+		if is_instance_valid(p.node):
+			p.node.transform = piece_xform(p.id, p.pos, p.angle)
 	_fit_cache.clear()
 	if _zone:
 		_zone.queue_free()
@@ -160,6 +181,12 @@ func reshape_preview(id: String, pos: Vector2, angle: float) -> ArrayMesh:
 			new_from = t
 			new_to = t + n
 		t += n
+	if seg.get("open", false):
+		for r in TrackGen.open_ranges(new_layout):
+			if r[0] <= at + 1.0 and r[1] >= at:
+				new_from = r[0]
+				new_to = r[1]
+	var walls_off: bool = seg.get("open", false)
 	var holes := TrackGen.gap_ranges(new_layout)
 	# Line the preview up with the real track where the card goes.
 	var shift := track.frame_at(at).origin - pts[i0]
@@ -191,12 +218,15 @@ func reshape_preview(id: String, pos: Vector2, angle: float) -> ArrayMesh:
 				var col := rest_col
 				if mid >= new_from and mid <= new_to:
 					col = stripe_col if i % 2 == 0 else new_col
+					if walls_off:
+						# Red and white hazard stripes where the walls go.
+						col = Color(1, 0.25, 0.2, 0.75) if i % 2 == 0 else Color(1, 1, 1, 0.7)
 				st.set_color(col)
 				for v in [pl, r, pr, pl, l, r]:
 					st.add_vertex(v)
 				# Little rails along the new stretch so its shape reads
 				# from any camera angle.
-				if col != rest_col:
+				if col != rest_col and not walls_off:
 					var up := Vector3.UP * 0.45
 					st.set_color(new_col)
 					for v in [pl, l, l + up, pl, l + up, pl + up, pr, pr + up, r + up, pr, r + up, r]:

@@ -28,13 +28,14 @@ During a match, **Esc** opens the pause menu.
 
 ![The practice island](docs/hub.png)
 
-A small floating island to warm up on. Roll with your lean keys (forward is away from the camera) and hop with your place key. Nothing here counts.
+A small floating island to warm up on. It's its own place, high above a sea of clouds with its own sky; the match lake and track are hidden while you're there. Roll with your lean keys (forward is away from the camera) and hop with your place key. Nothing here counts.
 
 - **Practice run:** a winding track down from the stone START tower, with a gap to hop and a steep drop. It ends on the plaza, where a big blue pad sends you straight back to the top. The **PRACTICE RUN** pad on the plaza takes you up too.
 - **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch. Your marble is parked on the plate and your Customize panel opens (same controls as before a match). Press your turn key (Q for P1) when you're done and you roll off.
-- **Marble Derby** (west lawn): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four marble "horses" (Thunder, Pebbles, Biscuit, Comet) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
+- **Marble Derby** (west lawn): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four marble "horses" (Frank, Trunk, Fatty and Jakob) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
 - **Your coins** show in the top right corner the whole time you're on the island.
 - An empty plot on the east lawn is saved for the next minigame.
+- A rope bridge off the north edge leads to a tiny lookout islet, and there's a cottage with a smoking chimney and a vegetable garden, benches, bunting over the plaza, hot-air balloons and flocks of birds.
 - **Hurdles** to practise hops, and a few real pieces (bumpers, a booster, a spinner, a jump ramp) to play with.
 - **PLAY arch:** roll through it to start a match with the options from the Play page.
 - Fall off the edge and you pop back on the plaza. **Esc** opens the pause menu, where Retry puts everyone back at the start.
@@ -48,7 +49,7 @@ Before each match, everyone picks their marble's look in the **Customize & Store
 
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as big picture cards in the middle of the screen. Each player steers their own pointer onto a card and grabs it. First to grab a piece gets it.
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Your piece's name floats above it, and coloured arrows on the floor show which way marbles will roll through it. Pieces stay on the lane for the rest of the match.
-3. **Roll (45 s max):** marbles drop through the START arch together, crash into each other, and race to one shared rack of 28 pins. You can lean your marble and give it a small **hop** (your place key), but the lane does most of the work.
+3. **Roll (45 s max):** marbles drop through the START arch together, crash into each other, and race to one shared rack of 28 pins. You can lean your marble a little and give it a small **hop** (your place key), but the lane does most of the work. Once a marble crosses the finish line, steering and hops switch off and it just carries its momentum into the pins.
 4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
 
 A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. Some tracks also have a gap. It starts empty. A marble that flies off the track splashes into the water and is out for that frame.

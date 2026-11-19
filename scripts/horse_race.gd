@@ -14,10 +14,10 @@ extends Node3D
 enum Phase { OPEN, CALL, RACING, FINISHED }
 
 const HORSES := [
-	{"name": "Thunder", "color": Color(0.35, 0.55, 1.0)},
-	{"name": "Pebbles", "color": Color(1.0, 0.55, 0.75)},
-	{"name": "Biscuit", "color": Color(1.0, 0.75, 0.3)},
-	{"name": "Comet", "color": Color(0.55, 0.9, 0.45)},
+	{"name": "Frank", "color": Color(0.35, 0.55, 1.0)},
+	{"name": "Trunk", "color": Color(1.0, 0.55, 0.75)},
+	{"name": "Fatty", "color": Color(1.0, 0.75, 0.3)},
+	{"name": "Jakob", "color": Color(0.55, 0.9, 0.45)},
 ]
 const LENGTH := 20.0
 const LANE_W := 1.1

@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/marble.gd" id="1_marble"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_marble"]
-friction = 0.6
+friction = 0.3
 bounce = 0.25
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_marble"]

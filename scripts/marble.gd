@@ -11,7 +11,7 @@ extends RigidBody3D
 ## Which player owns this marble (0-based).
 @export var player_id := 0
 ## Sideways lean force. Raise it for sharper steering.
-@export var lean_side_force := 7.5
+@export var lean_side_force := 5.0
 ## Forward/back lean force, weaker than sideways on purpose.
 @export var lean_forward_force := 4.0
 ## How fast the lean builds up when you press a key, and dies away when you
@@ -20,7 +20,7 @@ extends RigidBody3D
 @export var lean_release := 10.0
 ## Extra sideways force when you steer against the way you're sliding, so
 ## changing direction feels quick instead of mushy.
-@export var counter_steer_boost := 1.7
+@export var counter_steer_boost := 1.4
 ## Top speed in metres per second. Keeps boosted marbles from launching
 ## off the end of the lane over the pins.
 @export var max_speed := 11.0
@@ -107,6 +107,11 @@ func _physics_process(delta: float) -> void:
 	if freeze or out:
 		return
 	_hop_wait = maxf(_hop_wait - delta, 0.0)
+	if arrived:
+		# Past the finish line: no more steering, just the momentum it has.
+		_lean_now = Vector2.ZERO
+		_track_landing(delta)
+		return
 	# Ease the lean in and out so steering is smooth, not twitchy.
 	var want := lean.limit_length(1.0)
 	var rate := lean_attack if want.length() > _lean_now.length() - 0.01 else lean_release

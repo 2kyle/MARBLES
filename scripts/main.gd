@@ -25,8 +25,10 @@ const PLAYER_COLORS := [
 ]
 const PLAYER_NAMES := ["Player 1", "Player 2", "Player 3", "Player 4"]
 ## Where each marble starts across the lane, metres from the centre.
-## Where the practice island floats (well away from the match island).
-const HUB_POSITION := Vector3(0, 40, 230)
+## The practice island is its own place, far away from the match island
+## (which is hidden while you're there).
+const HUB_SCENE := preload("res://scenes/hub.tscn")
+const HUB_POSITION := Vector3(0, 60, 3000)
 const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 
 ## Marbles in the match (1 to 4). Each extra player uses the next key set.
@@ -87,6 +89,8 @@ var hub: Hub
 var customize_open: Array = [false, false, false, false]
 ## Players who have the Marble Derby betting panel open.
 var derby_open: Array = [false, false, false, false]
+var _match_env: Environment
+var _hub_env: Environment
 var _menu_time := 0.0
 ## Coins, bought looks and equipped looks for each seat (saved to disk).
 var profiles := Profiles.new()
@@ -163,6 +167,7 @@ func show_title() -> void:
 	get_tree().paused = false
 	if hub:
 		hub.stop()
+	_show_hub_world(false)
 	state = State.MENU
 	_overhead_camera = false
 	menu.open_main()
@@ -186,8 +191,7 @@ func _enter_hub() -> void:
 	player_count = settings.player_count
 	camera_shake = settings.camera_shake
 	if hub == null:
-		hub = Hub.new()
-		hub.name = "Hub"
+		hub = HUB_SCENE.instantiate()
 		hub.position = HUB_POSITION
 		add_child(hub)
 		hub.customize_requested.connect(_on_hub_customize)
@@ -203,6 +207,7 @@ func _enter_hub() -> void:
 	derby_open = [false, false, false, false]
 	hub.start(player_count, profiles, marble_scene)
 	hub.derby.profiles = profiles
+	_show_hub_world(true)
 	state = State.HUB
 	_refresh_colors()
 	camera.snap_to(hub.to_global(Hub.SPAWN))
@@ -228,6 +233,21 @@ func _close_hub_customize(p: int) -> void:
 	_refresh_colors()
 
 
+## Swap between the match world and the practice island's own world: its
+## own sky, and the lake, track and pins hidden.
+func _show_hub_world(on: bool) -> void:
+	var env: WorldEnvironment = $WorldEnvironment
+	if _match_env == null:
+		_match_env = env.environment
+	if on and _hub_env == null:
+		_hub_env = hub.make_environment()
+	env.environment = _hub_env if on else _match_env
+	course.visible = not on
+	rack.visible = not on
+	for m in marbles:
+		m.visible = not on
+
+
 ## A marble rolled onto the Marble Derby betting plate.
 func _on_hub_derby(p: int) -> void:
 	if p < player_count:
@@ -239,6 +259,7 @@ func _on_hub_play() -> void:
 	if state != State.HUB:
 		return
 	hub.stop.call_deferred()
+	_show_hub_world(false)
 	_on_play_requested()
 
 
@@ -436,6 +457,9 @@ func _gather_inputs() -> void:
 	## Online play: replace Controls.read_lean(i) with the lean the host
 	## last received from player i.
 	for m in marbles:
+		if m.arrived:
+			m.lean = Vector2.ZERO  # past the finish line: momentum only
+			continue
 		m.lean = Controls.read_lean(m.player_id)
 		m.lane_basis = _lane_frame(m.global_position).basis
 		# The place key doubles as hop while rolling.

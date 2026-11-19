@@ -66,6 +66,7 @@ func _process(delta: float) -> void:
 		var node: Node3D = c.node
 		var a: float = c.angle + _time * c.speed
 		node.position = Vector3(cos(a) * c.radius, c.y + sin(_time * 0.3 + c.angle) * 0.6, sin(a) * c.radius)
+		node.rotation.y = -(a + PI / 2)  # face the way it's drifting
 	for b in _bobbers:
 		(b.node as Node3D).position.y = b.y + sin(_time * b.speed + b.phase) * b.amount
 	for plate in _plates:
@@ -101,6 +102,36 @@ func start(count: int, profiles: Profiles, marble_scene: PackedScene) -> void:
 func stop() -> void:
 	stop_marbles()
 	visible = false
+
+
+## The island's own sky: bright and open, with a sea of clouds below
+## instead of the match's lake and hills.
+func make_environment() -> Environment:
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color(0.2, 0.42, 0.85)
+	sky_mat.sky_horizon_color = Color(0.72, 0.82, 0.95)
+	sky_mat.ground_horizon_color = Color(0.78, 0.85, 0.95)
+	sky_mat.ground_bottom_color = Color(0.7, 0.78, 0.9)
+	sky_mat.sun_angle_max = 20.0
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+	var env := Environment.new()
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.7
+	env.ambient_light_sky_contribution = 0.8
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 1.05
+	env.ssao_enabled = true
+	env.glow_enabled = true
+	env.glow_intensity = 0.6
+	env.glow_hdr_threshold = 1.2
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.75, 0.83, 0.95)
+	env.fog_density = 0.0012
+	env.fog_sky_affect = 0.0
+	return env
 
 
 func stop_marbles() -> void:
@@ -156,6 +187,13 @@ func _build() -> void:
 	_flowers()
 	_signs()
 	_sky_life()
+	_cloud_sea()
+	_lookout()
+	_cottage(Vector3(20, 0, -22))
+	_bunting()
+	_benches()
+	_balloons()
+	_birds()
 
 
 func _island() -> void:
@@ -204,6 +242,8 @@ func _fence() -> void:
 		var a1 := TAU * (i + 1) / n
 		var p0 := Vector3(cos(a0), 0, sin(a0)) * (ISLAND_RADIUS - 0.6)
 		var p1 := Vector3(cos(a1), 0, sin(a1)) * (ISLAND_RADIUS - 0.6)
+		if i == 53 or i == 54:
+			continue  # the opening for the bridge to the lookout
 		_box(self, Vector3(0.14, 0.7, 0.14), p0 + Vector3.UP * 0.35, wood, 0.0)
 		if i % 9 == 4:
 			continue  # a gap in the fence
@@ -530,7 +570,7 @@ func _trees() -> void:
 	var spots := [Vector3(-20, 0, 4), Vector3(-21, 0, -6), Vector3(-12, 0, 19), Vector3(20, 0, 6),
 		Vector3(21, 0, -5), Vector3(-6, 0, 23), Vector3(7, 0, 23), Vector3(-19, 0, -14),
 		Vector3(19, 0, -15), Vector3(-2, 0, 4), Vector3(12, 0, 21), Vector3(-16, 0, 21),
-		Vector3(28, 0, -12), Vector3(-14, 0, 28), Vector3(14, 0, 28), Vector3(2, 0, -29),
+		Vector3(28, 0, -12), Vector3(-14, 0, 28), Vector3(14, 0, 28), Vector3(6, 0, -28),
 		Vector3(-11, 0, -27), Vector3(24, 0, 19), Vector3(13, 0, -27), Vector3(29, 0, 11),
 		Vector3(-24, 0, 21), Vector3(-25, 0, -18)]
 	for at in spots:
@@ -717,6 +757,242 @@ func _sky_life() -> void:
 
 
 # ------------------------------------------------------------ Helpers
+
+# ------------------------------------------------------------ More life
+
+## A soft sea of clouds far below the island, stretching to the horizon.
+func _cloud_sea() -> void:
+	var puff := SphereMesh.new()
+	puff.radius = 1.0
+	puff.height = 2.0
+	puff.radial_segments = 12
+	puff.rings = 6
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1, 1, 1)
+	m.roughness = 1.0
+	m.emission_enabled = true
+	m.emission = Color(0.25, 0.28, 0.35)
+	puff.material = m
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = puff
+	mm.instance_count = 260
+	_rng.seed = 31
+	for i in mm.instance_count:
+		var a := _rng.randf() * TAU
+		var r := sqrt(_rng.randf()) * 260.0 + 20.0
+		var size := _rng.randf_range(10.0, 26.0)
+		var b := Basis.IDENTITY.scaled(Vector3(size, size * _rng.randf_range(0.3, 0.5), size * _rng.randf_range(0.8, 1.2)))
+		mm.set_instance_transform(i, Transform3D(b, Vector3(cos(a) * r, -48.0 + _rng.randf_range(-4.0, 3.0), sin(a) * r)))
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = mm
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	_rng.seed = 4244
+
+
+## A rope bridge off the north edge to a tiny islet with a lookout.
+func _lookout() -> void:
+	var wood := Color(0.6, 0.43, 0.28)
+	var islet := Vector3(0, 0, -45)
+	# The islet itself (you can roll on it).
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = 6.0
+	cyl.height = 2.0
+	shape.shape = cyl
+	shape.position = islet + Vector3.DOWN
+	body.add_child(shape)
+	add_child(body)
+	_cyl(self, 6.0, 5.8, 0.4, islet + Vector3.DOWN * 0.2, Color(0.36, 0.66, 0.3), 16)
+	_cyl(self, 5.8, 1.0, 7.0, islet + Vector3.DOWN * 3.9, Color(0.48, 0.44, 0.42), 9)
+	# The bridge: planks with low rope rails.
+	var start := Vector3(0, 0.05, -ISLAND_RADIUS + 1.0)
+	var end := islet + Vector3(0, 0.05, 5.5)
+	var length := start.distance_to(end)
+	var deck := StaticBody3D.new()
+	add_child(deck)
+	for side in [-1.3, 0.0, 1.3]:
+		var s := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(2.4 if side == 0.0 else 0.1, 0.1 if side == 0.0 else 0.5, length)
+		s.shape = box
+		s.position = (start + end) / 2.0 + Vector3(side, -0.05 if side == 0.0 else 0.25, 0)
+		deck.add_child(s)
+	var planks := int(length / 0.45)
+	for k in planks:
+		var z := start.z - (k + 0.5) * length / planks
+		var sag := sin(PI * (k + 0.5) / planks) * 0.0
+		_box(self, Vector3(2.4, 0.08, 0.38), Vector3(_rng.randf_range(-0.05, 0.05), sag, z), wood.lightened(_rng.randf_range(-0.1, 0.1)), _rng.randf_range(-0.03, 0.03))
+	for side in [-1.3, 1.3]:
+		for k in 5:
+			_box(self, Vector3(0.1, 0.7, 0.1), Vector3(side, 0.35, start.z - k * length / 4.0), wood.darkened(0.2), 0.0)
+		_box(self, Vector3(0.04, 0.04, length), Vector3(side, 0.55, (start.z + end.z) / 2.0), Color(0.85, 0.75, 0.55), 0.0)
+	# On the islet: a little lookout with a telescope, a chest and a palm.
+	_cyl(self, 1.4, 1.6, 0.3, islet + Vector3(2.5, 0.15, -2.0), Color(0.75, 0.72, 0.66), 10)
+	_cyl(self, 0.08, 0.08, 1.0, islet + Vector3(2.5, 0.8, -2.0), Color(0.3, 0.3, 0.32), 6)
+	var scope := _cyl(self, 0.09, 0.14, 0.9, islet + Vector3(2.5, 1.35, -2.2), Color(0.8, 0.65, 0.3), 10)
+	scope.rotation.x = -1.2
+	_box(self, Vector3(1.0, 0.6, 0.7), islet + Vector3(-2.5, 0.3, -1.5), Color(0.55, 0.35, 0.18), 0.4)
+	_box(self, Vector3(1.05, 0.12, 0.75), islet + Vector3(-2.5, 0.66, -1.5), Color(0.95, 0.75, 0.25), 0.4)
+	_cyl(self, 0.12, 0.2, 3.5, islet + Vector3(-1.0, 1.75, -3.5), Color(0.55, 0.4, 0.25), 6)
+	for k in 6:
+		var leaf := _box(self, Vector3(0.35, 0.05, 1.8), islet + Vector3(-1.0, 3.5, -3.5), Color(0.3, 0.65, 0.3), TAU * k / 6.0)
+		leaf.rotate_object_local(Vector3.RIGHT, 0.35)
+		leaf.translate_object_local(Vector3(0, 0, 0.8))
+	_label(islet + Vector3(0, 2.4, 3.6), "LOOKOUT", 48, Color(0.1, 0.3, 0.45), 0.0, true)
+
+
+## A little cottage with a smoking chimney and a garden.
+func _cottage(at: Vector3) -> void:
+	var walls := Color(0.97, 0.92, 0.82)
+	_box(self, Vector3(4.0, 2.6, 3.4), at + Vector3.UP * 1.3, walls, 0.3)
+	var roof := Node3D.new()
+	roof.position = at + Vector3.UP * 2.6
+	roof.rotation.y = 0.3
+	add_child(roof)
+	var prism := MeshInstance3D.new()
+	var pm := PrismMesh.new()
+	pm.size = Vector3(4.6, 1.8, 3.9)
+	prism.mesh = pm
+	prism.material_override = _mat(Color(0.8, 0.35, 0.28))
+	prism.position.y = 0.9
+	roof.add_child(prism)
+	_box(roof, Vector3(0.9, 0.6, 1.2), Vector3(0, -1.0, 1.72), Color(0.45, 0.3, 0.2), 0.0)  # door
+	_box(roof, Vector3(0.8, 0.7, 0.05), Vector3(-1.3, -0.9, 1.72), Color(0.6, 0.8, 0.95), 0.0)
+	_box(roof, Vector3(0.8, 0.7, 0.05), Vector3(1.3, -0.9, 1.72), Color(0.6, 0.8, 0.95), 0.0)
+	_box(roof, Vector3(0.5, 1.4, 0.5), Vector3(1.2, 1.2, -0.6), Color(0.6, 0.45, 0.4), 0.0)  # chimney
+	var smoke := CPUParticles3D.new()
+	smoke.amount = 16
+	smoke.lifetime = 3.0
+	smoke.direction = Vector3.UP
+	smoke.spread = 12.0
+	smoke.initial_velocity_min = 0.5
+	smoke.initial_velocity_max = 0.8
+	smoke.gravity = Vector3(0.3, 0.1, 0)
+	smoke.scale_amount_min = 1.0
+	smoke.scale_amount_max = 2.2
+	var sm := SphereMesh.new()
+	sm.radius = 0.2
+	sm.height = 0.4
+	var smm := StandardMaterial3D.new()
+	smm.albedo_color = Color(0.9, 0.9, 0.92, 0.6)
+	smm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sm.material = smm
+	smoke.mesh = sm
+	smoke.position = Vector3(1.2, 2.0, -0.6)
+	roof.add_child(smoke)
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4.0, 2.6, 3.4)
+	shape.shape = box
+	body.position = at + Vector3.UP * 1.3
+	body.rotation.y = 0.3
+	body.add_child(shape)
+	add_child(body)
+	# A small vegetable garden with a picket fence.
+	var garden := at + Vector3(-1.5, 0, 4.5)
+	for k in 8:
+		_box(self, Vector3(0.08, 0.45, 0.08), garden + Vector3(-2.0 + k * 0.57, 0.22, 1.2), Color.WHITE, 0.0)
+	for row in 3:
+		for k in 5:
+			_ball(garden + Vector3(-1.6 + k * 0.7, 0.15, -0.6 + row * 0.6), 0.16,
+					[Color(0.95, 0.5, 0.15), Color(0.3, 0.6, 0.25), Color(0.85, 0.2, 0.25)][row])
+
+
+## Strings of little triangle flags over the plaza.
+func _bunting() -> void:
+	var colors := [Color(0.95, 0.35, 0.35), Color(1, 0.8, 0.3), Color(0.4, 0.7, 1.0), Color(0.6, 0.85, 0.4), Color(0.85, 0.5, 0.95)]
+	var flag := PrismMesh.new()
+	flag.size = Vector3(0.3, 0.35, 0.02)
+	var lines := [[Vector3(-12, 3.2, 17), Vector3(-2.3, 4.0, 21)], [Vector3(2.3, 4.0, 21), Vector3(12, 3.2, 17)],
+			[Vector3(-12, 3.2, 17), Vector3(-10, 3.0, 4)], [Vector3(12, 3.2, 17), Vector3(10, 3.0, 4)]]
+	var k := 0
+	for line in lines:
+		var a: Vector3 = line[0]
+		var b: Vector3 = line[1]
+		for end in [a, b]:
+			_box(self, Vector3(0.12, end.y, 0.12), Vector3(end.x, end.y / 2.0, end.z), Color(0.5, 0.36, 0.24), 0.0)
+		var n := int(a.distance_to(b) / 0.6)
+		var yaw := atan2(b.x - a.x, b.z - a.z) + PI / 2
+		for i in n:
+			var t := (i + 0.5) / n
+			var p := a.lerp(b, t) + Vector3.DOWN * sin(PI * t) * 0.6
+			var f := MeshInstance3D.new()
+			f.mesh = flag
+			f.material_override = _mat(colors[k % colors.size()])
+			f.position = p + Vector3.DOWN * 0.18
+			f.rotation = Vector3(PI, yaw, 0)
+			add_child(f)
+			k += 1
+
+
+func _benches() -> void:
+	var wood := Color(0.62, 0.42, 0.26)
+	for spot in [[Vector3(-5, 0, 17.5), 0.0], [Vector3(5, 0, 17.5), 0.0], [Vector3(-14, 0, 11), PI / 2], [Vector3(11, 0, 22), -0.4]]:
+		var at: Vector3 = spot[0]
+		var bench := Node3D.new()
+		bench.position = at
+		bench.rotation.y = spot[1]
+		add_child(bench)
+		_box(bench, Vector3(1.8, 0.08, 0.5), Vector3(0, 0.45, 0), wood, 0.0)
+		_box(bench, Vector3(1.8, 0.4, 0.08), Vector3(0, 0.7, -0.24), wood, 0.0)
+		for x in [-0.75, 0.75]:
+			_box(bench, Vector3(0.08, 0.45, 0.45), Vector3(x, 0.22, 0), Color(0.25, 0.25, 0.28), 0.0)
+
+
+## Hot-air balloons drifting slowly round the island.
+func _balloons() -> void:
+	var colors := [[Color(0.95, 0.35, 0.3), Color(1, 0.85, 0.35)], [Color(0.35, 0.6, 0.95), Color.WHITE], [Color(0.6, 0.4, 0.9), Color(0.5, 0.9, 0.6)]]
+	for i in 3:
+		var b := Node3D.new()
+		add_child(b)
+		for k in 8:
+			var seg := MeshInstance3D.new()
+			var s := SphereMesh.new()
+			s.radius = 2.2
+			s.height = 5.0
+			s.radial_segments = 8
+			s.rings = 6
+			seg.mesh = s
+			seg.material_override = _mat(colors[i][k % 2])
+			seg.scale = Vector3(0.5, 1, 0.5)
+			seg.position = Vector3(cos(TAU * k / 8.0), 0, sin(TAU * k / 8.0)) * 1.1
+			b.add_child(seg)
+		_box(b, Vector3(1.0, 0.8, 1.0), Vector3(0, -4.2, 0), Color(0.55, 0.4, 0.25), 0.0)
+		for k in 4:
+			var a := TAU * k / 4.0 + PI / 4
+			_box(b, Vector3(0.03, 2.2, 0.03), Vector3(cos(a) * 0.55, -2.9, sin(a) * 0.55), Color(0.3, 0.25, 0.2), 0.0)
+		_clouds.append({"node": b, "angle": TAU * i / 3.0, "radius": _rng.randf_range(48.0, 60.0),
+				"y": _rng.randf_range(10.0, 22.0), "speed": _rng.randf_range(0.015, 0.03)})
+
+
+## Little flocks of birds circling overhead.
+func _birds() -> void:
+	var m := _mat(Color(0.2, 0.2, 0.25))
+	for f in 3:
+		var flock := Node3D.new()
+		add_child(flock)
+		for k in 5:
+			var bird := Node3D.new()
+			bird.position = Vector3(-absf(k - 2) * 0.9, randf_range(-0.2, 0.2), (k - 2) * 0.9)
+			flock.add_child(bird)
+			for side in [-1, 1]:
+				var wing := MeshInstance3D.new()
+				var bm := BoxMesh.new()
+				bm.size = Vector3(0.15, 0.03, 0.55)
+				wing.mesh = bm
+				wing.material_override = m
+				wing.position = Vector3(0, 0, side * 0.25)
+				wing.rotation.x = side * 0.35
+				bird.add_child(wing)
+			_bobbers.append({"node": bird, "y": bird.position.y, "speed": 6.0, "phase": k * 0.7, "amount": 0.12})
+		_clouds.append({"node": flock, "angle": TAU * f / 3.0, "radius": 22.0 + f * 9.0,
+				"y": 14.0 + f * 4.0, "speed": 0.08 + f * 0.02})
+
 
 ## True if `at` is on the Marble Derby's track or stands.
 func _in_derby(at: Vector3) -> bool:

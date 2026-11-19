@@ -39,6 +39,9 @@ const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 ## Make a new random track layout at the start of every match. Turn off
 ## to play on the hand-drawn curve in scenes/course.tscn (Track/Path).
 @export var random_track := true
+## Which arena (city, caves...) to play in: "random" picks a new one each
+## match. Pick one here to see it every time while you work on it.
+@export_enum("random", "beach", "city", "caves", "snow", "clouds") var force_theme := "random"
 ## Marbles bump into each other. Press C in game to flip it.
 @export var marbles_collide := true
 ## Frames in a match.
@@ -121,7 +124,8 @@ var closet: Closet
 var crate_screen: CrateScreen
 ## Players who have the Marble Derby betting panel open.
 var derby_open: Array = [false, false, false, false]
-var _match_env: Environment
+## The world round the track this match (sky, ground, scenery).
+var arena: Arena
 var _hub_env: Environment
 var _menu_time := 0.0
 ## Coins, owned looks and equipped looks for each seat (saved to disk).
@@ -165,6 +169,7 @@ var _snap: Dictionary = {}
 @onready var track: Track = $Course/Track
 @onready var builder: CourseBuilder = $Course/Track/Placed
 @onready var draft_build: DraftBuild = $DraftBuild
+@onready var ball_return: BallReturn = $Course/Deck/BallReturn
 
 
 func _ready() -> void:
@@ -182,7 +187,6 @@ func _ready() -> void:
 	camera_shake = settings.camera_shake
 	draft_build.setup(builder, player_count, player_colors)
 	hud.thumbnails = $Thumbnails
-	_setup_sky()
 	menu = MainMenu.new()
 	menu.settings = settings
 	add_child(menu)
@@ -238,21 +242,6 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	# The pop-up hook points at this game; let go of it before it's freed.
 	Achievements.on_unlocked = Callable()
-
-
-## The match sky (see ArtStyle): plain blue with drifting puffy clouds.
-func _setup_sky() -> void:
-	($WorldEnvironment as WorldEnvironment).environment = ArtStyle.environment(Color(0.35, 0.62, 0.72))
-	var clouds := CloudLayer.new()
-	clouds.name = "Clouds"
-	clouds.count = 26
-	clouds.radius_min = 110.0
-	clouds.radius_max = 220.0
-	clouds.height_min = 22.0
-	clouds.height_max = 48.0
-	clouds.size_min = 3.0
-	clouds.size_max = 5.5
-	course.add_child(clouds)
 
 
 # ------------------------------------------------------------ Menus
@@ -542,14 +531,17 @@ func _close_screens() -> void:
 
 
 ## Swap between the match world and the practice island's own world: its
-## own sky, and the lake, track and pins hidden.
+## own sky and sun, and the arena, track and pins hidden.
 func _show_hub_world(on: bool) -> void:
 	var env: WorldEnvironment = $WorldEnvironment
-	if _match_env == null:
-		_match_env = env.environment
 	if on and _hub_env == null:
 		_hub_env = hub.make_environment()
-	env.environment = _hub_env if on else _match_env
+	if on:
+		env.environment = _hub_env
+		Arena.plain_sun($Sun)
+	elif arena:
+		env.environment = arena.environment()
+		arena.light_sun($Sun)
 	course.visible = not on
 	rack.visible = not on
 	for m in marbles:
@@ -638,11 +630,11 @@ func _new_match(new_track := true) -> void:
 	_prepare_roll()
 	if net.is_host():
 		net.send_event("match", {"layout": track.layout, "start": track.start_xz,
-				"decor": ($Course/Decor as TrackDecor).seed, "lobby": net.lobby,
+				"decor": ($Course/Decor as TrackDecor).seed, "theme": arena.id, "lobby": net.lobby,
 				"frames": frames_per_match, "collide": marbles_collide})
 
 
-## A fresh random track, centred over the water.
+## A fresh random track, centred in a random arena.
 func _new_track() -> void:
 	var layout := TrackGen.random_layout(_rng)
 	var pts := TrackGen.points(layout)
@@ -652,7 +644,26 @@ func _new_track() -> void:
 		lo = lo.min(Vector2(p.x, p.z))
 		hi = hi.max(Vector2(p.x, p.z))
 	($Course/Decor as TrackDecor).seed = _rng.randi()
-	track.apply_layout(layout, -(lo + hi) / 2.0)
+	var theme: String = force_theme if force_theme != "random" else Arena.random_theme(_rng)
+	_set_arena(theme, layout, -(lo + hi) / 2.0)
+
+
+## Build the track from `layout` inside the arena `theme`: its colours, sky,
+## sun and scenery. The decor seed keeps the scenery the same online.
+func _set_arena(theme: String, layout: Array, start_xz: Vector2) -> void:
+	if arena == null or arena.id != theme:
+		if arena:
+			arena.queue_free()
+		arena = Arena.create(theme)
+		course.add_child(arena)
+	track.floor_color = arena.track_floor
+	track.wall_color = arena.track_wall
+	track.support_color = arena.track_support
+	track.apply_layout(layout, start_xz)
+	_place_deck()
+	arena.build(track, deck, ($Course/Decor as TrackDecor).seed)
+	if not (hub and hub.visible):
+		_show_hub_world(false)
 
 
 func _put_marbles_at_gate() -> void:
@@ -676,7 +687,9 @@ func _place_deck() -> void:
 	var end := track.global_transform * track.end_transform()
 	deck.global_transform = Transform3D(end.basis, end.origin + Vector3(0, -TrackGen.END_Y, 0))
 	rack.global_transform = ($Course/Deck/RackSpot as Node3D).global_transform
-	($Course/Decor as TrackDecor).rebuild(track, deck)
+	if arena:
+		($Course/Decor as TrackDecor).rebuild(track, deck, arena)
+		arena.refit(track, deck)
 
 
 func _prepare_roll() -> void:
@@ -705,6 +718,7 @@ func _prepare_roll() -> void:
 
 	_put_marbles_at_gate()
 	rack.reset()
+	ball_return.reset()
 	_freeze_if_client()
 	_hop_latch = [false, false, false, false]
 	_update_camera()
@@ -781,6 +795,9 @@ func _physics_process(delta: float) -> void:
 		State.ROLLING:
 			_gather_inputs()
 			_update_roll(delta)
+			ball_return.update(marbles, delta)
+		State.RESULTS, State.MATCH_OVER:
+			ball_return.update(marbles, delta)
 		State.HUB:
 			hub.physics_update(delta)
 			if net.is_host():
@@ -1322,8 +1339,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 			match_coins = [0, 0, 0, 0]
 			builder.clear()
 			($Course/Decor as TrackDecor).seed = data.decor
-			track.apply_layout(data.layout, data.start)
-			_place_deck()
+			_set_arena(data.get("theme", "beach"), data.layout, data.start)
 			state = State.WAITING
 			_refresh_colors()
 			_prepare_roll()
@@ -1629,37 +1645,10 @@ func _lane_frame(pos: Vector3) -> Transform3D:
 	return track.world_frame_at(track.distance_of(pos))
 
 
-## A burst of spray where a marble hits the water.
+## A splash (or puff of dust, snow, sparkles...) where a marble falls off
+## the track and hits the arena's ground.
 func _splash(at: Vector3, color: Color) -> void:
-	var p := CPUParticles3D.new()
-	p.one_shot = true
-	p.emitting = false
-	p.amount = 40
-	p.lifetime = 1.1
-	p.explosiveness = 0.95
-	p.direction = Vector3.UP
-	p.spread = 35.0
-	p.initial_velocity_min = 3.0
-	p.initial_velocity_max = 6.5
-	p.scale_amount_min = 0.6
-	p.scale_amount_max = 1.2
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.08
-	mesh.height = 0.16
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.85, 0.95, 1.0).lerp(color, 0.15)
-	mat.roughness = 0.1
-	mesh.material = mat
-	p.mesh = mesh
-	add_child(p)
-	p.global_position = Vector3(at.x, _water_level(), at.z)
-	p.emitting = true
-	get_tree().create_timer(2.0).timeout.connect(p.queue_free)
-
-
-func _water_level() -> float:
-	var water := get_node_or_null("Course/Water") as Node3D
-	return water.global_position.y if water else out_of_bounds_y
+	arena.fall_burst(self, at, color)
 
 
 # ------------------------------------------------------------ Camera

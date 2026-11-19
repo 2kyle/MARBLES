@@ -1,9 +1,9 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/course_builder.gd" id="5_builder"]
 [ext_resource type="Script" path="res://scripts/track.gd" id="6_track"]
-[ext_resource type="Shader" path="res://shaders/water.gdshader" id="7_water"]
 [ext_resource type="Script" path="res://scripts/decor.gd" id="8_decor"]
+[ext_resource type="Script" path="res://scripts/ball_return.gd" id="9_return"]
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_wood"]
 friction = 0.6
@@ -13,14 +13,6 @@ bounce = 0.1
 friction = 0.2
 bounce = 0.4
 
-[sub_resource type="StandardMaterial3D" id="Mat_wall"]
-albedo_color = Color(0.5, 0.34, 0.22, 1)
-roughness = 0.7
-
-[sub_resource type="StandardMaterial3D" id="Mat_deck"]
-albedo_color = Color(0.72, 0.58, 0.4, 1)
-roughness = 0.4
-
 [sub_resource type="StandardMaterial3D" id="Mat_line"]
 albedo_color = Color(0.95, 0.85, 0.2, 1)
 emission_enabled = true
@@ -29,36 +21,17 @@ emission = Color(0.6, 0.5, 0.05, 1)
 [sub_resource type="BoxShape3D" id="Shape_deck"]
 size = Vector3(5.6, 0.4, 11.5)
 
-[sub_resource type="BoxMesh" id="Mesh_deck"]
-material = SubResource("Mat_deck")
-size = Vector3(5.6, 0.4, 11.5)
-
-[sub_resource type="BoxShape3D" id="Shape_deck_wall"]
-size = Vector3(0.3, 0.8, 11.5)
-
-[sub_resource type="BoxMesh" id="Mesh_deck_wall"]
-material = SubResource("Mat_wall")
-size = Vector3(0.3, 0.8, 11.5)
-
 [sub_resource type="BoxShape3D" id="Shape_pit"]
 size = Vector3(10, 0.4, 8)
 
-[sub_resource type="BoxMesh" id="Mesh_pit"]
-material = SubResource("Mat_wall")
-size = Vector3(10, 0.4, 8)
-
 [sub_resource type="BoxShape3D" id="Shape_cushion"]
-size = Vector3(10, 5, 0.4)
-
-[sub_resource type="BoxMesh" id="Mesh_cushion"]
-material = SubResource("Mat_wall")
 size = Vector3(10, 5, 0.4)
 
 [sub_resource type="BoxShape3D" id="Shape_pit_front"]
 size = Vector3(10, 2.8, 0.4)
 
 [sub_resource type="BoxShape3D" id="Shape_arrival"]
-size = Vector3(5.6, 2, 0.4)
+size = Vector3(7.4, 2.6, 0.4)
 
 [sub_resource type="BoxMesh" id="Mesh_line"]
 material = SubResource("Mat_line")
@@ -70,21 +43,6 @@ _data = {
 "tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 }
 point_count = 13
-
-[sub_resource type="ShaderMaterial" id="Mat_water"]
-shader = ExtResource("7_water")
-
-[sub_resource type="PlaneMesh" id="Mesh_water"]
-material = SubResource("Mat_water")
-size = Vector2(1500, 1500)
-subdivide_width = 48
-subdivide_depth = 48
-
-[sub_resource type="CylinderMesh" id="Mesh_post"]
-material = SubResource("Mat_wall")
-top_radius = 0.2
-bottom_radius = 0.2
-height = 4.5
 
 [node name="Course" type="Node3D"]
 
@@ -107,29 +65,6 @@ physics_material_override = SubResource("PhysicsMaterial_wood")
 position = Vector3(0, -0.2, -5.45)
 shape = SubResource("Shape_deck")
 
-[node name="Mesh" type="MeshInstance3D" parent="Deck/PinDeck"]
-position = Vector3(0, -0.2, -5.45)
-mesh = SubResource("Mesh_deck")
-
-[node name="DeckWalls" type="StaticBody3D" parent="Deck"]
-physics_material_override = SubResource("PhysicsMaterial_wall")
-
-[node name="LeftShape" type="CollisionShape3D" parent="Deck/DeckWalls"]
-position = Vector3(-2.95, 0.4, -5.45)
-shape = SubResource("Shape_deck_wall")
-
-[node name="LeftMesh" type="MeshInstance3D" parent="Deck/DeckWalls"]
-position = Vector3(-2.95, 0.4, -5.45)
-mesh = SubResource("Mesh_deck_wall")
-
-[node name="RightShape" type="CollisionShape3D" parent="Deck/DeckWalls"]
-position = Vector3(2.95, 0.4, -5.45)
-shape = SubResource("Shape_deck_wall")
-
-[node name="RightMesh" type="MeshInstance3D" parent="Deck/DeckWalls"]
-position = Vector3(2.95, 0.4, -5.45)
-mesh = SubResource("Mesh_deck_wall")
-
 [node name="Pit" type="StaticBody3D" parent="Deck"]
 physics_material_override = SubResource("PhysicsMaterial_wall")
 
@@ -137,24 +72,16 @@ physics_material_override = SubResource("PhysicsMaterial_wall")
 position = Vector3(0, -3, -15.2)
 shape = SubResource("Shape_pit")
 
-[node name="FloorMesh" type="MeshInstance3D" parent="Deck/Pit"]
-position = Vector3(0, -3, -15.2)
-mesh = SubResource("Mesh_pit")
-
 [node name="CushionShape" type="CollisionShape3D" parent="Deck/Pit"]
 position = Vector3(0, -0.5, -19.2)
 shape = SubResource("Shape_cushion")
-
-[node name="CushionMesh" type="MeshInstance3D" parent="Deck/Pit"]
-position = Vector3(0, -0.5, -19.2)
-mesh = SubResource("Mesh_cushion")
 
 [node name="FrontShape" type="CollisionShape3D" parent="Deck/Pit"]
 position = Vector3(0, -1.6, -11.4)
 shape = SubResource("Shape_pit_front")
 
 [node name="ArrivalLine" type="Area3D" parent="Deck"]
-position = Vector3(0, 1, -1.7)
+position = Vector3(0, 0.7, -1.7)
 collision_layer = 0
 collision_mask = 2
 monitorable = false
@@ -169,26 +96,8 @@ mesh = SubResource("Mesh_line")
 [node name="RackSpot" type="Marker3D" parent="Deck"]
 position = Vector3(0, 0, -3.5)
 
-[node name="Water" type="MeshInstance3D" parent="."]
-position = Vector3(0, -4, 0)
-mesh = SubResource("Mesh_water")
-cast_shadow = 0
-
-[node name="DeckPost0" type="MeshInstance3D" parent="Deck"]
-position = Vector3(-2.4, -2.4, -1.2)
-mesh = SubResource("Mesh_post")
-
-[node name="DeckPost1" type="MeshInstance3D" parent="Deck"]
-position = Vector3(2.4, -2.4, -1.2)
-mesh = SubResource("Mesh_post")
-
-[node name="DeckPost2" type="MeshInstance3D" parent="Deck"]
-position = Vector3(-2.4, -2.4, -9.7)
-mesh = SubResource("Mesh_post")
-
-[node name="DeckPost3" type="MeshInstance3D" parent="Deck"]
-position = Vector3(2.4, -2.4, -9.7)
-mesh = SubResource("Mesh_post")
+[node name="BallReturn" type="Node3D" parent="Deck"]
+script = ExtResource("9_return")
 
 [node name="Decor" type="Node3D" parent="."]
 script = ExtResource("8_decor")

@@ -1,72 +1,55 @@
 class_name TrackDecor
 extends Node3D
 ## Looks only, no gameplay: the START and FINISH arches, lanterns along the
-## walls, braces and foam rings on the support posts, and rocks, islands
-## and buoys out on the water. main.gd calls rebuild() whenever the track
-## changes shape. Nothing here has collision, so marbles never touch it.
+## walls, and braces (and foam rings, over water) on the support posts.
+## main.gd calls rebuild() whenever the track changes shape. Nothing here
+## has collision, so marbles never touch it. The scenery further out
+## belongs to the arena (scripts/arena/), which also picks the colours.
 
 ## How many lanterns light up the track (each is a real light, so keep it
 ## modest for slower computers).
 @export var lantern_lights := 10
 ## Metres between lanterns along the track.
 @export var lantern_spacing := 6.0
-## How many rocks, islands and buoys to scatter on the water.
-@export var rock_count := 26
-@export var island_count := 5
-@export var buoy_count := 10
-## Changes which random scatter you get (main.gd sets it each match).
+## How high the START and FINISH signs hang over the track (metres), high
+## enough to stay clear of the countdown and the camera at the pins.
+@export var arch_height := 5.6
+## Changes which random scenery you get (main.gd sets it each match).
 var seed := 1
 
 const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
-const WATER_Y := -4.0
-const LANTERN_GLOW := Color(1.0, 0.72, 0.35)
-const ARCH_COLOR := Color(0.85, 0.2, 0.18)
 const FLAG_COLORS := [Color(0.95, 0.3, 0.25), Color(1.0, 0.8, 0.2),
 		Color(0.25, 0.65, 0.95), Color(0.4, 0.85, 0.45), Color(0.9, 0.45, 0.85)]
 
-var _buoys: Array = []
-var _time := 0.0
 var _mats := {}
-
-
-func _process(delta: float) -> void:
-	# Buoys bob and lean a little on the swell.
-	_time += delta
-	for b in _buoys:
-		var node: Node3D = b.node
-		node.position.y = b.y + sin(_time * 1.3 + b.phase) * 0.12
-		node.rotation.z = sin(_time * 1.1 + b.phase) * 0.12
-		node.rotation.x = cos(_time * 0.9 + b.phase) * 0.1
+var _glow := Color(1.0, 0.72, 0.35)
 
 
 ## Throw away the old decorations and make new ones to fit the track (and
-## the pin deck at its end).
-func rebuild(track: Track, deck: Node3D) -> void:
+## the pin deck at its end), in the arena's colours.
+func rebuild(track: Track, deck: Node3D, arena: Arena) -> void:
 	for c in get_children():
 		c.queue_free()
-	_buoys.clear()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
-	_start_arch(track)
-	_finish_arch(deck)
+	_glow = arena.lamp_color
+	_start_arch(track, arena.start_color)
+	_finish_arch(deck, arena.finish_color)
 	_lanterns(track)
-	_post_trim(track)
-	_scatter(track, deck, rng)
+	_post_trim(track, arena.watery)
 
 
 # ------------------------------------------------------------ Arches
 
-func _start_arch(track: Track) -> void:
+func _start_arch(track: Track, color: Color) -> void:
 	var f := _local(track.world_frame_at(2.2))
-	_arch(f, track.lane_width, "START", Color(0.15, 0.55, 0.95))
+	_arch(f, track.lane_width, "START", color)
 	_checker_strip(f, track.lane_width, 0.8)
 	_bunting(f, track.lane_width)
 
 
-func _finish_arch(deck: Node3D) -> void:
-	# The arrival line is 1.7 m onto the deck.
+func _finish_arch(deck: Node3D, color: Color) -> void:
+	# The arrival line is 1.7 m onto the deck; the arch spans the gutters.
 	var f := _local(deck.global_transform * Transform3D(Basis.IDENTITY, Vector3(0, 0, -1.7)))
-	_arch(f, 5.6, "FINISH", ARCH_COLOR)
+	_arch(f, BallReturn.ALLEY_WIDTH, "FINISH", color)
 	_checker_strip(f, 5.6, 0.5)
 
 
@@ -76,15 +59,19 @@ func _arch(f: Transform3D, width: float, text: String, color: Color) -> void:
 	arch.transform = f
 	add_child(arch)
 	var half := width / 2.0 + 0.45
+	var h := arch_height
 	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.35, 3.6, 0.35)
+	post_mesh.size = Vector3(0.35, h + 0.6, 0.35)
 	for side in [-1.0, 1.0]:
-		_box(arch, post_mesh, Vector3(side * half, 1.6, 0), _mat(Color(0.95, 0.93, 0.88)))
+		_box(arch, post_mesh, Vector3(side * half, h / 2.0 - 0.1, 0), _mat(Color(0.95, 0.93, 0.88)))
 		# A lantern on top of each post.
-		_bulb(arch, Vector3(side * half, 3.55, 0), 0.2)
+		_bulb(arch, Vector3(side * half, h + 0.5, 0), 0.2)
 	var beam := BoxMesh.new()
 	beam.size = Vector3(half * 2.0 + 0.6, 0.9, 0.3)
-	_box(arch, beam, Vector3(0, 3.05, 0), _mat(color))
+	_box(arch, beam, Vector3(0, h, 0), _mat(color))
+	# Light bulbs along the bottom edge of the sign.
+	for k in 9:
+		_bulb(arch, Vector3(lerpf(-half, half, k / 8.0), h - 0.5, 0.0), 0.07)
 	for facing in [0.0, PI]:
 		var label := Label3D.new()
 		label.text = text
@@ -93,7 +80,7 @@ func _arch(f: Transform3D, width: float, text: String, color: Color) -> void:
 		label.pixel_size = 0.0075
 		label.outline_size = 16
 		label.outline_modulate = color.darkened(0.55)
-		label.position = Vector3(0, 3.05, 0.17 if facing == 0.0 else -0.17)
+		label.position = Vector3(0, h, 0.17 if facing == 0.0 else -0.17)
 		label.rotation.y = facing
 		label.double_sided = false
 		arch.add_child(label)
@@ -141,8 +128,8 @@ func _bunting(f: Transform3D, width: float) -> void:
 		for k in count:
 			var t0 := float(k) / count
 			var t1 := float(k + 0.8) / count
-			var p0 := Vector3(lerpf(-half, half, t0), 3.3 - sin(t0 * PI) * 0.5, z)
-			var p1 := Vector3(lerpf(-half, half, t1), 3.3 - sin(t1 * PI) * 0.5, z)
+			var p0 := Vector3(lerpf(-half, half, t0), arch_height + 0.2 - sin(t0 * PI) * 0.5, z)
+			var p1 := Vector3(lerpf(-half, half, t1), arch_height + 0.2 - sin(t1 * PI) * 0.5, z)
 			var tip := (p0 + p1) / 2.0 + Vector3(0, -0.45, 0)
 			st.set_color(FLAG_COLORS[(k + row) % FLAG_COLORS.size()])
 			for v in [p0, p1, tip]:
@@ -157,12 +144,12 @@ func _bunting(f: Transform3D, width: float) -> void:
 	add_child(mi)
 	# Strings from the arch posts to two poles behind it.
 	var pole := BoxMesh.new()
-	pole.size = Vector3(0.12, 3.4, 0.12)
+	pole.size = Vector3(0.12, arch_height + 0.4, 0.12)
 	var holder := Node3D.new()
 	holder.transform = f
 	add_child(holder)
 	for side in [-1.0, 1.0]:
-		_box(holder, pole, Vector3(side * half, 1.6, -4.2), _mat(Color(0.95, 0.93, 0.88)))
+		_box(holder, pole, Vector3(side * half, arch_height / 2.0, -4.2), _mat(Color(0.95, 0.93, 0.88)))
 
 
 # ------------------------------------------------------------ Lanterns
@@ -198,7 +185,7 @@ func _lanterns(track: Track) -> void:
 		_bulb(holder, Vector3(0, 1.3, 0) + inward * 0.5, 0.15)
 		if i % light_every == 0:
 			var light := OmniLight3D.new()
-			light.light_color = LANTERN_GLOW
+			light.light_color = _glow
 			light.light_energy = 1.6
 			light.omni_range = 5.0
 			light.omni_attenuation = 1.4
@@ -214,9 +201,9 @@ func _bulb(parent: Node3D, pos: Vector3, r: float) -> void:
 	mesh.radial_segments = 12
 	mesh.rings = 6
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = LANTERN_GLOW
+	mat.albedo_color = _glow
 	mat.emission_enabled = true
-	mat.emission = LANTERN_GLOW
+	mat.emission = _glow
 	mat.emission_energy_multiplier = 3.0
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
@@ -230,7 +217,7 @@ func _bulb(parent: Node3D, pos: Vector3, r: float) -> void:
 
 ## X braces between each pair of support posts, and a ring of foam where
 ## every post meets the water.
-func _post_trim(track: Track) -> void:
+func _post_trim(track: Track, watery: bool) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var foam_spots := []
@@ -243,11 +230,11 @@ func _post_trim(track: Track) -> void:
 		for side in [-1.0, 1.0]:
 			var top: Vector3 = f.origin + f.basis.x * side * (track.lane_width / 2.0 - 0.3) - f.basis.y * 0.25
 			tops.append(top)
-			if top.y - track.support_bottom_y > 0.5:
-				foam_spots.append(Vector3(top.x, WATER_Y + 0.03, top.z))
+			if watery and top.y - track.support_bottom_y > 0.5:
+				foam_spots.append(Vector3(top.x, Arena.GROUND_Y + 0.03, top.z))
 		var l: Vector3 = tops[0]
 		var r: Vector3 = tops[1]
-		var bottom := WATER_Y + 0.6
+		var bottom := Arena.GROUND_Y + 0.6
 		if minf(l.y, r.y) - bottom < 1.2:
 			continue
 		var low_l := Vector3(l.x, bottom, l.z)
@@ -296,154 +283,6 @@ func _beam(st: SurfaceTool, a: Vector3, b: Vector3, r: float) -> void:
 		var c1: Vector3 = corners[(k + 1) % 4]
 		for v in [a + c0, b + c0, b + c1, a + c0, b + c1, a + c1]:
 			st.add_vertex(v)
-
-
-# ------------------------------------------------------------ Scatter
-
-## Rocks, sandy islands and bobbing buoys on the water around the course,
-## kept clear of the track so nothing pokes through it.
-func _scatter(track: Track, deck: Node3D, rng: RandomNumberGenerator) -> void:
-	var path := []
-	var len := track.length()
-	var d := 0.0
-	while d < len:
-		var o := _local(track.world_frame_at(d)).origin
-		path.append(Vector2(o.x, o.z))
-		d += 3.0
-	var deck_xf := _local(deck.global_transform)
-	for k in range(0, 24, 3):
-		var o := deck_xf * Vector3(0, 0, -k)
-		path.append(Vector2(o.x, o.z))
-	var lo := Vector2(INF, INF)
-	var hi := Vector2(-INF, -INF)
-	for p in path:
-		lo = lo.min(p)
-		hi = hi.max(p)
-	lo -= Vector2(28, 28)
-	hi += Vector2(28, 28)
-
-	var rock_mat := _mat(Color(0.42, 0.4, 0.38), 0.95)
-	var moss_mat := _mat(Color(0.35, 0.48, 0.3), 0.95)
-	var sand_mat := _mat(Color(0.86, 0.76, 0.55), 1.0)
-	var grass_mat := _mat(Color(0.36, 0.6, 0.3), 0.9)
-	for i in rock_count:
-		var p = _free_spot(rng, lo, hi, path, 6.0)
-		if p == null:
-			continue
-		var size := rng.randf_range(0.6, 2.4)
-		var mesh := SphereMesh.new()
-		mesh.radius = size
-		mesh.height = size * 2.0
-		mesh.radial_segments = 7
-		mesh.rings = 4
-		var mi := MeshInstance3D.new()
-		mi.mesh = mesh
-		mi.material_override = moss_mat if rng.randf() < 0.3 else rock_mat
-		mi.position = Vector3(p.x, WATER_Y - size * 0.35, p.y)
-		mi.rotation = Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU)
-		mi.scale = Vector3(rng.randf_range(0.8, 1.4), rng.randf_range(0.5, 0.9), rng.randf_range(0.8, 1.4))
-		add_child(mi)
-		_foam_ring(Vector3(p.x, WATER_Y + 0.03, p.y), size * 1.15)
-
-	for i in island_count:
-		var p = _free_spot(rng, lo, hi, path, 14.0)
-		if p == null:
-			continue
-		var r := rng.randf_range(4.0, 8.0)
-		var sand := CylinderMesh.new()
-		sand.top_radius = r * 0.8
-		sand.bottom_radius = r
-		sand.height = 1.0
-		sand.radial_segments = 14
-		var island := Node3D.new()
-		island.position = Vector3(p.x, WATER_Y, p.y)
-		island.rotation.y = rng.randf() * TAU
-		add_child(island)
-		_mesh(island, sand, Vector3(0, 0.15, 0), sand_mat)
-		var hill := SphereMesh.new()
-		hill.radius = r * 0.6
-		hill.height = r * 0.6
-		hill.radial_segments = 12
-		hill.rings = 5
-		_mesh(island, hill, Vector3(rng.randf_range(-1, 1), 0.6, rng.randf_range(-1, 1)), grass_mat)
-		_foam_ring(island.position + Vector3(0, 0.03, 0), r * 1.02)
-		# A couple of little trees.
-		for t in rng.randi_range(1, 3):
-			var a := rng.randf() * TAU
-			var at := Vector3(cos(a), 0, sin(a)) * rng.randf_range(0.0, r * 0.4)
-			_tree(island, at + Vector3(0, 0.6, 0), rng)
-
-	for i in buoy_count:
-		var p = _free_spot(rng, lo, hi, path, 5.0)
-		if p == null:
-			continue
-		var buoy := Node3D.new()
-		buoy.position = Vector3(p.x, WATER_Y, p.y)
-		add_child(buoy)
-		var body := CylinderMesh.new()
-		body.top_radius = 0.25
-		body.bottom_radius = 0.45
-		body.height = 0.9
-		body.radial_segments = 10
-		var color: Color = [Color(0.92, 0.22, 0.18), Color(0.98, 0.75, 0.15), Color(0.95, 0.95, 0.95)][i % 3]
-		_mesh(buoy, body, Vector3(0, 0.2, 0), _mat(color, 0.5))
-		var band := CylinderMesh.new()
-		band.top_radius = 0.33
-		band.bottom_radius = 0.37
-		band.height = 0.18
-		band.radial_segments = 10
-		_mesh(buoy, band, Vector3(0, 0.25, 0), _mat(Color(0.95, 0.95, 0.95) if i % 3 != 2 else Color(0.92, 0.22, 0.18), 0.5))
-		_bulb(buoy, Vector3(0, 0.78, 0), 0.1)
-		_buoys.append({"node": buoy, "y": WATER_Y, "phase": rng.randf() * TAU})
-
-
-func _tree(parent: Node3D, at: Vector3, rng: RandomNumberGenerator) -> void:
-	var h := rng.randf_range(1.6, 2.6)
-	var trunk := CylinderMesh.new()
-	trunk.top_radius = 0.08
-	trunk.bottom_radius = 0.14
-	trunk.height = h
-	trunk.radial_segments = 6
-	_mesh(parent, trunk, at + Vector3(0, h / 2.0, 0), _mat(Color(0.45, 0.3, 0.18), 0.9))
-	var top := SphereMesh.new()
-	top.radius = rng.randf_range(0.7, 1.0)
-	top.height = top.radius * 1.6
-	top.radial_segments = 8
-	top.rings = 4
-	_mesh(parent, top, at + Vector3(0, h + 0.2, 0), _mat(Color(0.25, 0.52, 0.28), 0.9))
-
-
-func _foam_ring(at: Vector3, r: float) -> void:
-	var ring := TorusMesh.new()
-	ring.inner_radius = r * 0.92
-	ring.outer_radius = r * 1.12
-	ring.rings = 24
-	ring.ring_segments = 6
-	var foam := StandardMaterial3D.new()
-	foam.albedo_color = Color(0.92, 0.97, 1.0, 0.35)
-	foam.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	foam.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	var mi := MeshInstance3D.new()
-	mi.mesh = ring
-	mi.material_override = foam
-	mi.position = at
-	mi.scale = Vector3(1, 0.05, 1)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mi)
-
-
-## A random spot in the box at least `clear` metres from the track, or null.
-func _free_spot(rng: RandomNumberGenerator, lo: Vector2, hi: Vector2, path: Array, clear: float) -> Variant:
-	for attempt in 20:
-		var p := Vector2(rng.randf_range(lo.x, hi.x), rng.randf_range(lo.y, hi.y))
-		var ok := true
-		for q in path:
-			if p.distance_to(q) < clear:
-				ok = false
-				break
-		if ok:
-			return p
-	return null
 
 
 # ------------------------------------------------------------ Helpers

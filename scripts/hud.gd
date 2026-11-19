@@ -13,9 +13,9 @@ const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
 
 ## Draft card size and spacing, in pixels.
-const CARD_W := 176.0
-const CARD_H := 224.0
-const CARD_GAP := 18.0
+const CARD_W := 232.0
+const CARD_H := 300.0
+const CARD_GAP := 20.0
 
 var thumbnails: Thumbnails
 
@@ -359,7 +359,7 @@ func _build_cards(crate: Array) -> void:
 		badge.text = PieceCatalog.tag(id) if PieceCatalog.is_track(id) else ""
 		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		badge.add_theme_font_override("font", TITLE_FONT)
-		badge.add_theme_font_size_override("font_size", 13)
+		badge.add_theme_font_size_override("font_size", 16)
 		badge.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 		var badge_bg := _pill(GOLD, 10, 1)
 		badge_bg.set_corner_radius_all(8)
@@ -367,7 +367,7 @@ func _build_cards(crate: Array) -> void:
 		badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		box.add_child(badge)
 		var pic := TextureRect.new()
-		pic.custom_minimum_size = Vector2(124, 124)
+		pic.custom_minimum_size = Vector2(176, 176)
 		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		if thumbnails:
@@ -377,19 +377,21 @@ func _build_cards(crate: Array) -> void:
 		name_label.text = PieceCatalog.display_name(id).to_upper()
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_label.add_theme_font_override("font", TITLE_FONT)
-		name_label.add_theme_font_size_override("font_size", 20)
+		name_label.add_theme_font_size_override("font_size", 26)
 		if PieceCatalog.is_track(id):
 			name_label.add_theme_color_override("font_color", GOLD)
 		box.add_child(name_label)
 		var about := Label.new()
 		about.text = PieceCatalog.info(id).about
 		about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		about.add_theme_font_size_override("font_size", 14)
+		about.add_theme_font_size_override("font_size", 17)
+		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		about.custom_minimum_size = Vector2(CARD_W - 24.0, 0)
 		about.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
 		box.add_child(about)
 		var stamp := Label.new()
 		stamp.add_theme_font_override("font", TITLE_FONT)
-		stamp.add_theme_font_size_override("font_size", 64)
+		stamp.add_theme_font_size_override("font_size", 80)
 		stamp.add_theme_color_override("font_outline_color", Color.BLACK)
 		stamp.add_theme_constant_override("outline_size", 12)
 		stamp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

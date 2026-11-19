@@ -18,6 +18,10 @@ var lean := Vector2.ZERO
 var presses: Array = []
 ## How sloppy the bot is with steering (0 = perfect).
 var wobble := 0.25
+## Seconds a bot looks at the draft cards before moving (random in range),
+## and how fast it moves its pointer (1 = as fast as a person can).
+const DRAFT_THINK := Vector2(1.8, 3.6)
+const DRAFT_POINTER_SPEED := 0.55
 
 var _rng := RandomNumberGenerator.new()
 var _last_state := -1
@@ -29,6 +33,9 @@ var _hop_wait := 0.0
 var _wander := Vector3.ZERO
 var _wander_time := 0.0
 var _noise_t := 0.0
+var _hover := 0.0
+var _hover_need := 0.7
+var _delta := 0.0
 
 
 func _init(p_seat: int) -> void:
@@ -54,10 +61,13 @@ static func look(seat: int) -> Dictionary:
 func think(game, delta: float) -> void:
 	presses = []
 	lean = Vector2.ZERO
+	_delta = delta
 	_noise_t += delta
 	if game.state != _last_state:
 		_last_state = game.state
-		_wait = _rng.randf_range(0.5, 1.4)
+		# In the draft, take a moment to look over the cards first.
+		_wait = _rng.randf_range(DRAFT_THINK.x, DRAFT_THINK.y) if game.state == game.State.DRAFT \
+				else _rng.randf_range(0.5, 1.4)
 		_target_slot = -1
 		_target_part = -1
 	_wait -= delta
@@ -86,10 +96,18 @@ func _draft(game) -> void:
 		_target_slot = free[_rng.randi() % free.size()]
 	var want := Vector2(_target_slot + 0.5, 0.5)
 	var to: Vector2 = want - db.draft_pointer[seat]
-	lean = (to * 2.5).limit_length(1.0)
+	lean = (to * 2.5).limit_length(DRAFT_POINTER_SPEED)
 	if db.hovered_slot(seat) == _target_slot and to.length() < 0.25:
-		presses.append("confirm")
-		_wait = 0.3
+		# Hover over the card for a moment, then grab it.
+		_hover += _delta
+		lean = Vector2.ZERO
+		if _hover >= _hover_need:
+			presses.append("confirm")
+			_wait = 0.3
+			_hover = 0.0
+			_hover_need = _rng.randf_range(0.4, 1.1)
+	else:
+		_hover = 0.0
 
 
 func _build(game) -> void:

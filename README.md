@@ -25,7 +25,7 @@ A match is 10 frames. Every match starts on a new random track that winds left a
 
 ### Hopping and gaps
 
-While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about half a metre, and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble is fished out and set down just past the gap, where it has to sit still for 1.5 seconds while everyone else rolls on. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
+While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m (not enough to clear the walls), and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble is fished out and set down just past the gap, where it has to sit still for 1.5 seconds while everyone else rolls on. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
 
 ### Locker & Store
 
@@ -113,6 +113,9 @@ Most numbers you'll want to tweak are editable in the Godot editor without touch
 | --- | --- | --- |
 | Rescuing stuck marbles | `scenes/main.tscn`, `Main` node | Stuck Time, Rescue Time |
 | Steering strength | `scenes/marble.tscn`, root node | Lean Side Force, Lean Forward Force |
+| How snappy steering feels | `scenes/marble.tscn`, root node | Lean Attack (how fast a lean builds up), Lean Release (how fast it dies away), Counter Steer Boost (extra push when you steer against a slide) |
+| Who the camera follows | `scenes/main.tscn`, `Main` node | Camera Follow: All Marbles keeps every rolling marble in shot; One Marble follows only Camera Player's marble (for online play later). Camera Shake sets how hard crashes shake the screen |
+| How far the camera may pull back | `scenes/main.tscn`, `Camera` node | Frame Margin, Max Zoom, Zoom Out Speed, Zoom In Speed |
 | How heavy the marble is | `scenes/marble.tscn`, root node | Mass (heavier scatters pins harder) |
 | Bumper kick | `scenes/marble.tscn`, root node | Bumper Kick |
 | Hop height and how often | `scenes/marble.tscn`, root node | Hop Speed, Hop Cooldown |

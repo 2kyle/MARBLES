@@ -64,6 +64,15 @@ const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
 ## Seconds a marble sits still after falling into a gap in the track.
 @export var missed_jump_wait := 1.5
 
+## Who the rolling camera keeps on screen. ALL_MARBLES frames every marble
+## still rolling (couch play). ONE_MARBLE follows only `camera_player`'s
+## marble, for online play where each screen shows its own player.
+enum CameraFollow { ALL_MARBLES, ONE_MARBLE }
+@export var camera_follow := CameraFollow.ALL_MARBLES
+@export var camera_player := 0
+## How hard big crashes and landings shake the camera (0 = never).
+@export_range(0.0, 2.0) var camera_shake := 1.0
+
 ## When each player last missed a jump (roll time), for the HUD.
 var missed_jumps: Array = []
 
@@ -205,6 +214,8 @@ func _prepare_roll() -> void:
 		m.freeze = true
 		add_child(m)
 		m.set_marble_collision(marbles_collide)
+		m.landed.connect(_on_marble_impact.bind(9.0))
+		m.bumped.connect(_on_marble_impact.bind(7.0))
 		marbles.append(m)
 
 	_put_marbles_at_gate()
@@ -607,6 +618,26 @@ func _water_level() -> float:
 
 # ------------------------------------------------------------ Camera
 
+## Shake the camera for a hard landing or a marble-on-marble crash.
+## `full` is the impact speed that gives the biggest shake.
+func _on_marble_impact(strength: float, full: float) -> void:
+	if state == State.ROLLING:
+		camera.shake(clampf((strength - 2.0) / full, 0.0, 0.6) * camera_shake)
+
+
+## The marbles the rolling camera should keep on screen.
+func _camera_marbles() -> Array:
+	var active := []
+	for m in marbles:
+		if not m.out and not m.arrived:
+			active.append(m)
+	if camera_follow == CameraFollow.ONE_MARBLE:
+		for m in active:
+			if m.player_id == camera_player:
+				return [m]
+	return active
+
+
 func _marbles_center() -> Vector3:
 	var sum := Vector3.ZERO
 	var n := 0
@@ -620,6 +651,7 @@ func _marbles_center() -> Vector3:
 
 
 func _update_camera() -> void:
+	camera.frame_points = []
 	if state == State.WAITING and not _overhead_camera:
 		# Locker: up close behind the marbles, looking down the track.
 		var gate := track.world_frame_at(1.0)
@@ -639,19 +671,26 @@ func _update_camera() -> void:
 		return
 	if state == State.BUILD:
 		# Follow the build cursors, facing down the track where they are.
+		# Every player's cursor (and its floating label) stays on screen;
+		# the camera pulls back when cursors spread out.
 		var cursors := draft_build.cursor_world_positions()
-		var center := Vector3.ZERO
+		var box := AABB(cursors[0], Vector3.ZERO)
 		for c in cursors:
-			center += c
-		center /= maxf(cursors.size(), 1)
-		var spread := 0.0
-		for c in cursors:
-			spread = maxf(spread, c.distance_to(center))
+			box = box.expand(c)
+			box = box.expand(c + Vector3.UP * 3.0)
+		var center := box.get_center()
+		center.y = box.position.y
 		var d := track.distance_of(center)
 		camera.heading = -track.world_frame_at(d + 2.0).basis.z
-		camera.follow_offset = Vector3(0, 12.0 + spread * 0.9, 7.0 + spread * 0.6)
-		camera.look_ahead = Vector3(0, 0, -2.5)
+		camera.follow_offset = Vector3(0, 10.0, 7.5)
+		camera.look_ahead = Vector3(0, 0, -2.0)
 		camera.target = center
+		var back := track.world_frame_at(d).basis.z
+		for c in cursors:
+			camera.frame_points.append(c)
+			camera.frame_points.append(c + Vector3.UP * 3.0)
+			# Room behind the cursor too, so the HUD chips don't cover it.
+			camera.frame_points.append(c + back * 2.5)
 		return
 	var pin_cam := state == State.RESULTS or state == State.MATCH_OVER
 	if state == State.ROLLING:
@@ -663,9 +702,19 @@ func _update_camera() -> void:
 		camera.look_ahead = Vector3(0, -1.0, -3.0)
 		camera.target = rack.global_position - camera.heading * 1.0
 	else:
-		camera.follow_offset = Vector3(0, 8.0, 7.0)
-		camera.look_ahead = Vector3(0, -2.0, -10.0)
-		camera.target = _marbles_center()
+		camera.follow_offset = Vector3(0, 7.0, 7.5)
+		camera.look_ahead = Vector3(0, -2.0, -9.0)
+		# Aim at the middle of the pack (leader to last place), and pull
+		# back until every marble is in shot.
+		var followed := _camera_marbles()
+		if followed.is_empty():
+			camera.target = _marbles_center()
+		else:
+			var box := AABB(followed[0].global_position, Vector3.ZERO)
+			for m in followed:
+				box = box.expand(m.global_position)
+				camera.frame_points.append(m.global_position)
+			camera.target = box.get_center()
 		var d := track.distance_of(camera.target)
 		if d < track.length() - 1.0:
 			camera.heading = -track.world_frame_at(d + 4.0).basis.z

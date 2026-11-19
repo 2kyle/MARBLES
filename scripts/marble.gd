@@ -11,22 +11,34 @@ extends RigidBody3D
 ## Which player owns this marble (0-based).
 @export var player_id := 0
 ## Sideways lean force. Raise it for sharper steering.
-@export var lean_side_force := 5.5
+@export var lean_side_force := 7.5
 ## Forward/back lean force, weaker than sideways on purpose.
-@export var lean_forward_force := 3.0
+@export var lean_forward_force := 4.0
+## How fast the lean builds up when you press a key, and dies away when you
+## let go (per second). Higher = snappier, lower = floatier.
+@export var lean_attack := 7.0
+@export var lean_release := 10.0
+## Extra sideways force when you steer against the way you're sliding, so
+## changing direction feels quick instead of mushy.
+@export var counter_steer_boost := 1.7
 ## Top speed in metres per second. Keeps boosted marbles from launching
 ## off the end of the lane over the pins.
 @export var max_speed := 11.0
 ## Extra push when the marble hits a bumper post.
 @export var bumper_kick := 2.5
-## How hard a hop pushes off the floor (metres per second). 3.4 is a small
-## hop: about half a metre high, enough to clear a gap if timed well.
-@export var hop_speed := 3.4
+## How hard a hop pushes off the floor (metres per second). 4.0 is a small
+## hop: about 0.8 m high, enough to clear a gap if timed well but not the
+## walls.
+@export var hop_speed := 4.0
 ## Seconds before the marble can hop again.
 @export var hop_cooldown := 0.8
 
 ## Fired when the marble hops (for the puff effect and sound later).
 signal hopped
+## Fired when the marble comes down hard after being in the air, or hits
+## another marble. `strength` is roughly the impact speed in m/s.
+signal landed(strength: float)
+signal bumped(strength: float)
 
 ## Lean input in lane space: x = left/right (-1..1), y = forward/back
 ## (-1 = forward, toward the pins).
@@ -50,6 +62,9 @@ var best_time := 0.0
 var hold_time := 0.0
 
 var _hop_wait := 0.0
+var _lean_now := Vector2.ZERO
+var _air_time := 0.0
+var _fall_speed := 0.0
 
 var color := Color.WHITE:
 	set(value):
@@ -99,13 +114,35 @@ func _physics_process(delta: float) -> void:
 		linear_velocity = Vector3.ZERO
 		angular_velocity = Vector3.ZERO
 		return
-	var l := lean.limit_length(1.0)
+	# Ease the lean in and out so steering is smooth, not twitchy.
+	var want := lean.limit_length(1.0)
+	var rate := lean_attack if want.length() > _lean_now.length() - 0.01 else lean_release
+	_lean_now = _lean_now.move_toward(want, rate * delta)
+	var l := _lean_now
 	# Lean is relative to the lane, so "left" always means the lane's left
 	# even when the track bends.
-	var force := lane_basis.x * l.x * lean_side_force + lane_basis.z * l.y * lean_forward_force
+	var side := l.x * lean_side_force
+	var slide := linear_velocity.dot(lane_basis.x)
+	if absf(slide) > 0.3 and signf(slide) != signf(l.x):
+		side *= counter_steer_boost
+	var force := lane_basis.x * side + lane_basis.z * l.y * lean_forward_force
 	apply_central_force(force * mass)
+	_track_landing(delta)
 	if linear_velocity.length() > max_speed:
 		linear_velocity = linear_velocity.limit_length(max_speed)
+
+
+## Notice when the marble lands after some time in the air.
+func _track_landing(delta: float) -> void:
+	if floor_normal() == Vector3.ZERO:
+		_air_time += delta
+		_fall_speed = maxf(_fall_speed, -linear_velocity.y)
+		return
+	if _air_time > 0.25 and _fall_speed > 2.0:
+		landed.emit(_fall_speed)
+		_hop_puff()
+	_air_time = 0.0
+	_fall_speed = 0.0
 
 
 ## Hop off the floor. Only works when touching the ground and not too soon
@@ -186,7 +223,11 @@ func set_marble_collision(enabled: bool) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body is Pin:
+	if body is Marble:
+		var hit := (linear_velocity - (body as Marble).linear_velocity).length()
+		if hit > 2.5 and player_id < (body as Marble).player_id:
+			bumped.emit(hit)  # once per crash, from the lower player id
+	elif body is Pin:
 		# Credit from this side too: with fast hits the physics engine
 		# sometimes reports the contact to only one of the two bodies.
 		(body as Pin).credit(player_id)

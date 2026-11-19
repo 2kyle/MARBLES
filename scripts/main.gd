@@ -6,12 +6,15 @@ extends Node3D
 ##   -> Countdown -> Roll -> Results
 ## Placed pieces stay on the lane for the rest of the match.
 ##
-## Built with online play in mind: this script (with DraftBuild) is the
-## "referee". Everything that decides an outcome happens here. Player input
-## only reaches the game through `_gather_inputs()` (marble lean) and
-## `_gather_build_inputs()` (draft and build requests). When online play
-## arrives, the host runs this script and those two functions read each
-## player's input from the network instead of the keyboard.
+## This script (with DraftBuild) is the "referee": everything that decides
+## an outcome happens here. Each seat is played by someone at this computer
+## (keys or a controller), a bot (MarbleBot), or, online, a player on
+## another computer. Input only reaches the game through seat_lean() and
+## seat_pressed(), so the rules don't care which.
+##
+## Online (NetSession): the host runs this script as normal and sends
+## snapshots and events; a client runs it in "mirror" mode, sending its
+## input and showing what the host sends (see the Online section below).
 
 ## MENU is the title screen (the camera slowly circles the island).
 ## WAITING is the ready screen before a match (press Space / Y to start).
@@ -80,6 +83,18 @@ enum CameraFollow { ALL_MARBLES, ONE_MARBLE }
 @export var marble_scene: PackedScene = preload("res://scenes/marble.tscn")
 
 var state := State.MENU
+
+## Who plays each seat.
+enum Seat { LOCAL, BOT, REMOTE }
+var seat_kinds: Array = [Seat.LOCAL, Seat.BOT, Seat.LOCAL, Seat.LOCAL]
+## For seats played at this computer: which key set / controller.
+var seat_keys: Array = [0, 1, 2, 3]
+## Each seat's look (hat, eyes, colour, style, trail entries).
+var seat_looks: Array = []
+## Bot brains, one per bot seat (null for people).
+var bots: Array = [null, null, null, null]
+## Online play (host or join). Offline unless the Online menu is used.
+var net: NetSession
 ## Screen, sound and match options (saved between sessions).
 var settings := GameSettings.new()
 var menu: MainMenu
@@ -119,6 +134,12 @@ var _overhead_camera := false
 var _last_arrival_time := -100.0
 var _rng := RandomNumberGenerator.new()
 var _repeat := {}  # held-key repeat timers for build cursors
+## Buttons each seat pressed this frame (see _poll_seats).
+var _pressed: Array = [[], [], [], []]
+## A hop asked for since the last physics tick, per seat.
+var _hop_latch: Array = [false, false, false, false]
+## Online client: the newest snapshot from the host.
+var _snap: Dictionary = {}
 
 @onready var course: Node3D = $Course
 @onready var rack: Rack = $Rack
@@ -158,7 +179,24 @@ func _ready() -> void:
 	add_child(closet)
 	crate_screen = CrateScreen.new()
 	add_child(crate_screen)
-	crate_screen.trophy_won.connect(func(_p): hub.refresh_trophies(profiles, player_count))
+	crate_screen.trophy_won.connect(func(_p): hub.refresh_trophies(profiles, settings.player_count))
+	net = NetSession.new()
+	net.name = "Net"
+	add_child(net)
+	net.event_received.connect(_on_net_event)
+	net.snapshot_received.connect(func(d): _snap = d)
+	net.lobby_changed.connect(_refresh_lobby)
+	net.joined.connect(func(): menu.open_lobby(false))
+	net.failed.connect(func(reason): menu.toast(reason); menu.back_to_online())
+	net.left.connect(_on_net_left)
+	draft_build.placed.connect(func(p, pos, angle):
+		net.send_event("place", {"p": p, "pos": pos, "angle": angle}))
+	menu.host_requested.connect(_on_host_requested)
+	menu.join_requested.connect(_on_join_requested)
+	menu.lobby_leave_requested.connect(func(): net.leave(); menu.back_to_online())
+	menu.lobby_start_requested.connect(_start_online_match)
+	menu.lobby_bots_changed.connect(func(n): net.set_bots(n))
+	_setup_local_seats()
 	_new_match()
 	show_title()
 
@@ -183,6 +221,11 @@ func _setup_sky() -> void:
 ## Back to the title screen, with the camera circling the island.
 func show_title() -> void:
 	get_tree().paused = false
+	if net and net.active():
+		if net.has_meta("in_match"):
+			net.remove_meta("in_match")
+		net.leave()
+		_setup_local_seats()
 	if hub:
 		hub.stop()
 	_show_hub_world(false)
@@ -194,7 +237,7 @@ func show_title() -> void:
 ## PLAY -> START: set up a local match from the menu's options and go to
 ## the ready screen. The island shown behind the menu is the one you play on.
 func _on_play_requested() -> void:
-	player_count = settings.player_count
+	_setup_local_seats()
 	frames_per_match = settings.frames_per_match
 	marbles_collide = settings.marbles_collide
 	camera_shake = settings.camera_shake
@@ -206,7 +249,7 @@ func _on_play_requested() -> void:
 ## PRACTICE ISLAND: put everyone's marble on the floating hub island.
 func _enter_hub() -> void:
 	menu.close()
-	player_count = settings.player_count
+	_setup_local_seats()
 	camera_shake = settings.camera_shake
 	if hub == null:
 		hub = HUB_SCENE.instantiate()
@@ -218,8 +261,8 @@ func _enter_hub() -> void:
 		hub.crates_requested.connect(_on_hub_crates)
 	_close_screens()
 	derby_open = [false, false, false, false]
-	hub.start(player_count, profiles, marble_scene)
-	hub.refresh_trophies(profiles, player_count)
+	hub.start(player_count, seat_looks, marble_scene)
+	hub.refresh_trophies(profiles, settings.player_count)
 	hub.derby.profiles = profiles
 	_show_hub_world(true)
 	state = State.HUB
@@ -232,7 +275,7 @@ func _enter_hub() -> void:
 func _on_hub_customize(p: int) -> void:
 	if p >= player_count:
 		return
-	if closet.is_open() or crate_screen.is_open():
+	if seat_kinds[p] != Seat.LOCAL or closet.is_open() or crate_screen.is_open():
 		hub.release_from_plate.call_deferred(p)
 		return
 	# Deferred: the plate fires from inside the physics step, which is no
@@ -252,7 +295,7 @@ func _close_closet() -> void:
 func _on_hub_crates(p: int) -> void:
 	if p >= player_count:
 		return
-	if closet.is_open() or crate_screen.is_open():
+	if seat_kinds[p] != Seat.LOCAL or closet.is_open() or crate_screen.is_open():
 		hub.release_from_plate.call_deferred(p)
 		return
 	crate_screen.open.call_deferred(p, profiles)
@@ -274,10 +317,12 @@ func _hide_world(hidden: bool) -> void:
 ## Back on the island after the closet or crates: wear the new look.
 func _after_screen(p: int) -> void:
 	_hide_world(false)
+	if p >= 0 and p < seat_looks.size():
+		seat_looks[p] = profiles.look(p)
 	if hub and p >= 0 and p < hub.marbles.size():
-		hub.marbles[p].look = profiles.look(p)
+		hub.marbles[p].look = seat_looks[p]
 		hub.release_from_plate(p)
-		hub.refresh_trophies(profiles, player_count)
+		hub.refresh_trophies(profiles, settings.player_count)
 	_refresh_colors()
 
 
@@ -307,8 +352,10 @@ func _show_hub_world(on: bool) -> void:
 
 ## A marble rolled onto the Marble Derby betting plate.
 func _on_hub_derby(p: int) -> void:
-	if p < player_count:
+	if p < player_count and seat_kinds[p] == Seat.LOCAL:
 		derby_open[p] = true
+	elif hub:
+		hub.release_from_plate.call_deferred(p)
 
 
 ## Someone rolled through the PLAY arch: start a real match.
@@ -321,7 +368,8 @@ func _on_hub_play() -> void:
 
 
 func _pause() -> void:
-	get_tree().paused = true
+	# Online, the game keeps going for everyone else.
+	get_tree().paused = not net.active()
 	menu.open_pause()
 
 
@@ -332,10 +380,13 @@ func _resume() -> void:
 
 func _on_restart_frame_requested() -> void:
 	_resume()
+	if net.active():
+		menu.toast("No retries in online games")
+		return
 	if state == State.HUB:
 		hub.stop_marbles()
 		_close_screens()
-		hub.start(player_count, profiles, marble_scene)
+		hub.start(player_count, seat_looks, marble_scene)
 		derby_open = [false, false, false, false]
 	elif state in [State.COUNTDOWN, State.ROLLING, State.RESULTS]:
 		_prepare_roll()
@@ -369,6 +420,10 @@ func _new_match(new_track := true) -> void:
 	match_coins = [0, 0, 0, 0]
 	_refresh_colors()
 	_prepare_roll()
+	if net.is_host():
+		net.send_event("match", {"layout": track.layout, "start": track.start_xz,
+				"decor": ($Course/Decor as TrackDecor).seed, "lobby": net.lobby,
+				"frames": frames_per_match, "collide": marbles_collide})
 
 
 ## A fresh random track, centred over the water.
@@ -397,6 +452,7 @@ func _on_track_reshaped() -> void:
 	if state != State.ROLLING:
 		_put_marbles_at_gate()
 		rack.reset()
+		_freeze_if_client()
 
 
 ## Move the pin deck (and the rack) to wherever the track ends.
@@ -422,7 +478,7 @@ func _prepare_roll() -> void:
 	for i in player_count:
 		var m: Marble = marble_scene.instantiate()
 		m.player_id = i
-		m.look = profiles.look(i)
+		m.look = look_for(i)
 		m.preview = state == State.WAITING
 		m.freeze = true
 		add_child(m)
@@ -433,6 +489,8 @@ func _prepare_roll() -> void:
 
 	_put_marbles_at_gate()
 	rack.reset()
+	_freeze_if_client()
+	_hop_latch = [false, false, false, false]
 	_update_camera()
 	camera.snap_to(camera.target)
 
@@ -443,6 +501,7 @@ func _start_draft() -> void:
 	draft_build.start_draft(player_count + crate_extra, _rng)
 	_phase_left = draft_time
 	state = State.DRAFT
+	net.send_event("draft", {"crate": draft_build.crate, "frame": frame})
 
 
 func _start_build() -> void:
@@ -451,6 +510,7 @@ func _start_build() -> void:
 	_phase_left = build_time
 	_repeat.clear()
 	state = State.BUILD
+	net.send_event("build", {"picks": draft_build.picks, "taken": draft_build.taken_by})
 
 
 func _end_build() -> void:
@@ -462,15 +522,21 @@ func _end_build() -> void:
 func _start_countdown() -> void:
 	_countdown = 3.0
 	state = State.COUNTDOWN
+	net.send_event("countdown", {})
 
 
 func _release_marbles() -> void:
 	for m in marbles:
 		m.freeze = false
 	state = State.ROLLING
+	net.send_event("rolling", {})
 
 
 func _process(delta: float) -> void:
+	if net.is_client():
+		_client_process(delta)
+		return
+	_poll_seats(delta)
 	if state == State.DRAFT or state == State.BUILD:
 		_gather_build_inputs(delta)
 	elif state == State.HUB:
@@ -480,6 +546,9 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if net.is_client():
+		return
+	net.send_snapshot(delta, _make_snapshot)
 	match state:
 		State.DRAFT:
 			_phase_left -= delta
@@ -504,44 +573,43 @@ func _physics_process(delta: float) -> void:
 
 func _gather_inputs() -> void:
 	## The only place player input reaches the marbles.
-	## Online play: replace Controls.read_lean(i) with the lean the host
-	## last received from player i.
 	for m in marbles:
+		var p := m.player_id
 		if m.arrived:
 			m.lean = Vector2.ZERO  # past the finish line: momentum only
+			_hop_latch[p] = false
 			continue
-		m.lean = Controls.read_lean(m.player_id)
+		m.lean = seat_lean(p)
 		m.lane_basis = _lane_frame(m.global_position).basis
 		# The place key doubles as hop while rolling.
-		if Input.is_action_just_pressed(Controls.action_name(m.player_id, "confirm")):
+		if _hop_latch[p]:
+			_hop_latch[p] = false
 			m.request_hop()
 
 
 func _gather_build_inputs(delta: float) -> void:
 	## The only place player input reaches the draft and build.
-	## Online play: each player's game sends these requests to the host.
 	for p in player_count:
 		if state == State.DRAFT:
 			# Move the pointer over the cards (screen up = card space up).
-			var dir := Controls.read_lean(p)
+			var dir := seat_lean(p)
 			if dir != Vector2.ZERO:
 				draft_build.request_pointer_move(p, dir * pointer_speed * delta)
-			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+			if seat_pressed(p, "confirm"):
 				draft_build.request_pick(p)
 		else:
 			# Glide the cursor while keys are held (lean keys double as
 			# cursor keys: forward moves toward the pins).
-			var dir := Controls.read_lean(p)
+			var dir := seat_lean(p)
 			if dir != Vector2.ZERO:
 				draft_build.request_cursor_move(p, dir * cursor_speed * delta)
-			var rotate := Controls.action_name(p, "rotate")
 			if PieceCatalog.is_track(draft_build.picks[p]):
 				# Track cards flip left/right: one flip per tap.
-				if Input.is_action_just_pressed(rotate):
+				if seat_pressed(p, "rotate"):
 					draft_build.request_rotate(p, 180.0)
-			elif _pressed_or_repeat(rotate, delta, 0.04):
+			elif _pressed_or_repeat(p, "rotate", delta, 0.04):
 				draft_build.request_rotate(p, rotate_step)
-			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+			if seat_pressed(p, "confirm"):
 				draft_build.request_place(p)
 
 
@@ -554,13 +622,13 @@ func _gather_hub_inputs() -> void:
 		if closet.is_open():
 			var p := closet.player
 			closet.request_move(_menu_dir(p))
-			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+			if seat_pressed(p, "confirm"):
 				closet.request_confirm()
 			if _leave_pressed(p):
 				_close_closet()
 		else:
 			var p := crate_screen.player
-			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+			if seat_pressed(p, "confirm"):
 				crate_screen.request_confirm()
 			if _leave_pressed(p) and not crate_screen.busy():
 				_close_crates()
@@ -574,62 +642,62 @@ func _gather_hub_inputs() -> void:
 			# place key bets, turn key leaves.
 			m.lean = Vector2.ZERO
 			var derby := hub.derby
-			if Input.is_action_just_pressed(Controls.action_name(p, "left")):
+			if seat_pressed(p, "left"):
 				derby.request_pick(p, -1)
-			if Input.is_action_just_pressed(Controls.action_name(p, "right")):
+			if seat_pressed(p, "right"):
 				derby.request_pick(p, 1)
-			if Input.is_action_just_pressed(Controls.action_name(p, "forward")):
+			if seat_pressed(p, "forward"):
 				derby.request_wager(p, 1)
-			if Input.is_action_just_pressed(Controls.action_name(p, "back")):
+			if seat_pressed(p, "back"):
 				derby.request_wager(p, -1)
-			if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+			if seat_pressed(p, "confirm"):
 				derby.request_bet(p)
 			if _leave_pressed(p):
 				derby_open[p] = false
 				hub.release_from_plate(p)
 			continue
-		m.lean = Controls.read_lean(p)
+		m.lean = seat_lean(p)
 		m.lane_basis = flat
-		if Input.is_action_just_pressed(Controls.action_name(p, "confirm")):
+		if seat_pressed(p, "confirm"):
 			m.request_hop()
 
 
 ## Done / leave on the island: the turn key, or B on a controller.
 func _leave_pressed(p: int) -> bool:
-	return Input.is_action_just_pressed(Controls.action_name(p, "rotate")) \
-			or Input.is_action_just_pressed(Controls.action_name(p, "cancel"))
+	return seat_pressed(p, "rotate") or seat_pressed(p, "cancel")
 
 
 ## One menu step from a player's move keys / stick: a tap moves once.
 func _menu_dir(p: int) -> Vector2i:
 	var d := Vector2i.ZERO
-	if Input.is_action_just_pressed(Controls.action_name(p, "left")):
+	if seat_pressed(p, "left"):
 		d.x -= 1
-	if Input.is_action_just_pressed(Controls.action_name(p, "right")):
+	if seat_pressed(p, "right"):
 		d.x += 1
-	if Input.is_action_just_pressed(Controls.action_name(p, "forward")):
+	if seat_pressed(p, "forward"):
 		d.y -= 1
-	if Input.is_action_just_pressed(Controls.action_name(p, "back")):
+	if seat_pressed(p, "back"):
 		d.y += 1
 	return d
 
 
 func _refresh_colors() -> void:
 	for p in player_count:
-		player_colors[p] = Cosmetics.find("color", profiles.equipped(p, "color")).color
+		player_colors[p] = look_for(p).color.color
 	draft_build.colors = player_colors
 
 
-func _pressed_or_repeat(action: String, delta: float, rate := 0.09) -> bool:
-	## True on the first press, then repeatedly while held, so a cursor can
-	## glide down the lane.
-	if Input.is_action_just_pressed(action):
-		_repeat[action] = 0.3
+func _pressed_or_repeat(p: int, action: String, delta: float, rate := 0.09) -> bool:
+	## True on the first press, then repeatedly while held, so a piece can
+	## keep turning.
+	var key := "%d:%s" % [p, action]
+	if seat_pressed(p, action):
+		_repeat[key] = 0.3
 		return true
-	if Input.is_action_pressed(action):
-		_repeat[action] = _repeat.get(action, 0.3) - delta
-		if _repeat[action] <= 0.0:
-			_repeat[action] = rate
+	if seat_held(p, action):
+		_repeat[key] = _repeat.get(key, 0.3) - delta
+		if _repeat[key] <= 0.0:
+			_repeat[key] = rate
 			return true
 	return false
 
@@ -648,6 +716,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_close_crates()
 	elif event.is_action_pressed("quit"):
 		_pause()
+	elif net.active() and (event.is_action_pressed("toggle_collision") or event.is_action_pressed("restart_frame")):
+		return  # not in online games
+	elif event.is_action_pressed("roll") and net.is_client():
+		return  # sent to the host with the rest of our input
 	elif event.is_action_pressed("toggle_collision"):
 		marbles_collide = not marbles_collide
 		for m in marbles:
@@ -660,15 +732,374 @@ func _unhandled_input(event: InputEvent) -> void:
 			_prepare_roll()
 			_start_countdown()
 	elif event.is_action_pressed("roll"):
-		match state:
-			State.WAITING:
-				_start_draft()
-			State.RESULTS:
-				frame += 1
-				_prepare_roll()
-				_start_draft()
-			State.MATCH_OVER:
-				_new_match()
+		request_next()
+
+
+## Space / Y: start the match, the next frame, or a new match.
+func request_next() -> void:
+	match state:
+		State.WAITING:
+			_start_draft()
+		State.RESULTS:
+			frame += 1
+			_prepare_roll()
+			net.send_event("prepare", {"frame": frame})
+			_start_draft()
+		State.MATCH_OVER:
+			_new_match()
+
+
+# ------------------------------------------------------------ Seats
+
+## Local play: people first (from the Play page), then bots.
+func _setup_local_seats() -> void:
+	var people := clampi(settings.player_count, 1, 4)
+	var bot_n := clampi(settings.bot_count, 0, 4 - people)
+	player_count = people + bot_n
+	seat_kinds = []
+	seat_keys = [0, 1, 2, 3]
+	for p in 4:
+		seat_kinds.append(Seat.LOCAL if p < people else Seat.BOT)
+	_make_bots_and_looks()
+
+
+func _make_bots_and_looks(lobby: Array = []) -> void:
+	seat_looks = []
+	bots = [null, null, null, null]
+	for p in 4:
+		if seat_kinds[p] == Seat.BOT:
+			bots[p] = MarbleBot.new(p)
+			seat_looks.append(MarbleBot.look(p))
+		elif p < lobby.size() and not (seat_kinds[p] == Seat.LOCAL and net.active()):
+			seat_looks.append(_look_from_ids(lobby[p].get("look", {})))
+		else:
+			seat_looks.append(profiles.look(profile_of(p) if profile_of(p) >= 0 else p))
+	if draft_build:
+		draft_build.setup(builder, player_count, player_colors)
+	_refresh_colors()
+
+
+static func _look_from_ids(ids: Dictionary) -> Dictionary:
+	var out := {}
+	for slot in Cosmetics.SLOTS:
+		out[slot] = Cosmetics.find(slot, ids.get(slot, ""))
+	if not ids.has("eyes"):
+		out.eyes = Cosmetics.EYES[0]
+	if not ids.has("color"):
+		out.color = Cosmetics.COLORS[0]
+	return out
+
+
+func look_for(p: int) -> Dictionary:
+	return seat_looks[p] if p < seat_looks.size() else profiles.look(p)
+
+
+## Which saved profile a seat's coins go to, or -1 (bots and other
+## computers' players don't have one here).
+func profile_of(p: int) -> int:
+	if p >= seat_kinds.size() or seat_kinds[p] != Seat.LOCAL:
+		return -1
+	return 0 if net and net.active() else p
+
+
+func is_bot(p: int) -> bool:
+	if p < seat_kinds.size() and seat_kinds[p] == Seat.BOT:
+		return true
+	# Online clients don't run bots, but still show them as bots.
+	return net != null and net.is_client() and p < net.lobby.size() and net.lobby[p].kind == "bot"
+
+
+## The short name shown for a seat: P1, P2... or BOT.
+func seat_name(p: int) -> String:
+	if is_bot(p):
+		var n := 0
+		for q in player_count:
+			if is_bot(q):
+				n += 1
+		return "BOT" if n == 1 else "BOT%d" % (p + 1)
+	return "P%d" % (p + 1)
+
+
+## Seats played at this computer (for the key hints).
+func local_seats() -> Array:
+	var out := []
+	for p in player_count:
+		if seat_kinds[p] == Seat.LOCAL:
+			out.append(p)
+	return out
+
+
+## Read everyone's input for this frame: keys and controllers, bots, and
+## (online, on the host) what other computers sent.
+func _poll_seats(delta: float) -> void:
+	for p in player_count:
+		var list := []
+		match seat_kinds[p]:
+			Seat.LOCAL:
+				for b in NetSession.BUTTONS:
+					var action := Controls.action_name(seat_keys[p], b)
+					if InputMap.has_action(action) and Input.is_action_just_pressed(action):
+						list.append(b)
+			Seat.BOT:
+				(bots[p] as MarbleBot).think(self, delta)
+				list = bots[p].presses
+			Seat.REMOTE:
+				if net.is_host():
+					list = net.remote_presses(p)
+					if list.has("roll"):
+						request_next()
+		_pressed[p] = list
+		if list.has("confirm") and state == State.ROLLING:
+			_hop_latch[p] = true
+
+
+func seat_lean(p: int) -> Vector2:
+	match seat_kinds[p]:
+		Seat.LOCAL:
+			return Controls.read_lean(seat_keys[p])
+		Seat.BOT:
+			return (bots[p] as MarbleBot).lean
+		Seat.REMOTE:
+			return net.remote_lean(p)
+	return Vector2.ZERO
+
+
+func seat_pressed(p: int, button: String) -> bool:
+	return p < _pressed.size() and (_pressed[p] as Array).has(button)
+
+
+func seat_held(p: int, button: String) -> bool:
+	if seat_kinds[p] == Seat.LOCAL:
+		return Input.is_action_pressed(Controls.action_name(seat_keys[p], button))
+	return false
+
+
+# ------------------------------------------------------------ Online
+
+func _on_host_requested() -> void:
+	net.my_look_ids = profiles.seats[0].equipped.duplicate()
+	net.bot_count = settings.bot_count
+	if net.host() != OK:
+		menu.toast("Couldn't host (is the game already running?)")
+		return
+	menu.open_lobby(true)
+
+
+func _on_join_requested(address: String) -> void:
+	net.my_look_ids = profiles.seats[0].equipped.duplicate()
+	# "address" or "address:port"
+	address = address.strip_edges()
+	var port := NetSession.DEFAULT_PORT
+	if address.count(":") == 1:
+		port = int(address.get_slice(":", 1))
+		address = address.get_slice(":", 0)
+	if address == "" or net.join(address, port) != OK:
+		menu.toast("Couldn't connect to that address")
+		return
+	menu.toast("Connecting to %s..." % address)
+
+
+func _refresh_lobby() -> void:
+	var lines := []
+	for i in net.lobby.size():
+		var s: Dictionary = net.lobby[i]
+		var who: String = {"host": "host", "player": "player", "bot": "bot"}.get(s.kind, s.kind)
+		var me := "   (you)" if i == net.my_seat and s.kind != "bot" else ""
+		lines.append("%s   %s%s" % [s.name, who, me])
+	menu.set_lobby_text("\n".join(lines), net.is_host())
+
+
+## Host: everyone's in, start the match.
+func _start_online_match() -> void:
+	if not net.is_host():
+		return
+	net.set_meta("in_match", true)
+	frames_per_match = settings.frames_per_match
+	marbles_collide = settings.marbles_collide
+	_apply_lobby(net.lobby)
+	menu.close()
+	_new_match(true)
+
+
+## Turn the lobby into seats. My own seat is played with key set 0.
+func _apply_lobby(lobby: Array) -> void:
+	player_count = lobby.size()
+	seat_kinds = []
+	seat_keys = [0, 0, 0, 0]
+	for p in 4:
+		if p >= lobby.size():
+			seat_kinds.append(Seat.LOCAL)
+		elif lobby[p].kind == "bot":
+			seat_kinds.append(Seat.BOT if net.is_host() else Seat.REMOTE)
+		elif p == net.my_seat:
+			seat_kinds.append(Seat.LOCAL)
+		else:
+			seat_kinds.append(Seat.REMOTE)
+	_make_bots_and_looks(lobby)
+	if not net.is_host():
+		bots = [null, null, null, null]  # bots only think on the host
+
+
+func _on_net_left(reason: String) -> void:
+	_setup_local_seats()
+	_new_match()
+	show_title()
+	menu.toast(reason)
+
+
+## Host: what clients need every tick to draw the game.
+func _make_snapshot() -> Dictionary:
+	var ms := []
+	for m in marbles:
+		ms.append([m.global_position, m.quaternion, m.arrived, m.out])
+	var pins := []
+	for pin in rack.pins:
+		pins.append([pin.global_position, pin.quaternion])
+	var snap := {"ph": _phase_left, "cd": _countdown, "rt": _roll_time, "la": _last_arrival_time,
+			"m": ms, "pins": pins, "arr": arrival_order}
+	if state == State.DRAFT:
+		snap.dp = draft_build.draft_pointer
+		snap.tb = draft_build.taken_by
+		snap.pk = draft_build.picks
+		snap.msg = draft_build.message
+	elif state == State.BUILD:
+		snap.cp = draft_build.cursor_pos
+		snap.ca = draft_build.cursor_angle
+		snap.msg = draft_build.message
+	return snap
+
+
+## Client: a game event from the host. Each one does what the host just
+## did, so this copy of the game stays in step.
+func _on_net_event(name: String, data: Dictionary) -> void:
+	if name == "seat_dropped":
+		# Host: a player left mid-match; a bot takes over their seat.
+		for p in player_count:
+			if seat_kinds[p] == Seat.REMOTE and (p >= net.lobby.size() or net.lobby[p].kind == "bot"):
+				seat_kinds[p] = Seat.BOT
+				bots[p] = MarbleBot.new(p)
+		menu.toast("A player left: a bot took their seat")
+		return
+	if not net.is_client():
+		return
+	match name:
+		"match":
+			net.lobby = data.lobby
+			frames_per_match = data.frames
+			marbles_collide = data.collide
+			_apply_lobby(data.lobby)
+			menu.close()
+			if hub:
+				hub.stop()
+			_show_hub_world(false)
+			frame = 1
+			totals.resize(player_count)
+			totals.fill(0)
+			frame_points.clear()
+			last_result = {}
+			match_coins = [0, 0, 0, 0]
+			builder.clear()
+			($Course/Decor as TrackDecor).seed = data.decor
+			track.apply_layout(data.layout, data.start)
+			_place_deck()
+			state = State.WAITING
+			_refresh_colors()
+			_prepare_roll()
+		"prepare":
+			frame = data.frame
+			_prepare_roll()
+		"draft":
+			frame = data.frame
+			draft_build.mirror_draft(data.crate)
+			state = State.DRAFT
+		"build":
+			draft_build.picks = data.picks
+			draft_build.taken_by = data.taken
+			draft_build.start_build()
+			state = State.BUILD
+		"place":
+			draft_build.cursor_pos[data.p] = data.pos
+			draft_build.cursor_angle[data.p] = data.angle
+			draft_build.request_place(data.p)
+		"countdown":
+			if state == State.BUILD:
+				draft_build.end_build()
+			_countdown = 3.0
+			state = State.COUNTDOWN
+		"rolling":
+			_roll_time = 0.0
+			state = State.ROLLING
+		"result":
+			last_result = data.result
+			totals = data.totals
+			frame_points = data.points
+			coins_earned = data.coins
+			match_coins = data.match_coins
+			state = data.state
+			if profile_of(net.my_seat) >= 0:
+				profiles.add_coins(0, coins_earned[net.my_seat])
+				profiles.save_to_disk()
+			if data.striker >= 0:
+				hud.show_strike(data.striker, player_colors[data.striker])
+
+
+## Client: each frame, send my input and show the host's newest snapshot.
+func _client_process(delta: float) -> void:
+	if state != State.MENU and not menu.is_open():
+		net.send_input(Controls.read_lean(0), 0)
+	elif state != State.MENU:
+		net.send_input(Vector2.ZERO, 0)
+	if not _snap.is_empty() and state != State.MENU:
+		_apply_snapshot(_snap, delta)
+	_update_camera()
+	hud.refresh(self)
+
+
+func _apply_snapshot(snap: Dictionary, delta: float) -> void:
+	_phase_left = snap.ph
+	_countdown = snap.cd
+	_roll_time = snap.rt
+	_last_arrival_time = snap.la
+	arrival_order = snap.arr
+	var k := clampf(delta * 18.0, 0.0, 1.0)
+	var ms: Array = snap.m
+	for i in mini(ms.size(), marbles.size()):
+		var m: Marble = marbles[i]
+		var d: Array = ms[i]
+		if state in [State.COUNTDOWN, State.ROLLING, State.RESULTS, State.MATCH_OVER]:
+			m.global_position = m.global_position.lerp(d[0], k)
+			m.quaternion = m.quaternion.slerp(d[1], k)
+		if d[3] and not m.out:
+			_splash(d[0], m.color)
+		m.arrived = d[2]
+		m.out = d[3]
+	var pins: Array = snap.pins
+	for i in mini(pins.size(), rack.pins.size()):
+		rack.pins[i].global_position = rack.pins[i].global_position.lerp(pins[i][0], k)
+		rack.pins[i].quaternion = rack.pins[i].quaternion.slerp(pins[i][1], k)
+	if snap.has("dp") and state == State.DRAFT:
+		draft_build.draft_pointer = snap.dp
+		draft_build.taken_by = snap.tb
+		draft_build.picks = snap.pk
+		draft_build.message = snap.msg
+	if snap.has("cp") and state == State.BUILD:
+		for p in mini(player_count, draft_build.cursor_pos.size()):
+			if not draft_build.has_placed[p]:
+				draft_build.cursor_pos[p] = snap.cp[p]
+				draft_build.cursor_angle[p] = snap.ca[p]
+		draft_build.message = snap.msg
+		draft_build.refresh_visuals()
+
+
+## Client: marbles and pins are moved by the host's snapshots, not by
+## physics here.
+func _freeze_if_client() -> void:
+	if not net or not net.is_client():
+		return
+	for pin in rack.pins:
+		pin.freeze = true
+	for m in marbles:
+		m.freeze = true
 
 
 # ------------------------------------------------------------ Roll
@@ -750,6 +1181,8 @@ func _finish_frame() -> void:
 	var striker := strike_player()
 	if striker >= 0:
 		hud.show_strike(striker, player_colors[striker])
+	net.send_event("result", {"result": last_result, "totals": totals, "points": frame_points,
+			"coins": coins_earned, "match_coins": match_coins, "state": state, "striker": striker})
 
 
 ## The player who knocked down every pin by themselves this frame, or -1
@@ -775,13 +1208,16 @@ func _award_coins() -> void:
 			coins_earned[i] += Profiles.COINS_PER_MATCH
 			if totals[i] == totals.max():
 				coins_earned[i] += Profiles.COINS_FOR_WIN
-		profiles.add_coins(i, coins_earned[i])
 		match_coins[i] += coins_earned[i]
+		# Coins go to the profiles of people at this computer (online,
+		# each computer pays its own player).
+		if profile_of(i) >= 0:
+			profiles.add_coins(profile_of(i), coins_earned[i])
 	profiles.save_to_disk()
 
 
 func _on_arrival_line_body_entered(body: Node) -> void:
-	if state != State.ROLLING:
+	if state != State.ROLLING or net.is_client():
 		return
 	if body is Marble and not body.arrived and not body.out:
 		body.arrived = true
@@ -790,7 +1226,7 @@ func _on_arrival_line_body_entered(body: Node) -> void:
 
 
 func _on_rack_swept(player_id: int) -> void:
-	if state == State.ROLLING:
+	if state == State.ROLLING and not net.is_client():
 		sweep_player = player_id
 
 

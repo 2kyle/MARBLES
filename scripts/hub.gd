@@ -97,8 +97,8 @@ func _process(delta: float) -> void:
 # ------------------------------------------------------------ Start / stop
 
 ## Put a marble on the island for each player (building the island first
-## if needed).
-func start(count: int, profiles: Profiles, marble_scene: PackedScene) -> void:
+## if needed). `looks` holds each seat's look (people and bots).
+func start(count: int, looks: Array, marble_scene: PackedScene) -> void:
 	if not built:
 		_build()
 	visible = true
@@ -106,7 +106,7 @@ func start(count: int, profiles: Profiles, marble_scene: PackedScene) -> void:
 	for p in count:
 		var m: Marble = marble_scene.instantiate()
 		m.player_id = p
-		m.look = profiles.look(p)
+		m.look = looks[p]
 		# On open ground forward should be as strong as sideways.
 		m.lean_forward_force = m.lean_side_force
 		add_child(m)

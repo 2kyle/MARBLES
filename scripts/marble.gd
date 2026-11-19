@@ -69,7 +69,7 @@ var color := Color.WHITE:
 		color = value
 		_apply_look()
 
-## The player's chosen look: {hat, color, style, trail} entries from Cosmetics.
+## The player's chosen look: {hat, eyes, color, style, trail} entries from Cosmetics.
 ## Empty = plain glossy ball in `color`.
 var look: Dictionary = {}:
 	set(value):
@@ -92,13 +92,31 @@ var _trail: MarbleTrail
 var _hat: Node3D
 var _hat_id := ""
 var _hat_yaw := 0.0
+## The eyes ride along like the hat, turned toward the camera and the way
+## the ball is going, so you can see them blink and wince.
+var _eyes: EyeRig
+var _eyes_id := ""
+var _face_time := 0.0
+var _yaw_ready := false  # false until the first placement (then snap, don't swing)
+var _last_pos := Vector3.ZERO
+## How fast the ball is moving, worked out from where it was last frame
+## (so it also works when the ball is moved by network updates).
+var _seen_velocity := Vector3.ZERO
 
 const MARBLE_SHADER := preload("res://shaders/marble.gdshader")
 
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
+	landed.connect(wince)
+	_last_pos = global_position
 	_apply_look()
+
+
+## Squeeze the eyes shut after a knock. `strength` is the impact speed.
+func wince(strength: float) -> void:
+	if _eyes:
+		_eyes.wince(strength)
 
 
 func _process(delta: float) -> void:
@@ -110,18 +128,45 @@ func _process(delta: float) -> void:
 	_place_hat(delta)
 
 
+## Keep the hat and eyes on the ball. They don't roll with it: they turn
+## to face the camera, leaning toward the way the ball is going (and face
+## the viewer on display stands and in the closet).
 func _place_hat(delta: float) -> void:
-	if _hat == null or not is_inside_tree():
+	if (_hat == null and _eyes == null) or not is_inside_tree():
 		return
-	var flat := Vector3(linear_velocity.x, 0.0, linear_velocity.z)
+	if delta > 0.0:
+		_seen_velocity = _seen_velocity.lerp((global_position - _last_pos) / delta, 0.3)
+	_last_pos = global_position
+	_face_time += delta
+	var flat := Vector3(_seen_velocity.x, 0.0, _seen_velocity.z)
+	var cam := get_viewport().get_camera_3d()
+	var to_cam := Vector3.BACK
+	if cam:
+		to_cam = cam.global_position - global_position
+	var cam_yaw := atan2(-to_cam.x, -to_cam.z)
+	var want := cam_yaw
 	if preview:
-		_hat_yaw += delta * 1.2
-	elif flat.length() > 0.6:
-		var want := atan2(-flat.x, -flat.z)
-		_hat_yaw = lerp_angle(_hat_yaw, want, clampf(delta * 8.0, 0.0, 1.0))
+		# Showing off (closet, ready screen): look about a little.
+		want = cam_yaw + sin(_face_time * 1.1) * 0.3
+	elif flat.length() > 0.8:
+		var travel := atan2(-flat.x, -flat.z)
+		want = cam_yaw + clampf(angle_difference(cam_yaw, travel), -1.0, 1.0)
+	if delta > 0.0 and _yaw_ready:
+		_hat_yaw = lerp_angle(_hat_yaw, want, clampf(delta * 6.0, 0.0, 1.0))
+	else:
+		_hat_yaw = want
+		_yaw_ready = true
 	var size := global_transform.basis.get_scale().x * 0.3
-	_hat.global_transform = Transform3D(Basis(Vector3.UP, _hat_yaw).scaled(Vector3.ONE * size), global_position)
-	Hats.animate(_hat, delta, flat.length())
+	var t := Transform3D(Basis(Vector3.UP, _hat_yaw).scaled(Vector3.ONE * size), global_position)
+	if _hat:
+		_hat.global_transform = t
+		Hats.animate(_hat, delta, flat.length())
+	if _eyes:
+		# Eyes also tip up a little toward a camera that's looking down.
+		var flat_dist := Vector2(to_cam.x, to_cam.z).length()
+		var pitch := clampf(atan2(to_cam.y, flat_dist) * 0.6, 0.0, 0.6)
+		_eyes.global_transform = Transform3D(t.basis * Basis(Vector3.RIGHT, pitch), t.origin)
+		_eyes.update(delta, Basis(Vector3.UP, -_hat_yaw) * _seen_velocity)
 
 
 func _physics_process(delta: float) -> void:
@@ -244,6 +289,8 @@ func set_marble_collision(enabled: bool) -> void:
 func _on_body_entered(body: Node) -> void:
 	if body is Marble:
 		var hit := (linear_velocity - (body as Marble).linear_velocity).length()
+		if hit > 2.5:
+			wince(hit)
 		if hit > 2.5 and player_id < (body as Marble).player_id:
 			bumped.emit(hit)  # once per crash, from the lower player id
 	elif body is Pin:
@@ -256,6 +303,7 @@ func _on_body_entered(body: Node) -> void:
 		var side: float = lane_basis.x.dot(global_position - (body as Node3D).global_position)
 		var dir := signf(side) if absf(side) > 0.02 else (1.0 if randf() < 0.5 else -1.0)
 		apply_central_impulse(lane_basis.x * dir * bumper_kick * mass)
+		wince(4.0)
 
 
 func _apply_look() -> void:
@@ -299,4 +347,16 @@ func _apply_look() -> void:
 			_hat = Hats.build(hat_id)
 			_hat.top_level = true
 			add_child(_hat)
+			_place_hat(0.0)
+	var eyes_id: String = look.get("eyes", {"id": "none"}).id
+	if eyes_id != _eyes_id or (_eyes and _eyes.color != color):
+		_eyes_id = eyes_id
+		if _eyes:
+			_eyes.queue_free()
+			_eyes = null
+		if eyes_id != "none":
+			_eyes = EyeRig.new()
+			_eyes.top_level = true
+			add_child(_eyes)
+			_eyes.setup(eyes_id, color)
 			_place_hat(0.0)

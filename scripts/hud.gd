@@ -192,7 +192,7 @@ func _update_scores(game) -> void:
 		style.border_color = game.player_colors[i]
 		style.border_width_bottom = 4
 		var row := chip.get_child(0)
-		row.get_child(0).text = "P%d" % (i + 1)
+		row.get_child(0).text = game.seat_name(i)
 		row.get_child(0).add_theme_color_override("font_color", game.player_colors[i].lightened(0.2))
 		row.get_child(1).text = str(game.totals[i])
 		var status := ""
@@ -300,7 +300,7 @@ func _update_draft(game) -> void:
 		if owner != -1:
 			style.border_color = game.player_colors[owner]
 			card.pic.modulate = Color(1, 1, 1, 0.35)
-			card.stamp.text = "P%d" % (owner + 1)
+			card.stamp.text = game.seat_name(owner)
 			card.stamp.add_theme_color_override("font_color", game.player_colors[owner].lightened(0.2))
 			card.stamp.visible = true
 		elif hover != -1:
@@ -328,7 +328,7 @@ func _update_draft(game) -> void:
 		if not ptr.visible:
 			continue
 		ptr.color = game.player_colors[p]
-		ptr.tag = "P%d" % (p + 1)
+		ptr.tag = game.seat_name(p)
 		var target := _card_to_screen(db.draft_pointer[p], n)
 		ptr.position = target if ptr.position == Vector2.ZERO else ptr.position.lerp(target, 0.5)
 		ptr.queue_redraw()
@@ -433,7 +433,7 @@ func _update_chips(game) -> void:
 			state = "DONE"
 		elif db.cursor_blocked(p):
 			state = "BLOCKED"
-		var text := "P%d  %s" % [p + 1, piece]
+		var text := "%s  %s" % [game.seat_name(p), piece]
 		if state != "":
 			text += "  ·  " + state
 		var l: Label = chip.get_child(0)
@@ -495,7 +495,7 @@ func _update_hub(game) -> void:
 		style.border_color = game.player_colors[p]
 		style.border_width_bottom = 4
 		var row := chip.get_child(0)
-		row.get_child(0).text = "P%d" % (p + 1)
+		row.get_child(0).text = game.seat_name(p)
 		row.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
 		row.get_child(1).text = "%d COINS" % game.profiles.coins(p)
 	if not _derby.visible:
@@ -511,7 +511,7 @@ func _update_hub(game) -> void:
 		style.border_color = game.player_colors[p]
 		var box := panel.get_child(0)
 		var head: HBoxContainer = box.get_child(0)
-		head.get_child(0).text = "P%d  DERBY" % (p + 1)
+		head.get_child(0).text = game.seat_name(p) + "  DERBY"
 		head.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
 		head.get_child(2).text = "%d COINS" % game.profiles.coins(p)
 		var placed: bool = derby.bets.has(p)
@@ -530,7 +530,7 @@ func _update_hub(game) -> void:
 		if derby.message[p] != "":
 			foot.text = derby.message[p]
 		elif not placed:
-			foot.text = "%s  Place bet" % _key_names(p).confirm
+			foot.text = "%s  Place bet" % _key_names(game.seat_keys[p]).confirm
 		else:
 			foot.text = ""
 
@@ -681,7 +681,7 @@ func _fill_board(game) -> void:
 		var row: HBoxContainer = card.get_child(0)
 		var color: Color = game.player_colors[p].lightened(0.25)
 		var name: Label = row.get_child(0)
-		name.text = ("★ P%d" if p == leader and game.totals[p] > 0 else "P%d") % (p + 1)
+		name.text = ("★ " if p == leader and game.totals[p] > 0 else "") + game.seat_name(p)
 		name.add_theme_color_override("font_color", color)
 		for f in frames:
 			var cell: Label = row.get_child(1 + f)
@@ -838,7 +838,7 @@ func _frame_summary(game) -> String:
 			bits.append("sweep +%d" % r.sweep[i])
 		if r.knockouts[i] > 0:
 			bits.append("KO +%d" % r.knockouts[i])
-		parts.append("P%d +%d  (%s)" % [i + 1, r.points[i], ", ".join(bits)])
+		parts.append("%s +%d  (%s)" % [game.seat_name(i), r.points[i], ", ".join(bits)])
 	var text := "      ".join(parts)
 	if r.note != "":
 		text += "\n" + r.note
@@ -849,7 +849,7 @@ func _coins_text(game, whole_match: bool) -> String:
 	var parts := []
 	for i in game.player_count:
 		var got: int = game.match_coins[i] if whole_match else game.coins_earned[i]
-		parts.append("P%d +%d" % [i + 1, got])
+		parts.append("%s +%d" % [game.seat_name(i), got])
 	return "COINS   " + "      ".join(parts)
 
 
@@ -859,9 +859,9 @@ func _winner_text(game) -> String:
 	for i in game.player_count:
 		if game.totals[i] > best:
 			best = game.totals[i]
-			winners = ["P%d" % (i + 1)]
+			winners = [game.seat_name(i)]
 		elif game.totals[i] == best:
-			winners.append("P%d" % (i + 1))
+			winners.append(game.seat_name(i))
 	if winners.size() > 1:
 		return "TIE!  %s" % " & ".join(winners)
 	return "%s WINS!" % winners[0]
@@ -871,36 +871,35 @@ func _winner_text(game) -> String:
 
 func _update_hints(game) -> void:
 	var items := []   # [key, action] pairs; "|" separates groups
-	var n: int = game.player_count
 	match game.state:
 		game.State.WAITING:
 			items += [[_gk("SPACE"), "Start"], [_gk("V"), "Track"], [_gk("ESC"), "Pause"]]
 		game.State.HUB:
-			for p in n:
-				var k := _key_names(p)
+			for p in game.local_seats():
+				var k := _key_names(game.seat_keys[p])
 				if game.derby_open[p]:
-					items += [[k.move, "P%d Horse/Wager" % (p + 1)], [k.confirm, "Bet"], [k.rotate, "Leave"], "|"]
+					items += [[k.move, game.seat_name(p) + " Horse/Wager"], [k.confirm, "Bet"], [k.rotate, "Leave"], "|"]
 				else:
-					items += [[k.move, "P%d Roll" % (p + 1)], [k.confirm, "Hop"], "|"]
+					items += [[k.move, game.seat_name(p) + " Roll"], [k.confirm, "Hop"], "|"]
 			items += [[_gk("ESC"), "Pause"]]
 		game.State.DRAFT:
-			for p in n:
-				var k := _key_names(p)
-				items += [[k.move, "P%d" % (p + 1)], [k.confirm, "Grab"], "|"]
+			for p in game.local_seats():
+				var k := _key_names(game.seat_keys[p])
+				items += [[k.move, game.seat_name(p)], [k.confirm, "Grab"], "|"]
 		game.State.BUILD:
-			for p in n:
-				var k := _key_names(p)
+			for p in game.local_seats():
+				var k := _key_names(game.seat_keys[p])
 				var turn := "Turn"
 				if PieceCatalog.is_track(game.draft_build.picks[p]):
 					turn = "Flip" if PieceCatalog.turns(game.draft_build.picks[p]) else ""
-				items += [[k.move, "P%d" % (p + 1)]]
+				items += [[k.move, game.seat_name(p)]]
 				if turn != "":
 					items += [[k.rotate, turn]]
 				items += [[k.confirm, "Drop"], "|"]
 		game.State.COUNTDOWN, game.State.ROLLING:
-			for p in n:
-				var k := _key_names(p)
-				items += [[k.move, "P%d Lean" % (p + 1)], [k.confirm, "Hop"], "|"]
+			for p in game.local_seats():
+				var k := _key_names(game.seat_keys[p])
+				items += [[k.move, game.seat_name(p) + " Lean"], [k.confirm, "Hop"], "|"]
 			items += [[_gk("ESC"), "Pause"], [_gk("TAB"), "Scores"], [_gk("V"), "Camera"]]
 			if not Controls.any_pad():
 				items += [["R", "Retry"], ["C", "Bumping " + ("on" if game.marbles_collide else "off")]]

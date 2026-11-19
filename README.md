@@ -16,9 +16,9 @@ A party game where friends build a bowling lane together, then race physics marb
 
 The game opens on the **MARBLES 4P** title screen (a working title), with the camera slowly circling the island. From there:
 
-- **Play** picks the number of players (1 to 4), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start).
+- **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
 - **Practice Island** drops everyone onto a small floating island to roll about, hop and try things out (see below).
-- **Online** is a placeholder marked "soon".
+- **Online** hosts or joins a game over the internet or your home network (see below).
 - **Settings** has fullscreen, vsync, volume, camera shake and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
 - **Controls**, **Credits** and **Quit**.
 
@@ -60,11 +60,30 @@ A match is 10 frames. Every match starts on a new random track that winds left a
 
 While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m (not enough to clear the walls), and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
 
+### Bots
+
+Bots fill empty seats and play by the same rules as people: they wander over to a card in the draft and grab it, slide their piece somewhere down the track and drop it, then roll down the middle of the lane, leaning forward and hopping gaps. They're good but not perfect (they wobble a little). On the practice island they potter about and hop now and then. Each bot gets its own random look, always with eyes. Their code is `scripts/bot.gd`: a bot just answers "which way is my stick, and which buttons did I press?" every frame, exactly like a controller, so the referee treats it like anyone else.
+
+### Online play
+
+![The online lobby](docs/online_lobby.png)
+
+1. One person picks **ONLINE → HOST A GAME**. Their computer runs the game.
+2. Everyone else picks **ONLINE**, types the host's address and picks **JOIN**. On the same Wi-Fi that's the host's local address (like `192.168.1.20`); over the internet it's the host's public address. To test on one computer, open the game twice and join `127.0.0.1`.
+3. Everyone appears in the **LOBBY**. The host can add bots (up to four seats in all), pick the number of frames, and press **START**.
+
+How it works: the host's computer runs the whole game (physics, pins, scoring and the bots). Everyone else's game sends only their stick and button presses to the host and shows what the host sends back about 30 times a second, so everyone sees the same pins fall and nobody can cheat by changing their own copy. Online, each computer plays with the Player 1 keys or the first controller.
+
+- The game uses **port 24680 (UDP)**. Over the internet, the host has to forward that port to their computer in their router's settings ("port forwarding"). You can also type `address:port` to join a different port.
+- If someone leaves mid-match, a bot takes over their seat and the match carries on. If the host leaves, the match ends for everyone.
+- People can't join a match that has already started, retrying a frame is turned off online, and the practice island is local only for now.
+- The networking is in `scripts/net.gd`; `main.gd` decides what to send and does what the host says.
+
 ### The closet
 
 ![The closet](docs/closet.png)
 
-Roll onto the CUSTOMIZE plate on the practice island and the closet fills the screen. Your marble spins on a pedestal on the left; on the right are four tabs, **HATS**, **BALL COLOR**, **STYLE** and **TRAIL**, each a grid of cards with a little picture of the look. Your coins are in the top right corner.
+Roll onto the CUSTOMIZE plate on the practice island and the closet fills the screen. Your marble spins on a pedestal on the left; on the right are five tabs, **HATS**, **EYES**, **COLOR**, **STYLE** and **TRAIL**, each a grid of cards with a little picture of the look. Your coins are in the top right corner.
 
 - Move with your lean keys or stick. Up from the top row reaches the tabs, and pushing past the left or right edge of the grid flips to the next tab.
 - Whatever you highlight is tried on the big marble straight away, even if you don't own it yet.
@@ -72,7 +91,15 @@ Roll onto the CUSTOMIZE plate on the practice island and the closet fills the sc
 - The coloured strip under each card is its rarity: grey Common, blue Rare, purple Epic, gold Legendary.
 - Your turn key (Q for P1, B on a controller) closes the closet and rolls you off the plate.
 
-What's in it: 17 hats (party hat, beanie, ball cap, traffic cone, top hat, cowboy hat, chef hat, bunny ears, flower crown, propeller cap, pirate hat, viking helmet, rubber duck, wizard hat, crown and halo), 13 ball colours, 9 styles (Gloss, Stripes, Checkers, Chrome, Swirl, Neon, Glass, Lava, Galaxy) and 5 trails (Ribbon, Sparkles, Bubbles, Flame, Rainbow). Everyone starts with no hat, four colours, Gloss and the Ribbon trail.
+What's in it: 17 hats (party hat, beanie, ball cap, traffic cone, top hat, cowboy hat, chef hat, bunny ears, flower crown, propeller cap, pirate hat, viking helmet, rubber duck, wizard hat, crown and halo), 13 ball colours, 9 styles (Gloss, Stripes, Checkers, Chrome, Swirl, Neon, Glass, Lava, Galaxy) 5 trails (Ribbon, Sparkles, Bubbles, Flame, Rainbow) and 13 pairs of eyes. Everyone starts with no hat, four colours, Gloss, the Ribbon trail, and Classic eyes, Dots or no eyes at all.
+
+### Eyes
+
+![Marbles with eyes](docs/eyes.png)
+
+Every marble wears a pair of eyes by default. They sit on the front of the ball and stay turned toward the camera (leaning a little toward where the marble is heading) while the marble rolls underneath, the same way hats do. They blink every few seconds (sometimes a quick double blink), and they **squeeze shut in a wince** when the marble is knocked by another marble, hits a bumper or lands hard. Googly eyes' pupils wobble as the marble moves.
+
+The eyes: Classic, Dots and None (everyone has these), Googly, Sleepy and Happy (Common), Grumpy, Sparkly and Cyclops (Rare), Shades and Robot visor (Epic), Heart eyes and Star eyes (Legendary). They're in loot crates like every other look. Eye shapes are built in `scripts/eyes.gd`; to add a pair, add it to `EYES` in `scripts/cosmetics.gd` and a branch in `EyeRig.setup()`.
 
 ### Loot crates
 
@@ -88,7 +115,7 @@ Every other look is won from loot crates on the practice island. A crate costs *
 
 A look you already own pays coins back instead (25 for Common up to 150 for Legendary). The Golden Marble Trophy isn't worn: it stands on your practice island. The odds are shown on the crate screen, and live in `scripts/loot_crates.gd` if you want to tune them.
 
-- **Coins:** you get 1 coin per point you score each frame. At the end of a match everyone gets +20 and the winner gets +50 more. New players start with 150, enough for one crate. The Marble Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on).
+- **Coins:** you get 1 coin per point you score each frame. At the end of a match everyone gets +20 and the winner gets +50 more. New players start with 150, enough for one crate. The Marble Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on). Bots don't earn coins. Online, your coins and looks are the ones on your own computer (P1's).
 - Looks and rarities live in `scripts/cosmetics.gd`, hat shapes in `scripts/hats.gd`, and coin amounts in `scripts/profiles.gd`.
 
 ### STRIKE!
@@ -245,6 +272,9 @@ scripts/
   draft_build.gd     draft and build rules
   cosmetics.gd       every marble look and its rarity
   hats.gd            builds the hat shapes
+  eyes.gd            builds the eyes, and makes them blink and wince
+  bot.gd             computer players (draft, build, roll, practice island)
+  net.gd             online play: hosting, joining, the lobby and what's sent
   loot_crates.gd     loot crate prices and odds
   closet.gd          the full-screen closet
   crate_screen.gd    opening a loot crate
@@ -282,9 +312,11 @@ tests/
   sim_gap.gd         rolls over a gap, with or without well-timed hops
   sim_hub.gd         checks the practice island's teleports, closet, a loot crate, derby bet and PLAY arch
   test_crates.gd     opens 100,000 crates and checks the odds (1% trophy and so on)
+  sim_bots.gd        one idle person and three bots: checks bots draft, build and roll on their own
+  net_host.gd, net_client.gd, run_net_test.sh   plays an online match between two copies of the game
 ```
 
-The code is set up for online play later: `main.gd` makes every decision (physics, who arrived first, who gets each pin), and player input only reaches the game through two functions: `_gather_inputs()` for marble lean and `_gather_build_inputs()` for draft and build requests. When online play arrives, the host runs `main.gd` and fills those in from the network instead of the keyboard.
+`main.gd` makes every decision (physics, who arrived first, who gets each pin). Each seat is a person at this computer, a bot, or (online) someone on another computer, and their input only reaches the game through `seat_lean()` and `seat_pressed()`. Online, the host runs `main.gd` as usual and fills those in from the network; the other computers copy what the host sends.
 
 ### Running the tests (optional)
 
@@ -295,4 +327,6 @@ godot --headless --script res://tests/test_scoring.gd
 godot --headless --script res://tests/test_crates.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_roll.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_gap.gd -- hop
+godot --headless --fixed-fps 120 --script res://tests/sim_bots.gd
+GODOT=godot tests/run_net_test.sh
 ```

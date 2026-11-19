@@ -6,13 +6,19 @@ extends CanvasLayer
 ## The menu never changes the game itself: it only emits signals, and
 ## main.gd decides what happens. That keeps it easy to add pages later.
 ## PRACTICE takes everyone to the practice island (main.gd opens the hub).
+## ONLINE hosts or joins a game (main.gd and net.gd do the networking);
+## the lobby page shows who's in and lets the host add bots and start.
 ##
 ## Keyboard: arrows (or W/S) move between buttons, Enter (or E) picks,
 ## left/right change a setting, Esc goes back. The mouse works too.
 
 signal play_requested
 signal practice_requested
-signal online_requested
+signal host_requested
+signal join_requested(address: String)
+signal lobby_leave_requested
+signal lobby_start_requested
+signal lobby_bots_changed(count: int)
 signal resume_requested
 signal restart_frame_requested
 signal quit_to_menu_requested
@@ -37,6 +43,10 @@ var _toast: Label
 var _toast_time := 0.0
 var _fps: Label
 var _dim: ColorRect
+var _address: LineEdit
+var _lobby_list: Label
+var _lobby_host_only: Array = []
+var _lobby_wait: Label
 
 
 ## A button that cycles through values with left/right (or a click).
@@ -113,6 +123,8 @@ func _ready() -> void:
 
 	_build_main_page()
 	_build_play_page()
+	_build_online_page()
+	_build_lobby_page()
 	_build_settings_page()
 	_build_controls_page()
 	_build_credits_page()
@@ -187,13 +199,41 @@ func close() -> void:
 	_show_top()
 
 
+## Show the online lobby. Only the host gets the bots, frames and start
+## controls.
+func open_lobby(is_host: bool) -> void:
+	paused_menu = false
+	_stack = ["main", "online", "lobby"]
+	for c in _lobby_host_only:
+		c.visible = is_host
+	_lobby_wait.visible = not is_host
+	_show_top()
+
+
+## Back to the HOST / JOIN page (after leaving or failing to connect).
+func back_to_online() -> void:
+	paused_menu = false
+	_stack = ["main", "online"]
+	_show_top()
+
+
+func set_lobby_text(text: String, is_host: bool) -> void:
+	_lobby_list.text = text
+	for c in _lobby_host_only:
+		c.visible = is_host
+	_lobby_wait.visible = not is_host
+
+
 func is_open() -> bool:
 	return not _stack.is_empty()
 
 
-## Go back one page. Backing out of the pause menu resumes the match.
+## Go back one page. Backing out of the pause menu resumes the match;
+## backing out of the lobby leaves the online game.
 func back() -> void:
-	if _stack.size() > 1:
+	if not _stack.is_empty() and _stack[-1] == "lobby":
+		lobby_leave_requested.emit()
+	elif _stack.size() > 1:
 		_stack.pop_back()
 		_show_top()
 	elif paused_menu:
@@ -223,7 +263,7 @@ func _show_top() -> void:
 
 func _first_focus(node: Node) -> Control:
 	for c in node.get_children():
-		if c is Button and not (c as Button).disabled:
+		if c is Button and not (c as Button).disabled and (c as Button).visible:
 			return c
 		var inner := _first_focus(c)
 		if inner:
@@ -242,7 +282,7 @@ func _build_main_page() -> void:
 	var page := _page("main", "")
 	_button(page, "PLAY", func(): _push("play"), true)
 	_button(page, "PRACTICE ISLAND", _on_practice)
-	_button(page, "ONLINE", _on_online, false, "SOON")
+	_button(page, "ONLINE", func(): _push("online"))
 	_button(page, "SETTINGS", func(): _push("settings"))
 	_button(page, "CONTROLS", func(): _push("controls"))
 	_button(page, "CREDITS", func(): _push("credits"))
@@ -253,16 +293,19 @@ func _on_practice() -> void:
 	practice_requested.emit()
 
 
-func _on_online() -> void:
-	online_requested.emit()
-	toast("Online play is coming soon!")
-
-
 func _build_play_page() -> void:
 	var page := _page("play", "LOCAL MATCH")
 	var players := _stepper(page, "PLAYERS", [1, 2, 3, 4])
+	var bots := _stepper(page, "BOTS", [0, 1, 2, 3])
+	# People and bots share the four seats.
 	players.value_changed.connect(func(i):
 		settings.player_count = i + 1
+		settings.bot_count = mini(settings.bot_count, 3 - i)
+		bots.index = settings.bot_count
+		_save())
+	bots.value_changed.connect(func(i):
+		settings.bot_count = mini(i, 4 - settings.player_count)
+		bots.index = settings.bot_count
 		_save())
 	var frames := _stepper(page, "FRAMES", [3, 5, 10])
 	frames.value_changed.connect(func(i):
@@ -274,11 +317,57 @@ func _build_play_page() -> void:
 		_save())
 	page.set_meta("sync", func():
 		players.index = settings.player_count - 1
+		bots.index = settings.bot_count
 		frames.index = maxi([3, 5, 10].find(settings.frames_per_match), 0)
 		bump.index = 0 if settings.marbles_collide else 1)
 	_note(page, "Everyone shares this keyboard. Players 3 and 4 use I J K L and the number pad.")
 	_button(page, "START", func(): play_requested.emit(), true)
 	_button(page, "BACK", back)
+
+
+func _build_online_page() -> void:
+	var page := _page("online", "ONLINE")
+	_button(page, "HOST A GAME", func(): host_requested.emit(), true)
+	_note(page, "Or join a friend's game. Type their address (like 192.168.1.20, or a public address):")
+	_address = LineEdit.new()
+	_address.text = "127.0.0.1"
+	_address.placeholder_text = "address"
+	_address.add_theme_font_size_override("font_size", 24)
+	_address.custom_minimum_size = Vector2(440, 48)
+	_address.text_submitted.connect(func(t): join_requested.emit(t))
+	page.add_child(_address)
+	_button(page, "JOIN", func(): join_requested.emit(_address.text))
+	_note(page, "The host's computer runs the game on port %d (UDP). Over the internet the host needs that port forwarded on their router; on the same Wi-Fi it just works." % NetSession.DEFAULT_PORT)
+	_button(page, "BACK", back)
+
+
+func _build_lobby_page() -> void:
+	var page := _page("lobby", "LOBBY")
+	_lobby_list = Label.new()
+	_lobby_list.add_theme_font_override("font", TITLE_FONT)
+	_lobby_list.add_theme_font_size_override("font_size", 26)
+	_lobby_list.custom_minimum_size = Vector2(440, 150)
+	page.add_child(_lobby_list)
+	var bots := _stepper(page, "BOTS", [0, 1, 2, 3])
+	bots.value_changed.connect(func(i):
+		settings.bot_count = i
+		_save()
+		lobby_bots_changed.emit(i))
+	var frames := _stepper(page, "FRAMES", [3, 5, 10])
+	frames.value_changed.connect(func(i):
+		settings.frames_per_match = [3, 5, 10][i]
+		_save())
+	var start := _button(page, "START", func(): lobby_start_requested.emit(), true)
+	_lobby_host_only = [bots, frames, start]
+	_lobby_wait = Label.new()
+	_lobby_wait.text = "Waiting for the host to start..."
+	_lobby_wait.add_theme_font_size_override("font_size", 20)
+	_lobby_wait.add_theme_color_override("font_color", GOLD)
+	page.add_child(_lobby_wait)
+	page.set_meta("sync", func():
+		bots.index = settings.bot_count
+		frames.index = maxi([3, 5, 10].find(settings.frames_per_match), 0))
+	_button(page, "LEAVE", back)
 
 
 func _build_settings_page() -> void:

@@ -9,6 +9,8 @@ extends Node
 ## request arrives over the network.
 
 signal changed
+## A piece went down (online, the host tells everyone where).
+signal placed(player: int, pos: Vector2, angle: float)
 
 var builder: CourseBuilder
 var player_count := 2
@@ -51,6 +53,17 @@ func setup(p_builder: CourseBuilder, p_count: int, p_colors: Array) -> void:
 
 func start_draft(crate_size: int, rng: RandomNumberGenerator) -> void:
 	crate = PieceCatalog.random_crate(crate_size, rng, not builder.track.layout.is_empty())
+	taken_by = _filled(crate.size(), -1)
+	picks = _filled(player_count, "")
+	draft_pointer = []
+	for i in player_count:
+		draft_pointer.append(Vector2((i + 0.5) * crate.size() / float(player_count), 1.45))
+	message = _filled(player_count, "")
+
+
+## Online client: show the same crate the host dealt.
+func mirror_draft(p_crate: Array) -> void:
+	crate = p_crate
 	taken_by = _filled(crate.size(), -1)
 	picks = _filled(player_count, "")
 	draft_pointer = []
@@ -207,6 +220,7 @@ func request_place(player: int) -> bool:
 	if not builder.place(id, cursor_pos[player], cursor_angle[player], player):
 		message[player] = "Blocked"
 		return false
+	placed.emit(player, cursor_pos[player], cursor_angle[player])
 	if part[player] + 1 < PieceCatalog.parts(picks[player]):
 		# First part down: keep the cursor and switch to the next part.
 		_first_part[player] = builder.last_placed
@@ -269,6 +283,11 @@ func cursor_blocked(player: int) -> bool:
 
 
 # ---------------------------------------------------------------- Visuals
+
+## Redraw the cursors (online clients call this after a snapshot moves them).
+func refresh_visuals() -> void:
+	_update_visuals()
+
 
 func _update_visuals() -> void:
 	for p in player_count:

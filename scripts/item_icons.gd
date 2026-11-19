@@ -28,10 +28,11 @@ static func make(slot: String, item: Dictionary, base: Color, size := 112) -> Co
 		"trophy":
 			return _viewport("trophy", size, func(world: Node3D): world.add_child(trophy_model(Color.WHITE, "")),
 					Vector3(0, 0.95, 2.6), Vector3(0, 0.75, 0))
-	var look := {"hat": Cosmetics.HATS[0], "color": {"color": base}, "style": Cosmetics.STYLES[0],
-			"trail": {"id": "none"}}
+	var look := {"hat": Cosmetics.HATS[0], "eyes": Cosmetics.EYES[0], "color": {"color": base},
+			"style": Cosmetics.STYLES[0], "trail": {"id": "none"}}
 	match slot:
 		"hat": look.hat = item
+		"eyes": look.eyes = item
 		"color": look.color = item
 		"style": look.style = item
 	var hatted: bool = slot == "hat" and item.id != "none"
@@ -39,6 +40,7 @@ static func make(slot: String, item: Dictionary, base: Color, size := 112) -> Co
 	return _viewport(key, size, func(world: Node3D):
 		var m: Marble = MARBLE_SCENE.instantiate()
 		m.freeze = true
+		m.preview = true   # faces the camera
 		world.add_child(m)
 		m.look = look
 		m.get_node("Mesh").rotation = Vector3(0.4, 0.6, 0.0),

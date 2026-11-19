@@ -2,7 +2,7 @@ class_name Closet
 extends CanvasLayer
 ## The closet: a full-screen wardrobe for one player at a time, opened from
 ## the CUSTOMIZE plate on the practice island. Your marble spins on a
-## pedestal on the left; the right side has four tabs (HATS, BALL COLOR,
+## pedestal on the left; the right side has five tabs (HATS, EYES, COLOR,
 ## STYLE, TRAIL) full of item cards with little pictures. Looks you haven't
 ## won yet are shown dark with a lock: they come from loot crates.
 ##

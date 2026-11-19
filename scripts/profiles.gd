@@ -23,7 +23,7 @@ func _init() -> void:
 		seats.append({
 			"coins": STARTING_COINS,
 			"owned": Cosmetics.free_items(),
-			"equipped": {"hat": "none", "color": DEFAULT_COLORS[i], "style": "gloss", "trail": "ribbon"},
+			"equipped": {"hat": "none", "eyes": "classic", "color": DEFAULT_COLORS[i], "style": "gloss", "trail": "ribbon"},
 		})
 
 
@@ -94,10 +94,11 @@ func add_coins(seat: int, amount: int) -> void:
 	seats[seat].coins += amount
 
 
-## Everything a marble needs to look right: hat, color, style and trail entries.
+## Everything a marble needs to look right: hat, eyes, color, style and trail entries.
 func look(seat: int) -> Dictionary:
 	return {
 		"hat": Cosmetics.find("hat", equipped(seat, "hat")),
+		"eyes": Cosmetics.find("eyes", equipped(seat, "eyes")),
 		"color": Cosmetics.find("color", equipped(seat, "color")),
 		"style": Cosmetics.find("style", equipped(seat, "style")),
 		"trail": Cosmetics.find("trail", equipped(seat, "trail")),

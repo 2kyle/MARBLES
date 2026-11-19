@@ -3,8 +3,8 @@ extends RefCounted
 ## Every marble look in the game. Looks come from loot crates (see
 ## loot_crates.gd), and each has a rarity. "starter" looks are owned from
 ## the start. To add one: add an entry here. Styles with a "pattern" use
-## shaders/marble.gdshader, trails are made in scripts/marble_trail.gd and
-## hats in scripts/hats.gd.
+## shaders/marble.gdshader, trails are made in scripts/marble_trail.gd,
+## hats in scripts/hats.gd and eyes in scripts/eyes.gd.
 
 ## Rarities, from most to least common, with their colour.
 const RARITIES := {
@@ -34,6 +34,22 @@ const HATS := [
 	{"id": "wizard", "name": "Wizard Hat", "rarity": "legendary"},
 	{"id": "crown", "name": "Crown", "rarity": "legendary"},
 	{"id": "halo", "name": "Halo", "rarity": "legendary"},
+]
+
+const EYES := [
+	{"id": "classic", "name": "Classic", "rarity": "starter"},
+	{"id": "dots", "name": "Button Dots", "rarity": "starter"},
+	{"id": "none", "name": "No Eyes", "rarity": "starter"},
+	{"id": "googly", "name": "Googly", "rarity": "common"},
+	{"id": "sleepy", "name": "Sleepy", "rarity": "common"},
+	{"id": "happy", "name": "Happy", "rarity": "common"},
+	{"id": "angry", "name": "Grumpy", "rarity": "rare"},
+	{"id": "cute", "name": "Sparkly", "rarity": "rare"},
+	{"id": "cyclops", "name": "Cyclops", "rarity": "rare"},
+	{"id": "shades", "name": "Cool Shades", "rarity": "epic"},
+	{"id": "robot", "name": "Robot Visor", "rarity": "epic"},
+	{"id": "hearts", "name": "Heart Eyes", "rarity": "legendary"},
+	{"id": "stars", "name": "Star Eyes", "rarity": "legendary"},
 ]
 
 const COLORS := [
@@ -78,13 +94,14 @@ const TRAILS := [
 const TROPHY := {"id": "golden_marble", "name": "Golden Marble Trophy", "rarity": "ultra"}
 
 ## The closet's sections, in order.
-const SLOTS := ["hat", "color", "style", "trail"]
-const SLOT_NAMES := {"hat": "HATS", "color": "BALL COLOR", "style": "STYLE", "trail": "TRAIL"}
+const SLOTS := ["hat", "eyes", "color", "style", "trail"]
+const SLOT_NAMES := {"hat": "HATS", "eyes": "EYES", "color": "COLOR", "style": "STYLE", "trail": "TRAIL"}
 
 
 static func items(slot: String) -> Array:
 	match slot:
 		"hat": return HATS
+		"eyes": return EYES
 		"color": return COLORS
 		"style": return STYLES
 		"trail": return TRAILS

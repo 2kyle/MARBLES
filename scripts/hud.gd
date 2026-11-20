@@ -1235,7 +1235,9 @@ func _update_hints(game) -> void:
 			for p in game.local_seats():
 				var k := _key_names(game.seat_keys[p])
 				var kind: String = game.table_open[p]
-				if kind == "derby":
+				if p < game.hub.marbles.size() and game.hub.plane.pilot == game.hub.marbles[p]:
+					items += [[k.move, game.seat_name(p) + " Fly"], [k.confirm, "Boost"], [k.rotate, "Hop out"], "|"]
+				elif kind == "derby":
 					items += [[k.move, game.seat_name(p) + " Horse/Wager"], [k.confirm, "Bet"], [k.rotate, "Leave"], "|"]
 				elif kind == "blackjack":
 					items += [[k.move, game.seat_name(p) + " Wager"], [k.confirm, "Deal/Hit"], [k.rotate, "Stand/Leave"], "|"]

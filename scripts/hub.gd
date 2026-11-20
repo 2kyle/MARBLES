@@ -82,6 +82,8 @@ var derby: HorseRace
 var sports: SportsIsland
 ## The jungle: cliff walls, ruins, mushrooms, secrets and critters.
 var jungle: Jungle
+## The biplane on the lookout islet (biplane.gd).
+var plane: Biplane
 
 ## Which plate each player is parked on (its position).
 var _plate_of: Array = [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]
@@ -192,6 +194,8 @@ func set_tag(p: int, text: String, color: Color) -> void:
 
 
 func stop() -> void:
+	if plane:
+		plane.reset()
 	stop_marbles()
 	visible = false
 
@@ -252,6 +256,7 @@ func spawn_point(p: int) -> Vector3:
 
 ## Called every physics tick while the hub is open.
 func physics_update(delta: float) -> void:
+	plane.update(delta)
 	casino.update(delta, marbles)
 	sports.update(delta)
 	for m in marbles:
@@ -894,19 +899,27 @@ func _lookout() -> void:
 	LowPoly.cyl(self, 6.0, 5.8, 0.4, islet + Vector3.DOWN * 0.2, Color(0.36, 0.66, 0.3), 16)
 	LowPoly.cyl(self, 5.8, 1.0, 7.0, islet + Vector3.DOWN * 3.9, Color(0.48, 0.44, 0.42), 9)
 	_bridge(Vector3(0, 0.05, -ISLAND_RADIUS + 1.0), islet + Vector3(0, 0.05, 5.5))
-	# On the islet: a little lookout with a telescope, a chest and a palm.
-	LowPoly.cyl(self, 1.4, 1.6, 0.3, islet + Vector3(2.5, 0.15, -2.0), Color(0.75, 0.72, 0.66), 10)
-	LowPoly.cyl(self, 0.08, 0.08, 1.0, islet + Vector3(2.5, 0.8, -2.0), Color(0.3, 0.3, 0.32), 6)
-	var scope := LowPoly.cyl(self, 0.09, 0.14, 0.9, islet + Vector3(2.5, 1.35, -2.2), Color(0.8, 0.65, 0.3), 10)
+	# Round the edge: a telescope, a treasure chest and a palm, leaving the
+	# middle clear for the plane.
+	var scope_at := islet + Vector3(-3.8, 0, 2.2)
+	LowPoly.cyl(self, 1.0, 1.2, 0.3, scope_at + Vector3.UP * 0.15, Color(0.75, 0.72, 0.66), 10)
+	LowPoly.cyl(self, 0.08, 0.08, 1.0, scope_at + Vector3.UP * 0.8, Color(0.3, 0.3, 0.32), 6)
+	var scope := LowPoly.cyl(self, 0.09, 0.14, 0.9, scope_at + Vector3(0, 1.35, -0.2), Color(0.8, 0.65, 0.3), 10)
 	scope.rotation.x = -1.2
-	LowPoly.box(self, Vector3(1.0, 0.6, 0.7), islet + Vector3(-2.5, 0.3, -1.5), Color(0.55, 0.35, 0.18), 0.4)
-	LowPoly.box(self, Vector3(1.05, 0.12, 0.75), islet + Vector3(-2.5, 0.66, -1.5), Color(0.95, 0.75, 0.25), 0.4)
-	LowPoly.cyl(self, 0.12, 0.2, 3.5, islet + Vector3(-1.0, 1.75, -3.5), Color(0.55, 0.4, 0.25), 6)
+	LowPoly.box(self, Vector3(1.0, 0.6, 0.7), islet + Vector3(3.8, 0.3, 2.4), Color(0.55, 0.35, 0.18), -0.5)
+	LowPoly.box(self, Vector3(1.05, 0.12, 0.75), islet + Vector3(3.8, 0.66, 2.4), Color(0.95, 0.75, 0.25), -0.5)
+	var palm_at := islet + Vector3(4.3, 0, -3.4)
+	LowPoly.cyl(self, 0.12, 0.2, 3.5, palm_at + Vector3.UP * 1.75, Color(0.55, 0.4, 0.25), 6)
 	for k in 6:
-		var leaf := LowPoly.box(self, Vector3(0.35, 0.05, 1.8), islet + Vector3(-1.0, 3.5, -3.5), Color(0.3, 0.65, 0.3), TAU * k / 6.0)
+		var leaf := LowPoly.box(self, Vector3(0.35, 0.05, 1.8), palm_at + Vector3.UP * 3.5, Color(0.3, 0.65, 0.3), TAU * k / 6.0)
 		leaf.rotate_object_local(Vector3.RIGHT, 0.35)
 		leaf.translate_object_local(Vector3(0, 0, 0.8))
-	LowPoly.label(self, islet + Vector3(0, 2.4, 3.6), "LOOKOUT", 48, Color(0.1, 0.3, 0.45), 0.0, true)
+	LowPoly.label(self, islet + Vector3(0, 3.4, 4.6), "LOOKOUT", 48, Color(0.1, 0.3, 0.45), 0.0, true)
+	# A little biplane, nose out to sea: roll in and fly round the island.
+	plane = Biplane.new()
+	plane.name = "Biplane"
+	add_child(plane)
+	plane.build(self, islet + Vector3(0, 0, -0.6), 0.0)
 
 
 ## A plank bridge with rope rails from `start` to `end` (on the ground).

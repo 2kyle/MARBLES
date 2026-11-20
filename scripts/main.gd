@@ -984,6 +984,14 @@ func _gather_hub_inputs() -> void:
 	var flat := Basis(Vector3.UP, atan2(cam.z.x, cam.z.z))
 	for m in hub.marbles:
 		var p := m.player_id
+		if hub.plane.pilot == m:
+			# Flying the biplane: steer with the move keys.
+			hub.plane.steer = seat_lean(p)
+			if seat_pressed(p, "confirm"):
+				hub.plane.boost()
+			if _leave_pressed(p):
+				hub.plane.bail()
+			continue
 		if seat_kinds[p] == Seat.REMOTE:
 			# Guests send their lean already turned to match their own
 			# camera (x = east, y = south), so no turning here.

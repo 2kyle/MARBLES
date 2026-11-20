@@ -144,6 +144,11 @@ var player_colors: Array = PLAYER_COLORS.duplicate()
 ## Coins each player earned in the last frame / match, for the scoreboard.
 var coins_earned: Array = [0, 0, 0, 0]
 var match_coins: Array = [0, 0, 0, 0]
+## Pins and bonus points each player has scored this match, and at the end
+## the coins breakdown for the COINS EARNED screen (Scoring.match_coins).
+var match_pins: Array = [0, 0, 0, 0]
+var match_bonus: Array = [0, 0, 0, 0]
+var coin_breakdown: Array = []
 var frame := 1
 var totals: Array = []
 var marbles: Array[Marble] = []
@@ -577,6 +582,8 @@ func _show_hub_world(on: bool) -> void:
 	var env: WorldEnvironment = $WorldEnvironment
 	if on and _hub_env == null:
 		_hub_env = hub.make_environment()
+	if podium:
+		podium.clear()
 	if on:
 		env.environment = _hub_env
 		Arena.plain_sun($Sun)
@@ -661,7 +668,7 @@ func _new_match(new_track := true) -> void:
 		_new_track()
 	_place_deck()
 	state = State.WAITING
-	match_coins = [0, 0, 0, 0]
+	_reset_match_coins()
 	_refresh_colors()
 	_prepare_roll()
 	if net.is_host():
@@ -731,14 +738,19 @@ func _place_deck() -> void:
 		arena.refit(track, deck)
 
 
-## The match is over: the top three on the podium, fourth in the bin.
-## It stands where the pins were, so the pins and real marbles hide.
+## Where the FINAL STANDINGS stage is built: far below the course, in its
+## own dark room, so nothing else is in shot.
+const PODIUM_STAGE_AT := Vector3(0, -400, 0)
+
+## The match is over: the top three on the podium, fourth in the bin, on
+## their own dark stage. The pins and real balls hide meanwhile.
 func _show_podium() -> void:
 	if podium == null:
 		podium = Podium.new()
 		podium.name = "Podium"
+		podium.top_level = true
 		deck.add_child(podium)
-	podium.position = ($Course/Deck/RackSpot as Node3D).position + Vector3(0, 0, -0.5)
+	podium.global_transform = Transform3D(Basis(Vector3.UP, deck.global_rotation.y), PODIUM_STAGE_AT)
 	var order := range(player_count)
 	order.sort_custom(func(a, b): return totals[a] > totals[b] or (totals[a] == totals[b] and a < b))
 	var looks := []
@@ -747,15 +759,19 @@ func _show_podium() -> void:
 		looks.append(look_for(p))
 		names.append(seat_name(p))
 	podium.show_for(order, looks, player_colors, names, marble_scene)
+	($WorldEnvironment as WorldEnvironment).environment = podium.environment()
+	($Sun as DirectionalLight3D).light_energy = 0.0
 	rack.visible = false
 	for m in marbles:
 		m.visible = false
+	_update_camera()
+	camera.snap_to(camera.target)
 
 
 func _prepare_roll() -> void:
 	## Put fresh marbles at the start gate (frozen) and a fresh rack of pins.
-	if podium:
-		podium.clear()
+	if podium and podium.visible:
+		_show_hub_world(false)   # clears it, back to the course's sky and sun
 	rack.visible = course.visible   # (hidden while at the hub)
 	for m in marbles:
 		remove_child(m)
@@ -1439,7 +1455,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 			frame_points.clear()
 			last_result = {}
 			_strikes = [0, 0, 0, 0]
-			match_coins = [0, 0, 0, 0]
+			_reset_match_coins()
 			builder.clear()
 			($Course/Decor as TrackDecor).seed = data.decor
 			_set_arena(data.get("theme", "beach"), data.layout, data.start, data.get("width", 5.0))
@@ -1476,6 +1492,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 			frame_points = data.points
 			coins_earned = data.coins
 			match_coins = data.match_coins
+			coin_breakdown = data.get("breakdown", [])
 			state = data.state
 			if profile_of(net.my_seat) >= 0:
 				profiles.add_coins(0, coins_earned[net.my_seat])
@@ -1664,7 +1681,8 @@ func _finish_frame() -> void:
 	if state == State.MATCH_OVER:
 		_show_podium()
 	net.send_event("result", {"result": last_result, "totals": totals, "points": frame_points,
-			"coins": coins_earned, "match_coins": match_coins, "state": state, "striker": striker})
+			"coins": coins_earned, "match_coins": match_coins, "breakdown": coin_breakdown,
+			"state": state, "striker": striker})
 
 
 ## Achievements for the people at this computer, once a frame is scored
@@ -1715,15 +1733,27 @@ func strike_player() -> int:
 	return credits[0]
 
 
-## Coins: one per point each frame. At the end of a match everyone gets a
-## bonus for playing and the winner (or winners, on a tie) gets more.
+func _reset_match_coins() -> void:
+	match_coins = [0, 0, 0, 0]
+	match_pins = [0, 0, 0, 0]
+	match_bonus = [0, 0, 0, 0]
+	coin_breakdown = []
+
+
+## Coins: one per point each frame (pins and bonuses). At the end of the
+## match everyone gets a prize for their place and a little for finishing
+## (Scoring.match_coins has the whole breakdown for the coins screen).
 func _award_coins() -> void:
 	for i in player_count:
+		match_pins[i] += last_result.pins[i]
+		match_bonus[i] += last_result.points[i] - last_result.pins[i]
 		coins_earned[i] = last_result.points[i]
-		if state == State.MATCH_OVER:
-			coins_earned[i] += Profiles.COINS_PER_MATCH
-			if totals[i] == totals.max():
-				coins_earned[i] += Profiles.COINS_FOR_WIN
+	if state == State.MATCH_OVER:
+		coin_breakdown = Scoring.match_coins(match_pins.slice(0, player_count),
+				match_bonus.slice(0, player_count), totals)
+		for i in player_count:
+			coins_earned[i] += coin_breakdown[i].place_coins + coin_breakdown[i].finish
+	for i in player_count:
 		match_coins[i] += coins_earned[i]
 		# Coins go to the profiles of people at this computer (online,
 		# each computer pays its own player).
@@ -1942,7 +1972,7 @@ func _update_camera() -> void:
 		# Swing to the pins for each impact, then back to anyone still rolling.
 		pin_cam = _no_marbles_rolling() or _roll_time - _last_arrival_time < pin_cam_time
 	if state == State.MATCH_OVER and podium and podium.visible:
-		camera.heading = -deck.global_basis.z
+		camera.heading = -podium.global_basis.z
 		camera.follow_offset = Vector3(0, 1.6, 4.6)
 		camera.look_ahead = Vector3(0, -0.1, -3.0)
 		camera.target = podium.to_global(Vector3(0.6, 0.9, 0))

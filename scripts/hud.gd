@@ -8,8 +8,8 @@ extends CanvasLayer
 ## with cut, faceted corners to suit the low-poly look. SemiBold for normal
 ## text (set for the whole project in ui/theme.tres), Bold for titles.
 
-## Seconds the podium shows on its own before the final scores come up.
-const PODIUM_TIME := 5.0
+## Seconds the podium shows on its own before the coins screen comes up.
+const PODIUM_TIME := 6.5
 const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
@@ -32,6 +32,9 @@ var _board_lines: Label
 var _board_frames := -1
 var _board_key := ""
 var _board_shown := {}   # total each player's row shows while counting up
+var _coins_screen: Control   # COINS EARNED, after the podium
+var _coins_grid: GridContainer
+var _coins_key := ""
 var _strike: Label
 var _strike_burst: CPUParticles2D
 ## Seconds left of the STRIKE! banner (the scoreboard waits for it).
@@ -143,7 +146,9 @@ func refresh(game) -> void:
 	visible = game.state != game.State.MENU
 	if not visible:
 		return
-	_scores.visible = game.state != game.State.HUB
+	# The hub has no scores, and the FINAL STANDINGS stage is a screen of its own.
+	var on_stage: bool = game.state == game.State.MATCH_OVER and game.podium != null and game.podium.visible
+	_scores.visible = game.state != game.State.HUB and not on_stage
 	if _scores.visible:
 		_update_scores(game)
 	_update_top(game)
@@ -163,9 +168,16 @@ func refresh(game) -> void:
 	_strike_left = maxf(_strike_left - get_process_delta_time(), 0.0)
 	if _strike_left > 0.0 and not Input.is_action_pressed("scoreboard"):
 		show_board = false
+	# After the podium: the coins breakdown (the scores are on TAB).
+	var show_coins := false
+	if game.state == game.State.MATCH_OVER and not game.coin_breakdown.is_empty() \
+			and not Input.is_action_pressed("scoreboard"):
+		show_board = false
+		show_coins = game.podium != null and game.podium.age >= PODIUM_TIME
 	_board.visible = show_board
 	if show_board:
 		_fill_board(game)
+	_update_coins_screen(game, show_coins)
 	_update_hints(game)
 
 
@@ -219,7 +231,7 @@ func _update_top(game) -> void:
 	if game.state == game.State.ROLLING:
 		text += "      %ds" % ceili(game.time_left())
 	_badge.text = text
-	_badge.visible = not game.state in [game.State.WAITING, game.State.HUB]
+	_badge.visible = not game.state in [game.State.WAITING, game.State.HUB, game.State.MATCH_OVER]
 	if game.state == game.State.HUB and game.hub.derby.status() != "":
 		_badge.text = game.hub.derby.status()
 		_badge.visible = true
@@ -830,6 +842,137 @@ func _animate_board(game, frames: int, leader: int) -> void:
 		var wt := create_tween().set_loops(4)
 		wt.tween_property(_board_title, "scale", Vector2.ONE * 1.12, 0.25)
 		wt.tween_property(_board_title, "scale", Vector2.ONE, 0.25)
+
+
+# ------------------------------------------------------------ Coins earned
+
+## Rows of the COINS EARNED screen: label, then how to show a player's
+## entry from their Scoring.match_coins breakdown.
+const COIN_ROWS := ["PINS KNOCKED DOWN", "BONUS POINTS", "FINAL PLACE", "FINISHED THE MATCH", "TOTAL"]
+
+
+## The coins screen: a dark backdrop and a card with one column per player,
+## the rows filling in one at a time and the totals counting up.
+func _update_coins_screen(game, show: bool) -> void:
+	if _coins_screen == null:
+		_build_coins_screen()
+	_coins_screen.visible = show
+	if not show:
+		_coins_key = ""
+		return
+	var key := "%d-%d" % [game.player_count, game.frame_points.size()]
+	if key == _coins_key:
+		_update_wallets(game)
+		return
+	_coins_key = key
+	for c in _coins_grid.get_children():
+		_coins_grid.remove_child(c)
+		c.queue_free()
+	var n: int = game.player_count
+	_coins_grid.columns = n + 1
+	_coins_grid.add_child(Control.new())
+	for p in n:
+		var name := _coin_cell(game.seat_name(p), 30, (game.player_colors[p] as Color).lightened(0.25), TITLE_FONT)
+		_coins_grid.add_child(name)
+	var cells := []   # [row, player, Label, final value]
+	for r in COIN_ROWS.size():
+		var total_row: bool = r == COIN_ROWS.size() - 1
+		_coins_grid.add_child(_coin_cell(COIN_ROWS[r], 18 if not total_row else 26,
+				GOLD if total_row else Color(1, 1, 1, 0.7), TITLE_FONT if total_row else null, HORIZONTAL_ALIGNMENT_LEFT))
+		for p in n:
+			var b: Dictionary = game.coin_breakdown[p]
+			var text := ""
+			var value := 0
+			match r:
+				0: text = "%d pins  +%d" % [b.pins, b.pin_coins]
+				1: text = "+%d" % b.bonus
+				2: text = "%s  +%d" % [_ordinal(b.place + 1), b.place_coins]
+				3: text = "+%d" % b.finish
+				4: value = b.total
+			var cell := _coin_cell(text, 22 if not total_row else 40, GOLD if total_row else Color.WHITE,
+					TITLE_FONT if total_row else null)
+			cell.modulate.a = 0.0
+			_coins_grid.add_child(cell)
+			cells.append([r, p, cell, value])
+	# A wallet line under each player: their coins now (people only).
+	_coins_grid.add_child(_coin_cell("WALLET", 16, Color(1, 1, 1, 0.5), null, HORIZONTAL_ALIGNMENT_LEFT))
+	for p in n:
+		var w := _coin_cell("", 16, Color(1, 1, 1, 0.6))
+		w.name = "Wallet%d" % p
+		_coins_grid.add_child(w)
+	_update_wallets(game)
+	# Play it in: the card pops up, then each row fills in, then the totals count up.
+	_coins_screen.modulate.a = 0.0
+	create_tween().tween_property(_coins_screen, "modulate:a", 1.0, 0.3)
+	for c in cells:
+		var cell: Label = c[2]
+		var delay: float = 0.4 + c[0] * 0.4 + c[1] * 0.06
+		var t := create_tween()
+		t.tween_interval(delay)
+		t.tween_callback(func():
+			cell.modulate.a = 1.0
+			cell.pivot_offset = cell.size / 2.0
+			cell.scale = Vector2.ONE * 1.4
+			create_tween().tween_property(cell, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
+		if c[0] == COIN_ROWS.size() - 1:
+			var to: int = c[3]
+			t.tween_method(func(v: float): cell.text = "+%d" % roundi(v), 0.0, float(to), clampf(to * 0.01, 0.4, 1.2))
+
+
+func _update_wallets(game) -> void:
+	for p in game.player_count:
+		var w := _coins_grid.get_node_or_null("Wallet%d" % p) as Label
+		if w:
+			var prof: int = game.profile_of(p)
+			w.text = "%d coins" % game.profiles.coins(prof) if prof >= 0 else ""
+
+
+func _build_coins_screen() -> void:
+	_coins_screen = Control.new()
+	_coins_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_coins_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_coins_screen)
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.015, 0.03, 0.72)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_coins_screen.add_child(dim)
+	var card := PanelContainer.new()
+	var style := _pill(Color(0.1, 0.06, 0.07, 0.96), 34, 22)
+	style.border_width_top = 6
+	style.border_width_bottom = 6
+	style.border_color = Color(0.6, 0.1, 0.14)
+	style.shadow_color = Color(0, 0, 0, 0.5)
+	style.shadow_size = 20
+	card.add_theme_stylebox_override("panel", style)
+	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_coins_screen.add_child(card)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 16)
+	card.add_child(box)
+	var title := _coin_cell("COINS EARNED", 50, GOLD, TITLE_FONT)
+	title.add_theme_color_override("font_outline_color", Color(0.25, 0.12, 0.0))
+	title.add_theme_constant_override("outline_size", 10)
+	box.add_child(title)
+	_coins_grid = GridContainer.new()
+	_coins_grid.add_theme_constant_override("h_separation", 34)
+	_coins_grid.add_theme_constant_override("v_separation", 10)
+	box.add_child(_coins_grid)
+
+
+func _coin_cell(text: String, size: int, color: Color, font: Font = null,
+		align := HORIZONTAL_ALIGNMENT_CENTER) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.horizontal_alignment = align
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", color)
+	if font:
+		l.add_theme_font_override("font", font)
+	_shadow(l)
+	return l
 
 
 # ------------------------------------------------------------ Strike!

@@ -80,12 +80,19 @@ func _tick() -> void:
 			if _t == 4:
 				game.frame = game.frames_per_match
 				game.totals = [40, 12, 77, 3]
+				game.match_pins = [30, 10, 60, 3]
+				game.match_bonus = [10, 2, 17, 0]
 				game.state = game.State.MATCH_OVER
+				game.coin_breakdown = Scoring.match_coins(game.match_pins, game.match_bonus, game.totals)
 				game._show_podium()
 			if _t == 6:
 				game.camera.snap_to(game.camera.target)
+			# arg2: seconds into the podium to show ("" = everyone landed,
+			# "coins" = the coins screen).
 			if arg2 == "":
-				game.podium.age = minf(game.podium.age, 2.0)
+				game.podium.age = 4.0
+			elif arg2 == "coins":
+				game.podium.age = 10.0
 		"build":
 			if _t == 4:
 				game._start_draft()

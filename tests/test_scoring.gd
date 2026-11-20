@@ -42,6 +42,15 @@ func _init() -> void:
 	r = Scoring.score_frame(2, [], [], -1, [0, 1])
 	_check("knockouts but nobody arrives", r.points, [0, 0])
 
+	# End of match: places share ties; coins add pins, bonus, place and finishing.
+	_check("places with a tie", Scoring.places([10, 30, 30, 2]), [2, 0, 0, 3])
+	var mc := Scoring.match_coins([20, 5], [6, 0], [26, 5])
+	_check("match coins: winner", [mc[0].pin_coins, mc[0].bonus, mc[0].place_coins, mc[0].finish, mc[0].total],
+			[20, 6, Profiles.COINS_FOR_PLACE[0], Profiles.COINS_FOR_FINISHING,
+			26 + Profiles.COINS_FOR_PLACE[0] + Profiles.COINS_FOR_FINISHING])
+	_check("match coins: runner-up still gets finishing coins", [mc[1].place, mc[1].total],
+			[1, 5 + Profiles.COINS_FOR_PLACE[1] + Profiles.COINS_FOR_FINISHING])
+
 	if _failures > 0:
 		print("%d test(s) failed" % _failures)
 		quit(1)

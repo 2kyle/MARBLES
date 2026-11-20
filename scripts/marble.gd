@@ -96,14 +96,16 @@ var preview := false:
 			_trail.preview = value
 
 var _trail: MarbleTrail
+## Face the camera instead of the way it's rolling (display balls).
+var face_camera := false
 ## The hat rides on top of the ball without rolling with it, so it's a
 ## top-level node that follows the ball's middle and turns to face the way
-## the marble is going.
+## the ball is going.
 var _hat: Node3D
 var _hat_id := ""
-var _hat_yaw := 0.0
-## The eyes ride along like the hat, turned toward the camera and the way
-## the ball is going, so you can see them blink and wince.
+## Which way the face points (yaw, radians), without look_offset.
+var _heading := 0.0
+## The eyes ride along like the hat, so you can see them blink and wince.
 var _eyes: EyeRig
 var _eyes_id := ""
 ## Extra turn of the face (radians), e.g. for shaking its head on the podium.
@@ -145,9 +147,10 @@ func _process(delta: float) -> void:
 	_place_hat(delta)
 
 
-## Keep the hat and eyes on the ball. They don't roll with it: they turn
-## to face the camera, leaning toward the way the ball is going (and face
-## the viewer on display stands and in the closet).
+## Keep the hat and eyes on the ball. They don't roll with it: they turn to
+## face the way the ball is going, like a head, and keep facing that way
+## when it stops. Display balls (closet, ready screen, podium) face the
+## camera instead.
 func _place_hat(delta: float) -> void:
 	if delta > 0.0 and is_inside_tree():
 		_seen_velocity = _seen_velocity.lerp((global_position - _last_pos) / delta, 0.3)
@@ -160,31 +163,37 @@ func _place_hat(delta: float) -> void:
 	var to_cam := Vector3.BACK
 	if cam:
 		to_cam = cam.global_position - global_position
-	var cam_yaw := atan2(-to_cam.x, -to_cam.z)
-	var want := cam_yaw
-	if preview:
-		# Showing off (closet, ready screen): look about a little.
-		want = cam_yaw + sin(_face_time * 1.1) * 0.3
-	elif flat.length() > 0.8:
-		var travel := atan2(-flat.x, -flat.z)
-		want = cam_yaw + clampf(angle_difference(cam_yaw, travel), -1.0, 1.0)
-	want += look_offset
+	var showing := preview or face_camera
+	var want := _heading
+	var turn_rate := 6.0
+	if showing or not _yaw_ready:
+		want = atan2(-to_cam.x, -to_cam.z)
+		if preview:
+			# Showing off (closet, ready screen): look about a little.
+			want += sin(_face_time * 1.1) * 0.3
+	elif flat.length() > 0.6:
+		want = atan2(-flat.x, -flat.z)
+		# Turn quicker the faster it's going, so it never looks backwards for long.
+		turn_rate = clampf(flat.length() * 1.5, 4.0, 12.0)
 	if delta > 0.0 and _yaw_ready:
-		_hat_yaw = lerp_angle(_hat_yaw, want, clampf(delta * 6.0, 0.0, 1.0))
+		_heading = lerp_angle(_heading, want, clampf(delta * turn_rate, 0.0, 1.0))
 	else:
-		_hat_yaw = want
+		_heading = want
 		_yaw_ready = true
+	var yaw := _heading + look_offset
 	var size := global_transform.basis.get_scale().x * 0.3
-	var t := Transform3D(Basis(Vector3.UP, _hat_yaw).scaled(Vector3.ONE * size), global_position)
+	var t := Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * size), global_position)
 	if _hat:
 		_hat.global_transform = t
 		Hats.animate(_hat, delta, flat.length())
 	if _eyes:
-		# Eyes also tip up a little toward a camera that's looking down.
-		var flat_dist := Vector2(to_cam.x, to_cam.z).length()
-		var pitch := clampf(atan2(to_cam.y, flat_dist) * 0.6, 0.0, 0.6)
+		# Display balls tip their eyes up a little toward a camera above them.
+		var pitch := 0.0
+		if showing:
+			var flat_dist := Vector2(to_cam.x, to_cam.z).length()
+			pitch = clampf(atan2(to_cam.y, flat_dist) * 0.6, 0.0, 0.6)
 		_eyes.global_transform = Transform3D(t.basis * Basis(Vector3.RIGHT, pitch), t.origin)
-		_eyes.update(delta, Basis(Vector3.UP, -_hat_yaw) * _seen_velocity)
+		_eyes.update(delta, Basis(Vector3.UP, -yaw) * _seen_velocity)
 
 
 func _physics_process(delta: float) -> void:

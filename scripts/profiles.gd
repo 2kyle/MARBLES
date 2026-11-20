@@ -11,9 +11,11 @@ const SEATS := 4
 const STARTING_COINS := 150
 const DEFAULT_COLORS := ["pink", "yellow", "violet", "lime"]
 
-## Coins for playing: one per point scored in a frame, plus these.
-const COINS_PER_MATCH := 20
-const COINS_FOR_WIN := 50
+## Coins for playing (see Scoring.match_coins): one per pin, one per bonus
+## point, a prize for where you finished, and a little for finishing at all.
+const COINS_PER_PIN := 1
+const COINS_FOR_PLACE := [50, 30, 15, 5]
+const COINS_FOR_FINISHING := 10
 
 var seats: Array = []
 

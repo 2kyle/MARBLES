@@ -188,12 +188,12 @@ Every other look is won from loot crates at the casino. A crate costs **100 coin
 
 A look you already own pays coins back instead (25 for Common up to 150 for Legendary). The Golden Marble Trophy isn't worn: it stands on your hub. The odds are shown on the crate screen, and live in `scripts/loot_crates.gd` if you want to tune them.
 
-- **Coins:** you get 1 coin per point you score each frame. At the end of a match everyone gets +20 and the winner gets +50 more. New players start with 150, enough for one crate. The Marble Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on). Bots don't earn coins. Online, your coins and looks are the ones on your own computer (P1's).
+- **Coins:** you get 1 coin per pin you knock down and 1 per bonus point (race, sweep, knock-outs) each frame. At the end of a match you get a prize for where you finished (1st +50, 2nd +30, 3rd +15, 4th +5) and +10 just for finishing. The **COINS EARNED** screen after the podium shows the whole breakdown. The amounts are at the top of `scripts/profiles.gd`. New players start with 150, enough for one crate. The Marble Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on). Bots don't earn coins. Online, your coins and looks are the ones on your own computer (P1's).
 - Looks and rarities live in `scripts/cosmetics.gd`, hat shapes in `scripts/hats.gd`, and coin amounts in `scripts/profiles.gd`.
 
 ### The podium
 
-When the match ends, the top three stand on a podium on the lane where the pins were: the winner hops up and down wearing a gold medal, with a sprinkle of confetti, and second and third sway along. With four players, last place sits in a trash can shaking their head. The final scores come up after a few seconds (or hold Tab). It's built in `scripts/podium.gd`.
+When the match ends, the game cuts to a **FINAL STANDINGS** stage of its own: a dark room like the back of an old bowling alley, with a velvet curtain, a marquee of light bulbs, spotlights and two giant pins. The balls drop in one at a time, last place first: fourth lands in a trash can and shakes its head, then third, second, and finally the winner, who gets a gold medal hanging low on the front and a burst of confetti. After a few seconds the **COINS EARNED** screen shows what everyone won (hold Tab for the scores). It's built in `scripts/podium.gd`.
 
 ### STRIKE!
 

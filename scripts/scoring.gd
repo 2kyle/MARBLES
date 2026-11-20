@@ -68,6 +68,38 @@ static func score_frame(player_count: int, arrival_order: Array,
 	return _result(player_count, pins, race, sweep, ko, note)
 
 
+## Each player's finishing place (0 = 1st) from match totals. Ties share
+## the better place, so two players on top are both 1st.
+static func places(totals: Array) -> Array:
+	var out := []
+	for t in totals:
+		var better := 0
+		for o in totals:
+			if o > t:
+				better += 1
+		out.append(better)
+	return out
+
+
+## The coins each player earns over a whole match, broken down for the
+## coins screen. `pins` and `bonus` are match totals per player (bonus is
+## race, sweep and knockout points). Returns one Dictionary per player:
+##   pins, pin_coins, bonus, place (0 = 1st), place_coins, finish, total
+static func match_coins(pins: Array, bonus: Array, totals: Array) -> Array:
+	var place := places(totals)
+	var out := []
+	for i in totals.size():
+		var row := {
+			"pins": pins[i], "pin_coins": pins[i] * Profiles.COINS_PER_PIN,
+			"bonus": bonus[i],
+			"place": place[i], "place_coins": Profiles.COINS_FOR_PLACE[mini(place[i], 3)],
+			"finish": Profiles.COINS_FOR_FINISHING,
+		}
+		row.total = row.pin_coins + row.bonus + row.place_coins + row.finish
+		out.append(row)
+	return out
+
+
 static func _result(player_count: int, pins: Array, race: Array,
 		sweep: Array, ko: Array, note: String) -> Dictionary:
 	var points := _zeros(player_count)

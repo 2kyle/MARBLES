@@ -70,6 +70,10 @@ extends Node3D
 		_queue_rebuild()
 
 const WALL_THICKNESS := 0.25
+## How wide a Narrow Bridge's plank is, metres.
+const NARROW_WIDTH := 1.9
+## Metres a Narrow Bridge takes to squeeze in (and to open out again).
+const NARROW_TAPER := 2.0
 const FLOOR_THICKNESS := 0.35
 ## How far ahead/behind to look when measuring how sharply the track turns.
 const BANK_LOOK := 4.0
@@ -99,6 +103,10 @@ var start_xz := Vector2.ZERO
 var gaps: Array = []
 ## Stretches with no side walls (Wall Breaker TA), as [start, end] distances.
 var open_edges: Array = []
+## Narrow Bridge stretches (thin plank, no walls), as [start, end] distances.
+var narrows: Array = []
+## Track distance at each whole layout metre (see ground_to_distance).
+var _ground_along := PackedFloat32Array()
 
 
 ## Replace the track with one built from a TrackGen layout.
@@ -117,6 +125,24 @@ func apply_layout(new_layout: Array, new_start_xz: Vector2) -> void:
 	open_edges = []
 	for g in TrackGen.open_ranges(layout):
 		open_edges.append([along[clampi(int(g[0]), 0, pts.size() - 1)], along[clampi(int(g[1]), 0, pts.size() - 1)]])
+	narrows = []
+	for g in TrackGen.narrow_ranges(layout):
+		narrows.append([along[clampi(int(g[0]), 0, pts.size() - 1)], along[clampi(int(g[1]), 0, pts.size() - 1)]])
+	_ground_along = along
+	var curve := curve_through(pts)
+	if _path == null:
+		_path = get_node("Path")
+	_path.transform = Transform3D.IDENTITY
+	if _path.curve_changed.is_connected(_queue_rebuild):
+		_path.curve_changed.disconnect(_queue_rebuild)
+	_path.curve = curve
+	_path.curve_changed.connect(_queue_rebuild)
+	rebuild()
+
+
+## A smooth curve through a layout's points (see TrackGen.points), the same
+## way the track builds its own. Previews use it to show a reshaped track.
+static func curve_through(pts: PackedVector3Array) -> Curve3D:
 	var curve := Curve3D.new()
 	curve.bake_interval = 0.2
 	var keep := []
@@ -131,22 +157,89 @@ func apply_layout(new_layout: Array, new_start_xz: Vector2) -> void:
 		if i == 0 or i == keep.size() - 1:
 			handle *= 2.0
 		curve.add_point(keep[i], -handle, handle)
-	if _path == null:
-		_path = get_node("Path")
-	_path.transform = Transform3D.IDENTITY
-	if _path.curve_changed.is_connected(_queue_rebuild):
-		_path.curve_changed.disconnect(_queue_rebuild)
-	_path.curve = curve
-	_path.curve_changed.connect(_queue_rebuild)
-	rebuild()
+	return curve
 
 
-## True if the walls are missing at `distance`.
+## Layout metres (measured along the ground, like TrackGen) to distance
+## along the sloping track, and back. Track cards are planned in layout
+## metres; everything placed on the track uses track distance.
+func ground_to_distance(g: float) -> float:
+	if _ground_along.size() < 2:
+		return g
+	var f := clampf(g, 0.0, _ground_along.size() - 1.0)
+	var i := mini(floori(f), _ground_along.size() - 2)
+	return lerpf(_ground_along[i], _ground_along[i + 1], f - i)
+
+
+func distance_to_ground(d: float) -> float:
+	if _ground_along.size() < 2:
+		return d
+	for i in range(1, _ground_along.size()):
+		if _ground_along[i] >= d:
+			var span := _ground_along[i] - _ground_along[i - 1]
+			return i - 1 + (clampf((d - _ground_along[i - 1]) / span, 0.0, 1.0) if span > 0.0 else 0.0)
+	return _ground_along.size() - 1.0
+
+
+## Like frame_at(), but on any curve built by curve_through() (for a
+## preview of how the track would look after a track card).
+func frame_on(curve: Curve3D, distance: float, side := 0.0) -> Transform3D:
+	var len := curve.get_baked_length()
+	var d := clampf(distance, 0.0, len)
+	var p := curve.sample_baked(d, true)
+	var forward := _dir_on(curve, d)
+	var right := forward.cross(Vector3.UP).normalized()
+	var bank := 0.0
+	if bank_speed > 0.0:
+		var a := _dir_on(curve, d - BANK_LOOK)
+		var b := _dir_on(curve, d + BANK_LOOK)
+		a.y = 0.0
+		b.y = 0.0
+		if a.length() > 0.01 and b.length() > 0.01:
+			var turn := atan2(a.normalized().cross(b.normalized()).y, a.normalized().dot(b.normalized())) / (BANK_LOOK * 2.0)
+			var limit := deg_to_rad(max_bank_deg)
+			bank = clampf(atan(-turn * bank_speed * bank_speed / 9.8), -limit, limit)
+	if bank != 0.0:
+		right = right.rotated(forward, bank)
+	var up := right.cross(forward).normalized()
+	var basis := Basis(right, up, -forward)
+	return Transform3D(basis, p + basis * Vector3(side, 0, 0))
+
+
+func _dir_on(curve: Curve3D, distance: float) -> Vector3:
+	var len := curve.get_baked_length()
+	var d := clampf(distance, 0.0, len)
+	var ahead := curve.sample_baked(minf(d + 0.75, len), true)
+	var behind := curve.sample_baked(maxf(d - 0.75, 0.0), true)
+	return (ahead - behind).normalized()
+
+
+## True if the walls are missing at `distance` (Wall Breaker or Narrow
+## Bridge).
 func is_open(distance: float) -> bool:
-	for g in open_edges:
+	for g in open_edges + narrows:
 		if distance > g[0] and distance < g[1]:
 			return true
 	return false
+
+
+## True if `distance` is on a Narrow Bridge (or within `margin` metres).
+func in_narrow(distance: float, margin := 0.0) -> bool:
+	for g in narrows:
+		if distance > g[0] - margin and distance < g[1] + margin:
+			return true
+	return false
+
+
+## Half the floor's width at `distance`: lane_width / 2 almost everywhere,
+## squeezing smoothly down on a Narrow Bridge.
+func half_width_at(distance: float) -> float:
+	var hw := lane_width / 2.0
+	for g in narrows:
+		if distance > g[0] and distance < g[1]:
+			var t := clampf(minf(distance - g[0], g[1] - distance) / NARROW_TAPER, 0.0, 1.0)
+			return lerpf(hw, NARROW_WIDTH / 2.0, smoothstep(0.0, 1.0, t))
+	return hw
 
 
 ## True if `distance` is inside a gap (or within `margin` metres of one).
@@ -287,7 +380,6 @@ func rebuild() -> void:
 	_tilts = _path.curve.get_baked_tilts()
 	var len := length()
 	var slices := maxi(2, ceili(len / step) + 1)
-	var hw := lane_width / 2.0
 
 	var floor_st := SurfaceTool.new()
 	floor_st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -297,6 +389,7 @@ func rebuild() -> void:
 
 	var prev := {}
 	var prev_d := 0.0
+	var prev_open := false
 	for i in slices:
 		var d := len * i / float(slices - 1)
 		if in_gap(d):
@@ -306,6 +399,7 @@ func rebuild() -> void:
 		var o := xf.origin
 		var r := xf.basis.x
 		var u := xf.basis.y
+		var hw := half_width_at(d)
 		var s := {
 			"fl": o - r * hw, "fr": o + r * hw,
 			"bl": o - r * hw - u * FLOOR_THICKNESS, "br": o + r * hw - u * FLOOR_THICKNESS,
@@ -318,7 +412,13 @@ func rebuild() -> void:
 		if i == 0:
 			# Back wall behind the start gate.
 			_quad(wall_st, collision, s.wlb, s.wrb, s.wro, s.wlo)
-		if not prev.is_empty() and is_open((d + prev_d) / 2.0):
+		var open_now := is_open(d if prev.is_empty() else (d + prev_d) / 2.0)
+		if not prev.is_empty() and open_now != prev_open:
+			# Walls start or stop here: close off their ends.
+			var cap: Dictionary = prev if open_now else s
+			_quad(wall_st, collision, cap.wlb, cap.fl, cap.wli, cap.wlo)
+			_quad(wall_st, collision, cap.fr, cap.wrb, cap.wro, cap.wri)
+		if open_now and not prev.is_empty():
 			# No walls here: just the floor and its edges.
 			_quad(floor_st, collision, prev.fl, prev.fr, s.fr, s.fl)
 			_quad(floor_st, null, prev.br, prev.bl, s.bl, s.br)
@@ -340,6 +440,7 @@ func rebuild() -> void:
 			_quad(wall_st, null, prev.wrb, prev.br, s.br, s.wrb)
 		prev = s
 		prev_d = d
+		prev_open = open_now
 
 	floor_st.generate_normals()
 	wall_st.generate_normals()
@@ -388,7 +489,7 @@ func _build_supports(len: float) -> void:
 		var d := support_spacing * (i + 0.5)
 		var xf := frame_at(d)
 		for side in [-1.0, 1.0]:
-			var top: Vector3 = xf.origin + xf.basis.x * side * (lane_width / 2.0 - 0.3) - xf.basis.y * FLOOR_THICKNESS
+			var top: Vector3 = xf.origin + xf.basis.x * side * (half_width_at(d) - 0.3) - xf.basis.y * FLOOR_THICKNESS
 			if top.y - support_bottom_y > 0.5:
 				_post(st, top, support_bottom_y, 0.16)
 	st.generate_normals()

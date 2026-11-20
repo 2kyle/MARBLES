@@ -10,6 +10,8 @@ extends RefCounted
 ##   grade: how steep it is (0.25 = drops 0.25 m every metre)
 ##   gap:   (optional) true = no floor here, marbles have to hop or fly over
 ##   open:  (optional) true = no side walls here (a Wall Breaker TA)
+##   narrow: (optional) true = the floor squeezes down to a thin plank with
+##          no walls (a Narrow Bridge TA)
 ## The first segment is where marbles start; the last one is the straight
 ## run into the funnel and pins, and is never changed.
 ##
@@ -102,6 +104,17 @@ static func hairpin(sign: float) -> Dictionary:
 	return {"len": deg_to_rad(165.0) * (MIN_RADIUS + 0.6), "turn": turn, "grade": 0.13}
 
 
+## A left-right wiggle (S-Bend TA). `sign` +1 swings left first.
+static func s_bend(sign: float) -> Array:
+	return [bend(55.0 * sign, 0.2), bend(-55.0 * sign, 0.2)]
+
+
+## A thin plank with no walls (Narrow Bridge TA). Straight and gentle, so
+## a steady marble makes it across; a wobbly one falls off.
+static func narrow() -> Dictionary:
+	return {"len": 9.0, "turn": 0.0, "grade": 0.18, "narrow": true}
+
+
 ## A short hole in the track. Fast marbles fly over; a hop makes it safe.
 static func gap() -> Dictionary:
 	return {"len": 2.2, "turn": 0.0, "grade": 0.4, "gap": true}
@@ -122,11 +135,22 @@ static func gap_ranges(layout: Array) -> Array:
 
 ## Where the side walls are missing, as [start, end] metres from the start.
 static func open_ranges(layout: Array) -> Array:
+	return flag_ranges(layout, "open")
+
+
+## Where the track squeezes down to a Narrow Bridge, as [start, end] metres.
+static func narrow_ranges(layout: Array) -> Array:
+	return flag_ranges(layout, "narrow")
+
+
+## Where segments with `flag` set are, as [start, end] metres from the
+## start. Neighbouring stretches are joined into one.
+static func flag_ranges(layout: Array, flag: String) -> Array:
 	var out := []
 	var t := 0.0
 	for s in layout:
 		var n := float(maxi(1, roundi(s.len)))
-		if s.get("open", false):
+		if s.get(flag, false):
 			if not out.is_empty() and absf(out[-1][1] - t) < 0.01:
 				out[-1][1] = t + n  # join with the stretch just before
 			else:
@@ -257,10 +281,17 @@ static func segment_at(layout: Array, distance: float) -> Array:
 	return [layout.size() - 1, layout[-1].len]
 
 
-## A copy of `layout` with `seg` spliced in at `distance` metres. The start
-## and the finish straight are never cut, so the splice may move a little
-## to the nearest allowed spot.
-static func insert(layout: Array, distance: float, seg: Dictionary) -> Array:
+## A copy of `layout` with `seg` spliced in at `distance` metres. `seg` can
+## be one segment or an Array of them. The start and the finish straight are
+## never cut, so the splice may move a little to the nearest allowed spot.
+static func insert(layout: Array, distance: float, seg) -> Array:
+	return insert_info(layout, distance, seg).layout
+
+
+## Like insert(), but also says where the new stretch ended up:
+## {layout, from, to} with from/to in ground metres (like points()).
+static func insert_info(layout: Array, distance: float, seg) -> Dictionary:
+	var segs: Array = seg if seg is Array else [seg]
 	var out := []
 	for s in layout:
 		out.append(s.duplicate())
@@ -274,6 +305,7 @@ static func insert(layout: Array, distance: float, seg: Dictionary) -> Array:
 		i = out.size() - 2
 		into = out[i].len
 	var s: Dictionary = out[i]
+	var put := i
 	if into > 0.5 and into < s.len - 0.5:
 		var f: float = into / s.len
 		var a := s.duplicate()
@@ -284,12 +316,18 @@ static func insert(layout: Array, distance: float, seg: Dictionary) -> Array:
 		b.turn = s.turn * (1.0 - f)
 		out[i] = a
 		out.insert(i + 1, b)
-		out.insert(i + 1, seg.duplicate())
-	elif into <= 0.5:
-		out.insert(i, seg.duplicate())
-	else:
-		out.insert(i + 1, seg.duplicate())
-	return out
+		put = i + 1
+	elif into > 0.5:
+		put = i + 1
+	for k in segs.size():
+		out.insert(put + k, segs[k].duplicate())
+	var from := 0.0
+	for k in put:
+		from += maxi(1, roundi(out[k].len))
+	var to := from
+	for k in segs.size():
+		to += maxi(1, roundi(out[put + k].len))
+	return {"layout": out, "from": from, "to": to}
 
 
 static func _smooth(values: PackedFloat32Array, half: int, keep_last: int) -> PackedFloat32Array:

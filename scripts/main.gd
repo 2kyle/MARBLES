@@ -192,6 +192,9 @@ var _snap: Dictionary = {}
 
 func _ready() -> void:
 	Controls.setup()
+	var facing := LabelFacing.new()
+	facing.name = "LabelFacing"
+	add_child(facing)
 	steam = SteamService.new(steam_backend)
 	steam.name = "Steam"
 	add_child(steam)

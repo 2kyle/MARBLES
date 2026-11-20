@@ -14,7 +14,7 @@ A party game where friends build a bowling lane together, then race physics marb
 
 ## What's in the prototype
 
-The game opens on the **BOWLING 4P** title screen (a working title; it's `TITLE` at the top of `scripts/main_menu.gd`, and every sign in the game uses it), with the camera slowly circling the island. From there:
+The game opens on the **BOWLING WIP** title screen (a working title; it's `TITLE` at the top of `scripts/main_menu.gd`, and every sign in the game uses it), with the camera slowly circling the island. From there:
 
 - **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
@@ -67,7 +67,7 @@ Only people come to the island (no bots). The camera is a free third-person came
 
 ![Blackjack at the casino](docs/casino.png)
 
-An indoor casino with a groovy 70s theme, built right into a mountain: from outside it looks like the jungle cliffs, with mossy rock columns, vines and jungle over the roof, and only the marquee and door showing. Inside: swirly carpet, wood panels, neon signs, a disco ball over the dance floor, a roulette wheel, slot machines, lava lamps, and a marquee of chasing light bulbs out front. Every dealer and the bartender wears shady sunglasses and keeps an eye on the nearest marble.
+An indoor casino with a groovy 70s theme, built right into a mountain: from outside it looks like the jungle cliffs, with mossy rock columns, vines and jungle over the roof, and only the marquee and door showing. Inside: swirly carpet, wood panels, gently breathing neon signs, a ring of coloured party bulbs under the ceiling that glow up and down in slow waves, a disco ball over the dance floor, a roulette wheel, slot machines, lava lamps, and a marquee of chasing light bulbs out front. Every dealer and the bartender wears shady sunglasses and keeps an eye on the nearest marble.
 
 - **Blackjack:** roll onto one of the four stools round the table. Up and down set your wager (10 coins a step); your place key deals, then **hits** (takes a card); your turn key **stands**. Get closer to 21 than the dealer without going over. The dealer draws until they have 17. A win pays double your wager back, a blackjack (21 with your first two cards) pays 2.5x, and a tie gives your wager back. You can't walk away mid-hand. The cards land on the felt, so people watching can follow along.
 - **The bar:** roll onto the plate at the bar, pick a drink with left and right, and order with your place key. Fizzy drinks give your marble the hiccups for a while (little hops and bubbles). Fizzy Lemonade 5 coins, Root Beer Float 10, Galaxy Soda 20 (the biggest hiccups).
@@ -93,7 +93,7 @@ Looks are changed between games in the closet on the hub, not at the start of a 
 
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as big picture cards in the middle of the screen. Each player steers their own pointer onto a card and grabs it. First to grab a piece gets it.
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Your piece's name floats above it, and coloured arrows on the floor show which way marbles will roll through it. Pieces stay on the lane for the rest of the match.
-3. **Roll (45 s max):** marbles drop through the START arch together, crash into each other, and race to one shared rack of 28 pins. You can lean your marble a little and give it a small **hop** (your place key), but the lane does most of the work. Once a marble crosses the finish line, steering and hops switch off and it just carries its momentum into the pins.
+3. **Roll (45 s max):** marbles drop through the START arch together, crash into each other, and race to one shared rack of 28 pins. The track is a classic maple bowling lane: thin boards, approach dots, a foul line just past the START arch, guide dots and seven aiming arrows. Each pin has its own little face (most look normal, some are sleepy, googly, happy or grumpy); they blink, squeeze their eyes shut when hit, and stay knocked out once they fall. You can lean your marble a little and give it a small **hop** (your place key), but the lane does most of the work. Once a marble crosses the finish line, steering and hops switch off and it just carries its momentum into the pins.
 4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
 
 A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. Some tracks also have a gap. It starts empty. A marble that flies off the track splashes into the water and is out for that frame.
@@ -374,7 +374,8 @@ scenes/
 scripts/
   main.gd            runs frames and the match (the "referee")
   marble.gd          lean steering and bumper kicks
-  pin.gd             knocked-down check and who gets credit
+  pin.gd             knocked-down check, who gets credit, and the pin's shape and face
+  label_facing.gd    turns 3D words round so you never read them backwards
   rack.gd            sets up the 28 pins
   scoring.gd         the scoring rules, on their own
   piece_catalog.gd   the list of draftable pieces (add new ones here)
@@ -428,6 +429,7 @@ shaders/
   marble.gdshader    marble patterns (stripes, swirl, galaxy, lava...)
   water.gdshader     the moving water
   toy_paint.gdshader the painted-toy finish on the lane pieces
+  bowling_lane.gdshader  the maple boards, dots, foul line and arrows on the track
 tests/
   test_scoring.gd    checks the scoring rules
   test_controls.gd   presses fake keys and controller buttons through menus, settings and a match

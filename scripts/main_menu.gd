@@ -35,7 +35,7 @@ const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
 ## The game's name on the title screen (and on signs round the world).
-const TITLE := "BOWLING 4P"
+const TITLE := "BOWLING WIP"
 const VERSION := "prototype"
 
 var _retry_button: Button
@@ -132,13 +132,6 @@ func _ready() -> void:
 	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.35))
 	title.add_theme_constant_override("shadow_offset_y", 8)
 	title_box.add_child(title)
-	var sub := Label.new()
-	sub.text = "Build it. Wreck it. Roll it."
-	sub.add_theme_font_size_override("font_size", 24)
-	sub.add_theme_color_override("font_color", GOLD)
-	sub.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.12))
-	sub.add_theme_constant_override("outline_size", 8)
-	title_box.add_child(sub)
 
 	_build_main_page()
 	_build_play_page()

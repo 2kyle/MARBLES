@@ -21,6 +21,8 @@ const HALF := Vector2(22.0, 16.0)
 const HEIGHT := 7.5
 const DOOR_HALF := 2.6
 const DOOR_H := 4.5
+## How much wider a mountain rock's foot is than the rock itself.
+const FOOT := 1.35
 
 ## Where things are, in this island's own space.
 const DERBY_POS := Vector3(-15, 0, 12)
@@ -92,6 +94,7 @@ func build(hub_plate: Callable, on_table: Callable, on_crates: Callable) -> void
 	_slots()
 	_lounge()
 	_lights()
+	_party_lights()
 	_front()
 	_mountain()
 
@@ -127,11 +130,12 @@ func _process(delta: float) -> void:
 	_time += delta
 	for mv in _movers:
 		(mv as Callable).call(_time, delta)
-	# Marquee bulbs chase: swap which half is lit.
-	var on := int(_time * 3.0) % 2 == 0
+	# Marquee bulbs chase: the two halves take turns, fading softly
+	# rather than snapping on and off.
+	var w := 0.5 + 0.5 * sin(_time * 5.0)
 	if _bulbs.size() == 2:
-		(_bulbs[0] as StandardMaterial3D).emission_energy_multiplier = 4.0 if on else 0.3
-		(_bulbs[1] as StandardMaterial3D).emission_energy_multiplier = 0.3 if on else 4.0
+		(_bulbs[0] as StandardMaterial3D).emission_energy_multiplier = 0.4 + 3.6 * w
+		(_bulbs[1] as StandardMaterial3D).emission_energy_multiplier = 0.4 + 3.6 * (1.0 - w)
 
 
 # ------------------------------------------------------------ The bar
@@ -339,6 +343,12 @@ func _neon(at: Vector3, text: String, color: Color, yaw: float) -> void:
 	l.position = at
 	l.rotation.y = yaw
 	add_child(l)
+	# Neon breathes: a slow, soft glow up and down, each sign at its own pace.
+	var base := l.modulate
+	var phase := _rng.randf() * TAU
+	_movers.append(func(t: float, _d: float) -> void:
+		var k := 0.82 + 0.18 * sin(t * 1.3 + phase)
+		l.modulate = Color(base.r * k, base.g * k, base.b * k))
 
 
 ## The groovy carpet over the whole floor.
@@ -370,7 +380,7 @@ func _derby(plate: Callable, on_table: Callable) -> void:
 				Color(0.9, 0.25, 0.25) if k % 2 == 0 else Color.WHITE)
 	add_child(b.make())
 	plate.call(BET_PLATE, GOLD, func(p): on_table.call(p, "derby"), Vector3.BACK)
-	LowPoly.label(self, BET_PLATE + Vector3(0, 3.1, -1.2), "PLACE BETS", 54, Color(0.5, 0.3, 0.05))
+	LowPoly.label(self, BET_PLATE + Vector3(0, 3.45, -1.2), "PLACE BETS", 54, Color(0.5, 0.3, 0.05))
 	# The bookie, in shades of course.
 	_dealer(BET_PLATE + Vector3(-2.6, 0, -1.4), 0.6, Color(0.95, 0.75, 0.3))
 
@@ -612,6 +622,65 @@ func _lights() -> void:
 		add_child(l)
 
 
+## Soft party lights: a ring of coloured bulbs round the top of the room
+## that glow up and down in slow waves, and four coloured lights that wash the
+## room in pink, blue, gold and green, gently fading in and out.
+func _party_lights() -> void:
+	var mats: Array = []
+	for c in NEON:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = c
+		m.emission_enabled = true
+		m.emission = c
+		m.emission_energy_multiplier = 2.0
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mats.append(m)
+	var bulb := SphereMesh.new()
+	bulb.radius = 0.1
+	bulb.height = 0.2
+	bulb.radial_segments = 8
+	bulb.rings = 4
+	# Just under the ceiling, a hand's width off each wall (inside the room).
+	var y := HEIGHT - 0.35
+	var inset := 0.55
+	var spots: Array = []
+	var x := -HALF.x + 1.0
+	while x <= HALF.x - 1.0:
+		spots.append(Vector3(x, y, -HALF.y + inset))
+		spots.append(Vector3(x, y, HALF.y - inset))
+		x += 1.2
+	var z := -HALF.y + 1.6
+	while z <= HALF.y - 1.6:
+		spots.append(Vector3(-HALF.x + inset, y, z))
+		if absf(z) > DOOR_HALF + 0.4:
+			spots.append(Vector3(HALF.x - inset, y, z))
+		z += 1.2
+	for i in spots.size():
+		var mi := MeshInstance3D.new()
+		mi.mesh = bulb
+		mi.material_override = mats[i % mats.size()]
+		mi.position = spots[i]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+	var washes: Array = []
+	var corners := [Vector3(-12, 6.2, -10), Vector3(12, 6.2, -10), Vector3(12, 6.2, 10), Vector3(-12, 6.2, 10)]
+	for k in corners.size():
+		var l := OmniLight3D.new()
+		l.light_color = NEON[k]
+		l.light_energy = 0.6
+		l.omni_range = 14.0
+		l.position = corners[k]
+		add_child(l)
+		washes.append(l)
+	# Each colour fades in and out on a slow wave (about 3 seconds round),
+	# a quarter of a wave after the one before, so the glow drifts round.
+	_movers.append(func(t: float, _d: float) -> void:
+		for k in mats.size():
+			var w := 0.5 + 0.5 * sin(t * 2.0 - k * PI / 2.0)
+			(mats[k] as StandardMaterial3D).emission_energy_multiplier = 0.5 + 2.5 * w
+			(washes[k] as OmniLight3D).light_energy = 0.25 + 0.7 * w)
+
+
 ## The front: red carpet, rope posts, and a big marquee sign with chasing
 ## bulbs over the door.
 func _front() -> void:
@@ -681,28 +750,34 @@ func _mountain() -> void:
 	var body := StaticBody3D.new()
 	body.name = "Mountain"
 	add_child(body)
-	var spots := []   # [position, radius, height]
+	# Every rock stands fully outside the walls (centre at least its own
+	# radius, plus its wider foot, beyond them) so none poke into the room.
+	var spots := []   # [position, radius]
+	var gap := 0.35
 	# Down both long sides and across the back.
 	var x := -HALF.x - 1.0
 	while x < HALF.x + 1.0:
 		for side in [-1.0, 1.0]:
-			spots.append([Vector3(x, 0, side * (HALF.y + _rng.randf_range(1.2, 2.0))), _rng.randf_range(2.4, 3.2)])
+			var r := _rng.randf_range(2.2, 3.0)
+			spots.append([Vector3(x, 0, side * (HALF.y + gap + r * FOOT)), r])
 		x += _rng.randf_range(3.0, 4.0)
 	var z := -HALF.y
 	while z <= HALF.y:
-		spots.append([Vector3(-HALF.x - _rng.randf_range(1.2, 2.0), 0, z), _rng.randf_range(2.4, 3.2)])
+		var r := _rng.randf_range(2.2, 3.0)
+		spots.append([Vector3(-HALF.x - gap - r * FOOT, 0, z), r])
 		z += _rng.randf_range(3.0, 4.0)
 	# Either side of the front, framing the marquee.
 	for side in [-1.0, 1.0]:
 		for k in 3:
-			spots.append([Vector3(HALF.x + 0.6 + k * 0.4, 0, side * (10.8 + k * 2.6)), _rng.randf_range(2.2, 2.8)])
+			var r := _rng.randf_range(2.2, 2.8)
+			spots.append([Vector3(HALF.x + gap + r * FOOT + k * 0.4, 0, side * (10.8 + k * 2.6)), r])
 	for spot in spots:
 		var at: Vector3 = spot[0]
 		var r: float = spot[1]
 		var h := HEIGHT + _rng.randf_range(1.5, 9.0)
 		Jungle.rock_shape(b, _rng, at + Vector3.UP * (h - 8.0) / 2.0, r, h + 8.0, Jungle.rock_tint(_rng))
 		# A wide rocky foot, so it reads as a mountain and not a post.
-		Jungle.rock_shape(b, _rng, at + Vector3.UP * 1.0, r * 1.6, 4.0, Jungle.rock_tint(_rng).darkened(0.08))
+		Jungle.rock_shape(b, _rng, at + Vector3.UP * 1.0, r * FOOT, 4.0, Jungle.rock_tint(_rng).darkened(0.08))
 		b.cyl(0.0, r * 0.55, 1.0, at + Vector3.UP * (h + 0.3), Jungle.MOSS.darkened(_rng.randf() * 0.25), 6)
 		b.ball(at + Vector3(_rng.randf_range(-0.8, 0.8), h + 0.5, _rng.randf_range(-0.8, 0.8)), _rng.randf_range(1.0, 1.6),
 				Jungle.LEAF.lerp(Jungle.MOSS, _rng.randf()), 7, Vector3(1, 0.7, 1))
@@ -725,16 +800,18 @@ func _mountain() -> void:
 	# for the sign).
 	for gx in range(-18, int(HALF.x) - 5, 6):
 		for gz in range(-12, 13, 6):
-			var at := Vector3(gx + _rng.randf_range(-1.5, 1.5), HEIGHT + 0.4, gz + _rng.randf_range(-1.5, 1.5))
 			var r := _rng.randf_range(3.5, 5.0)
-			b.ball(at, r, Jungle.rock_tint(_rng), 7, Vector3(1, _rng.randf_range(0.35, 0.7), 1))
+			var squash := _rng.randf_range(0.35, 0.7)
+			# Sits on the roof: its underside never dips below the ceiling.
+			var at := Vector3(gx + _rng.randf_range(-1.5, 1.5), HEIGHT + r * squash, gz + _rng.randf_range(-1.5, 1.5))
+			b.ball(at, r, Jungle.rock_tint(_rng), 7, Vector3(1, squash, 1))
 			b.ball(at + Vector3(_rng.randf_range(-1, 1), r * 0.35, _rng.randf_range(-1, 1)), r * 0.5,
 					Jungle.MOSS.darkened(_rng.randf() * 0.2), 6, Vector3(1, 0.5, 1))
 			if _rng.randf() < 0.5:
 				b.ball(at + Vector3(0, r * 0.55, 0), _rng.randf_range(1.0, 1.6), Jungle.LEAF, 7, Vector3(1, 0.8, 1))
 	# A carved frame round the front, so the marquee sits in the rock.
 	for side in [-1.0, 1.0]:
-		Jungle.rock_shape(b, _rng, Vector3(HALF.x + 0.3, HEIGHT / 2.0 + 1.0, side * 9.4), 1.5, HEIGHT + 4.0, Jungle.rock_tint(_rng))
+		Jungle.rock_shape(b, _rng, Vector3(HALF.x + 1.4, HEIGHT / 2.0 + 1.0, side * 9.4), 1.5, HEIGHT + 4.0, Jungle.rock_tint(_rng))
 	b.box(Vector3(1.2, 1.4, 18.0), Vector3(HALF.x - 0.2, HEIGHT + 4.3, 0), Jungle.ROCK.darkened(0.05))
 	for k in 5:
 		b.ball(Vector3(HALF.x - 0.4, HEIGHT + 5.0, -7.2 + k * 3.6), _rng.randf_range(1.1, 1.6),

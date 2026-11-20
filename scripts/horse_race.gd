@@ -314,7 +314,8 @@ func _build() -> void:
 			ear.material_override = LowPoly.mat(h.color.darkened(0.3))
 			ear.position = Vector3(side * 0.12, HORSE_R + 0.06, -0.08)
 			body.add_child(ear)
-		var tag := LowPoly.label(self, Vector3(0, HORSE_R + 0.5 + (i % 2) * 0.3, 0), "%d %s" % [i + 1, h.name], 26, h.color.darkened(0.5))
+		# Each name floats at its own height, so side by side they never overlap.
+		var tag := LowPoly.label(self, Vector3(0, HORSE_R + 0.45 + i * 0.27, 0), "%d %s" % [i + 1, h.name], 26, h.color.darkened(0.5))
 		tag.reparent(body, false)
 		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		_horses.append([body, ball])

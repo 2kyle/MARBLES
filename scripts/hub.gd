@@ -778,11 +778,11 @@ func _signs() -> void:
 	# A little wooden sign for the practice pieces' yard.
 	LowPoly.box(self, Vector3(0.15, 1.8, 0.15), ITEMS_SIGN + Vector3(0, 0.9, 0), Color(0.5, 0.35, 0.22), 0.0)
 	LowPoly.box(self, Vector3(2.2, 0.7, 0.12), ITEMS_SIGN + Vector3(0, 1.8, 0), Color(0.72, 0.52, 0.32), PI)
-	LowPoly.label(self, ITEMS_SIGN + Vector3(0, 1.8, 0.07), "PRACTICE\nPIECES", 32, Color(0.3, 0.18, 0.08))
+	LowPoly.label(self, ITEMS_SIGN + Vector3(0, 1.8, 0.11), "PRACTICE\nPIECES", 32, Color(0.3, 0.18, 0.08))
 	# A wooden welcome sign by the spawn.
 	LowPoly.box(self, Vector3(0.15, 1.6, 0.15), Vector3(-4.6, 0.8, 13.5), Color(0.5, 0.35, 0.22), 0.0)
 	LowPoly.box(self, Vector3(2.8, 0.9, 0.12), Vector3(-4.6, 1.6, 13.5), Color(0.72, 0.52, 0.32), 0.0)
-	LowPoly.label(self, Vector3(-4.6, 1.6, 13.57), MainMenu.TITLE + "\nTHE HUB", 40, Color(0.3, 0.18, 0.08))
+	LowPoly.label(self, Vector3(-4.6, 1.6, 13.61), MainMenu.TITLE + "\nTHE HUB", 40, Color(0.3, 0.18, 0.08))
 
 
 func _sky_life() -> void:
@@ -971,7 +971,7 @@ func _casino_island() -> void:
 	var yaw := atan2(-dir.x, -dir.z)
 	LowPoly.box(self, Vector3(0.18, 2.6, 0.18), post + Vector3.UP * 1.3, Color(0.5, 0.35, 0.22), yaw)
 	LowPoly.box(self, Vector3(2.6, 0.7, 0.12), post + Vector3.UP * 2.3, Color(0.45, 0.22, 0.5), yaw)
-	var l := LowPoly.label(self, post + Vector3.UP * 2.3 - dir * 0.07, "CASINO", 44, Color(0.2, 0.0, 0.2), yaw)
+	var l := LowPoly.label(self, post + Vector3.UP * 2.3 - dir * 0.12, "CASINO", 44, Color(0.2, 0.0, 0.2), yaw)
 	l.modulate = Color(1.0, 0.85, 0.4)
 
 

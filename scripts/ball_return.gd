@@ -298,8 +298,13 @@ func _hood() -> void:
 	var label := Label3D.new()
 	label.text = MainMenu.TITLE
 	label.font = preload("res://fonts/ChakraPetch-Bold.ttf")
-	label.font_size = 120
 	label.pixel_size = 0.0075
+	# Shrink long names so they fit between the starbursts (4.6 m) and
+	# never run into them.
+	var size := 120
+	while size > 40 and label.font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x * label.pixel_size > 4.5:
+		size -= 4
+	label.font_size = size
 	label.outline_size = 0
 	label.modulate = Color(0.66, 0.1, 0.12)
 	label.shaded = false

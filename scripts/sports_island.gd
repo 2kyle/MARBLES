@@ -497,7 +497,7 @@ func _entrance(bridge_from_z: float) -> void:
 	var sign_at := Vector3(2.2, 0, bridge_from_z + 2.0)
 	LowPoly.box(self, Vector3(0.15, 1.6, 0.15), sign_at + Vector3(0, 0.8, 0), WOOD.darkened(0.2))
 	LowPoly.box(self, Vector3(2.4, 0.7, 0.1), sign_at + Vector3(0, 1.5, 0), Color(1.0, 0.85, 0.35))
-	LowPoly.label(self, sign_at + Vector3(0, 1.5, 0.06), "SPORTS  ^", 40, Color(0.35, 0.2, 0.0), 0.0)
+	LowPoly.label(self, sign_at + Vector3(0, 1.5, 0.1), "SPORTS  ^", 40, Color(0.35, 0.2, 0.0), 0.0)
 
 
 func _scenery() -> void:

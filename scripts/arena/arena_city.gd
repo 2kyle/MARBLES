@@ -168,6 +168,7 @@ func _billboard(mid: Vector2, h: float) -> void:
 	var l := _sign(Vector3(0, 4.6, 0.2), text, 100, col.lightened(0.3), col.darkened(0.6), 0.0, 1.2)
 	l.pixel_size = 0.012
 	l.reparent(mi, false)
+	l.double_sided = false
 	var back := l.duplicate() as Label3D
 	back.rotation.y = PI
 	back.position.z = -0.2

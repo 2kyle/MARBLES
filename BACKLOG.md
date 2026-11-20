@@ -40,7 +40,7 @@ This is the to-do list for the game, **most important at the top**. Every night 
    Floating rings round the island to fly the biplane through (a little race against the clock), and show the plane to online guests too (right now only the person flying it sees the plane; guests see the ball flying).
 
 8. **To do** · **Pick the game's real name** *(suggested by Claude)*
-   The title is now **BOWLING 4P** as a stand-in. Pick a name and it changes everywhere at once (`TITLE` in `scripts/main_menu.gd`).
+   The title is now **BOWLING WIP** as a stand-in. Pick a name and it changes everywhere at once (`TITLE` in `scripts/main_menu.gd`).
 
 ## Needs you (Claude can't do these alone)
 

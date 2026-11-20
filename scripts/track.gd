@@ -56,6 +56,8 @@ extends Node3D
 	set(v):
 		step = maxf(v, 0.1)
 		_queue_rebuild()
+## Not used for the rolling surface any more: that is always a maple bowling
+## lane (shaders/bowling_lane.gdshader).
 @export var floor_color := Color(0.62, 0.45, 0.28):
 	set(v):
 		floor_color = v
@@ -70,6 +72,7 @@ extends Node3D
 		_queue_rebuild()
 
 const WALL_THICKNESS := 0.25
+const LANE_SHADER := preload("res://shaders/bowling_lane.gdshader")
 ## How wide a Narrow Bridge's plank is, metres.
 const NARROW_WIDTH := 1.9
 ## Metres a Narrow Bridge takes to squeeze in (and to open out again).
@@ -408,6 +411,7 @@ func rebuild() -> void:
 			"wro": o + r * (hw + WALL_THICKNESS) + u * wall_height,
 			"wlb": o - r * (hw + WALL_THICKNESS) - u * FLOOR_THICKNESS,
 			"wrb": o + r * (hw + WALL_THICKNESS) - u * FLOOR_THICKNESS,
+			"d": d, "hw": hw,
 		}
 		if i == 0:
 			# Back wall behind the start gate.
@@ -420,14 +424,14 @@ func rebuild() -> void:
 			_quad(wall_st, collision, cap.fr, cap.wrb, cap.wro, cap.wri)
 		if open_now and not prev.is_empty():
 			# No walls here: just the floor and its edges.
-			_quad(floor_st, collision, prev.fl, prev.fr, s.fr, s.fl)
-			_quad(floor_st, null, prev.br, prev.bl, s.bl, s.br)
+			_lane_quad(floor_st, collision, prev, s)
+			_quad(wall_st, null, prev.br, prev.bl, s.bl, s.br)
 			_quad(wall_st, null, prev.bl, prev.fl, s.fl, s.bl)
 			_quad(wall_st, null, prev.fr, prev.br, s.br, s.fr)
 		elif not prev.is_empty():
 			# Rolling surface and underside.
-			_quad(floor_st, collision, prev.fl, prev.fr, s.fr, s.fl)
-			_quad(floor_st, null, prev.br, prev.bl, s.bl, s.br)
+			_lane_quad(floor_st, collision, prev, s)
+			_quad(wall_st, null, prev.br, prev.bl, s.bl, s.br)
 			# Inner wall faces, tops, outsides.
 			_quad(wall_st, collision, prev.wli, prev.fl, s.fl, s.wli)
 			_quad(wall_st, collision, prev.fr, prev.wri, s.wri, s.fr)
@@ -446,7 +450,7 @@ func rebuild() -> void:
 	wall_st.generate_normals()
 	var mesh := floor_st.commit()
 	wall_st.commit(mesh)
-	mesh.surface_set_material(0, _material(floor_color, 0.55))
+	mesh.surface_set_material(0, _lane_material(len))
 	mesh.surface_set_material(1, _material(wall_color, 0.7))
 
 	if _mesh == null:
@@ -517,6 +521,28 @@ func _quad(st: SurfaceTool, faces, a: Vector3, b: Vector3, c: Vector3, d: Vector
 		st.add_vertex(v)
 	if faces != null:
 		faces.append_array([a, c, b, a, d, c])
+
+
+## The rolling surface, with UVs in metres for the lane shader: x across the
+## lane (0 = centre line), y the distance down the track.
+func _lane_quad(st: SurfaceTool, faces: Array, a: Dictionary, b: Dictionary) -> void:
+	# Same winding as _quad(a.fl, a.fr, b.fr, b.fl).
+	var tri := [a.fl, b.fr, a.fr, a.fl, b.fl, b.fr]
+	var tri_uv := [Vector2(-a.hw, a.d), Vector2(b.hw, b.d), Vector2(a.hw, a.d),
+			Vector2(-a.hw, a.d), Vector2(-b.hw, b.d), Vector2(b.hw, b.d)]
+	for k in 6:
+		st.set_uv(tri_uv[k])
+		st.add_vertex(tri[k])
+	faces.append_array(tri)
+
+
+## Maple boards, dots, foul line and arrows (shaders/bowling_lane.gdshader).
+func _lane_material(len: float) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = LANE_SHADER
+	m.set_shader_parameter("lane_width", lane_width)
+	m.set_shader_parameter("lane_length", len)
+	return m
 
 
 func _material(color: Color, roughness: float) -> StandardMaterial3D:

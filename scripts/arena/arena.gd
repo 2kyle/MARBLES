@@ -17,7 +17,7 @@ extends Node3D
 ## Tip: to see one theme every time while you work on it, set
 ## `force_theme` on the Main node (in main.tscn) to its id.
 
-		"snow": "Frosty Village", "clouds": "Cloud Kingdom"}
+const THEMES := ["beach", "city", "caves", "snow", "clouds"]
 ## The ground (or water) is this high. Marbles below `out_of_bounds_y`
 ## (in main.gd, just above this) are out for the frame.
 const GROUND_Y := -4.0

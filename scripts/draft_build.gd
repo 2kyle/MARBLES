@@ -309,7 +309,7 @@ func _update_visuals() -> void:
 		tag.transform = floor_xf
 		var label: Label3D = tag.get_node("Name")
 		# One short line in the player's colour, gone once placed. When
-		# cursors are close, later players' labels sit higher so they
+		# cursors are close, later players' labels sit higher on screen so they
 		# never print over each other.
 		label.visible = not has_placed[p]
 		label.text = ("BLOCKED" if blocked else describe(p))
@@ -318,7 +318,7 @@ func _update_visuals() -> void:
 		for q in p:
 			if not has_placed[q] and cursor_pos[q].distance_to(cursor_pos[p]) < 4.0:
 				below += 1
-		label.position.y = 2.2 + 0.75 * below
+		label.offset = Vector2(0, 80.0 * below)   # pixels, straight up the screen
 		var arrow: Node3D = tag.get_node("Arrow")
 		arrow.visible = not ghost.has_meta("track_card")
 		var cur := current_id(p)
@@ -374,7 +374,7 @@ func _make_tag(player: int) -> Node3D:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.fixed_size = false
-	label.position = Vector3(0, 2.7, 0)
+	label.position = Vector3(0, 2.2, 0)
 	tag.add_child(label)
 
 	# Three chevrons pointing down the track (lane -z), like road markings.

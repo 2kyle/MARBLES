@@ -154,14 +154,6 @@ func make_peer(hosting: bool) -> MultiplayerPeer:
 	return peer if err == OK else null
 
 
-## The Steam name of the person on the other end of network peer `peer_id`.
-func name_of_peer(peer_id: int) -> String:
-	var peer := multiplayer.multiplayer_peer
-	if not available or peer == null or not peer.has_method("get_steam_id_for_peer_id"):
-		return ""
-	return api.getFriendPersonaName(peer.get_steam_id_for_peer_id(peer_id))
-
-
 func _on_lobby_created(result: int, id: int) -> void:
 	if result != 1 or id == 0:
 		lobby_failed.emit("Steam couldn't make a lobby (error %d)" % result)

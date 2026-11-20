@@ -106,6 +106,8 @@ var _hat_yaw := 0.0
 ## the ball is going, so you can see them blink and wince.
 var _eyes: EyeRig
 var _eyes_id := ""
+## Extra turn of the face (radians), e.g. for shaking its head on the podium.
+var look_offset := 0.0
 var _face_time := 0.0
 var _yaw_ready := false  # false until the first placement (then snap, don't swing)
 var _last_pos := Vector3.ZERO
@@ -166,6 +168,7 @@ func _place_hat(delta: float) -> void:
 	elif flat.length() > 0.8:
 		var travel := atan2(-flat.x, -flat.z)
 		want = cam_yaw + clampf(angle_difference(cam_yaw, travel), -1.0, 1.0)
+	want += look_offset
 	if delta > 0.0 and _yaw_ready:
 		_hat_yaw = lerp_angle(_hat_yaw, want, clampf(delta * 6.0, 0.0, 1.0))
 	else:

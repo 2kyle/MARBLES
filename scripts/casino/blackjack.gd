@@ -26,7 +26,9 @@ const MIN_WAGER := 10
 const DEALER_PACE := 0.7
 const RANKS := ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
 ## Suits: 0 spades, 1 hearts, 2 diamonds, 3 clubs.
-const SUIT_LETTERS := ["S", "H", "D", "C"]
+const SUITS := ["\u2660", "\u2665", "\u2666", "\u2663"]
+const RED := Color(0.85, 0.1, 0.15)
+const BLACK := Color(0.08, 0.08, 0.1)
 
 ## Where each seat's cards lie on the felt (this node's own space), and
 ## where the dealer's go.
@@ -228,16 +230,35 @@ func _card(c: Array, at: Vector3, face_down: bool, yaw: float) -> Node3D:
 	card.position = at + Vector3(0, TABLE_TOP + 0.01, 0)
 	card.rotation.y = yaw
 	add_child(card)
-	var red: bool = c[1] == 1 or c[1] == 2
 	LowPoly.box(card, Vector3(CARD_SIZE.x, 0.012, CARD_SIZE.y), Vector3.ZERO, Color(0.95, 0.15, 0.25) if face_down else Color(0.98, 0.97, 0.94))
-	if not face_down:
-		var l := LowPoly.label(card, Vector3(0, 0.012, 0), card_name(c) + SUIT_LETTERS[c[1]], 40,
-				Color(1, 1, 1, 0), 0.0)
-		l.rotation.x = -PI / 2
-		l.modulate = Color(0.85, 0.1, 0.15) if red else Color(0.08, 0.08, 0.1)
-		l.outline_size = 0
-		l.pixel_size = 0.0042
+	if face_down:
+		LowPoly.box(card, Vector3(CARD_SIZE.x - 0.06, 0.014, CARD_SIZE.y - 0.06), Vector3.ZERO, Color(0.75, 0.08, 0.18))
+	else:
+		# A proper card face: rank and suit in two corners, a big suit
+		# in the middle, red for hearts and diamonds, black otherwise.
+		var ink: Color = RED if c[1] == 1 or c[1] == 2 else BLACK
+		var corner: String = card_name(c) + "\n" + SUITS[c[1]]
+		var hx := CARD_SIZE.x / 2.0 - 0.055
+		var hz := CARD_SIZE.y / 2.0 - 0.075
+		_ink(card, corner, Vector3(-hx, 0, -hz), 0.0023, ink, 0.0)
+		_ink(card, corner, Vector3(hx, 0, hz), 0.0023, ink, PI)
+		_ink(card, SUITS[c[1]], Vector3.ZERO, 0.0055, ink, 0.0)
 	# Cards land with a little drop.
 	card.position.y += 0.3
 	card.create_tween().tween_property(card, "position:y", at.y + TABLE_TOP + 0.01, 0.18)
 	return card
+
+
+## Printed text lying flat on a card.
+func _ink(card: Node3D, text: String, at: Vector3, px: float, color: Color, spin: float) -> void:
+	var l := Label3D.new()
+	l.text = text
+	l.font = LowPoly.TITLE_FONT
+	l.font_size = 48
+	l.line_spacing = -14
+	l.pixel_size = px
+	l.modulate = color
+	l.outline_size = 0
+	l.position = at + Vector3(0, 0.008, 0)
+	l.rotation = Vector3(-PI / 2, spin, 0)
+	card.add_child(l)

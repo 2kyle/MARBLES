@@ -17,16 +17,16 @@ A party game where friends build a bowling lane together, then race physics marb
 The game opens on the **MARBLES 4P** title screen (a working title), with the camera slowly circling the island. From there:
 
 - **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
-- **Practice Island** drops everyone onto a small floating island to roll about, hop and try things out (see below).
+- **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** hosts or joins a game over the internet or your home network (see below).
 - **Settings** has fullscreen, vsync, volume, camera shake and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
 - **Controls**, **Credits** and **Quit**.
 
 During a match, **Esc** opens the pause menu.
 
-### Practice Island
+### The Hub
 
-![The practice island](docs/hub.png)
+![The hub](docs/hub.png)
 
 A small floating island to warm up on. It's its own place, high above a sea of clouds with its own sky; the match lake and track are hidden while you're there. Roll with your lean keys (forward is away from the camera) and hop with your place key. Nothing here counts.
 
@@ -76,7 +76,7 @@ It's built in code in `scripts/sports_island.gd`.
 The island is built in code in `scripts/hub.gd` (the derby is `scripts/horse_race.gd`): windmill, pond and waterfall, trees, flowers, lanterns, butterflies, drifting clouds and little floating rocks.
 
 
-Looks are changed between games in the closet on the practice island, not at the start of a match. Each frame has four steps, like the design doc:
+Looks are changed between games in the closet on the hub, not at the start of a match. Each frame has four steps, like the design doc:
 
 1. **Draft (15 s):** a crate opens with one piece per player plus 2 extras, shown as big picture cards in the middle of the screen. Each player steers their own pointer onto a card and grabs it. First to grab a piece gets it.
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Your piece's name floats above it, and coloured arrows on the floor show which way marbles will roll through it. Pieces stay on the lane for the rest of the match.
@@ -90,6 +90,8 @@ A match is 10 frames. Every match starts on a new random track that winds left a
 While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m, which is just enough to clear the 0.7 m side walls if you want to jump off or cut a corner, and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
 
 ### Bots
+
+Pick **BOT SKILL** on the Play page (or in the online lobby): **Easy**, **Normal**, **Hard** or **Expert**. Better bots steer tighter, lean forward harder so they roll faster, hardly ever miss a hop, decide quicker, and drop their pieces right where the marbles roll. The levels are a little table at the top of `scripts/bot.gd` if you want to tune them.
 
 Bots fill empty seats and play by the same rules as people: they wander over to a card in the draft and grab it, slide their piece somewhere down the track and drop it, then roll down the middle of the lane, leaning forward and hopping gaps. They're good but not perfect (they wobble a little). Each bot gets its own random look, always with eyes. Their code is `scripts/bot.gd`: a bot just answers "which way is my stick, and which buttons did I press?" every frame, exactly like a controller, so the referee treats it like anyone else.
 
@@ -141,7 +143,7 @@ The badges are drawn in code (`scripts/achievement_icon.gd`). `steam/achievement
 
 ![The closet](docs/closet.png)
 
-Roll onto the CUSTOMIZE plate on the practice island and the closet fills the screen. Your marble spins on a pedestal on the left; on the right are five tabs, **HATS**, **EYES**, **COLOR**, **STYLE** and **TRAIL**, each a grid of cards with a little picture of the look. Your coins are in the top right corner.
+Roll onto the CUSTOMIZE plate on the hub and the closet fills the screen. Your marble spins on a pedestal on the left; on the right are five tabs, **HATS**, **EYES**, **COLOR**, **STYLE** and **TRAIL**, each a grid of cards with a little picture of the look. Your coins are in the top right corner.
 
 - Move with your lean keys or stick. Up from the top row reaches the tabs, and pushing past the left or right edge of the grid flips to the next tab.
 - Whatever you highlight is tried on the big marble straight away, even if you don't own it yet.
@@ -171,10 +173,14 @@ Every other look is won from loot crates at the casino. A crate costs **100 coin
 | A pile of coins (50 to 200) | 15% |
 | **Golden Marble Trophy** (ultra rare) | 1% |
 
-A look you already own pays coins back instead (25 for Common up to 150 for Legendary). The Golden Marble Trophy isn't worn: it stands on your practice island. The odds are shown on the crate screen, and live in `scripts/loot_crates.gd` if you want to tune them.
+A look you already own pays coins back instead (25 for Common up to 150 for Legendary). The Golden Marble Trophy isn't worn: it stands on your hub. The odds are shown on the crate screen, and live in `scripts/loot_crates.gd` if you want to tune them.
 
 - **Coins:** you get 1 coin per point you score each frame. At the end of a match everyone gets +20 and the winner gets +50 more. New players start with 150, enough for one crate. The Marble Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on). Bots don't earn coins. Online, your coins and looks are the ones on your own computer (P1's).
 - Looks and rarities live in `scripts/cosmetics.gd`, hat shapes in `scripts/hats.gd`, and coin amounts in `scripts/profiles.gd`.
+
+### The podium
+
+When the match ends, the top three stand on a podium on the lane where the pins were: the winner hops up and down wearing a gold medal, with a sprinkle of confetti, and second and third sway along. With four players, last place sits in a trash can shaking their head. The final scores come up after a few seconds (or hold Tab). It's built in `scripts/podium.gd`.
 
 ### STRIKE!
 
@@ -230,20 +236,20 @@ Every piece is painted like a wooden toy: candy-striped bumpers, chevrons pointi
 
 ## Controls
 
-Everything works with the keyboard or controllers, and the **Controls** page in the menu shows a drawn keyboard and controller with every binding. Players 3 and 4 use I J K L (U, O) and the number pad (8 4 5 6, 7, 9).
+Player 1's hop / place / grab key is **Space** (E still works too). Everything works with the keyboard or controllers, and the **Controls** page in the menu shows a drawn keyboard and controller with every binding. Players 3 and 4 use I J K L (U, O) and the number pad (8 4 5 6, 7, 9).
 
 | | Player 1 keys | Player 2 keys | Controller |
 | --- | --- | --- | --- |
 | Menus: move / pick / back | W S or arrows / E or Enter / Esc | | D-pad or left stick / A / B |
-| Closet: browse / wear / close | W A S D / E / Q | Arrows / Enter / Right Shift | D-pad or stick / A / B |
-| Loot crate: open / leave | E / Q | Enter / Right Shift | A / B |
-| Blackjack: wager / deal or hit / stand or leave | W S / E / Q | Up Down / Enter / Right Shift | Stick / A / B or X |
-| Bar: pick drink / order / leave | A D / E / Q | Left Right / Enter / Right Shift | Stick / A / B or X |
-| Draft: move pointer / grab | W A S D / E | Arrows / Enter | Left stick / A |
-| Build: move / rotate (flip for track cards) / place | W A S D / Q / E | Arrow keys / Right Shift / Enter | Left stick / X or RB / A |
-| Roll: lean / hop | W A S D / E | Arrow keys / Enter | Left stick (analog) / A |
-| Practice island: roll / hop / leave a plate | W A S D / E / Q | Arrows / Enter / Right Shift | Left stick / A / B or X |
-| Practice island: turn the camera | Z / X, or hold the right mouse button and drag; mouse wheel to zoom | | Right stick |
+| Closet: browse / wear / close | W A S D / Space / Q | Arrows / Enter / Right Shift | D-pad or stick / A / B |
+| Loot crate: open / leave | Space / Q | Enter / Right Shift | A / B |
+| Blackjack: wager / deal or hit / stand or leave | W S / Space / Q | Up Down / Enter / Right Shift | Stick / A / B or X |
+| Bar: pick drink / order / leave | A D / Space / Q | Left Right / Enter / Right Shift | Stick / A / B or X |
+| Draft: move pointer / grab | W A S D / Space | Arrows / Enter | Left stick / A |
+| Build: move / rotate (flip for track cards) / place | W A S D / Q / Space | Arrow keys / Right Shift / Enter | Left stick / X or RB / A |
+| Roll: lean / hop | W A S D / Space | Arrow keys / Enter | Left stick (analog) / A |
+| Hub: roll / hop / leave a plate | W A S D / Space / Q | Arrows / Enter / Right Shift | Left stick / A / B or X |
+| Hub: turn the camera | Z / X, or hold the right mouse button and drag; mouse wheel to zoom | | Right stick |
 
 **Controllers:** controller 1 plays as P1, controller 2 as P2, and so on, in the order they were plugged in. You can switch between keys and controller at any time, and the hints at the bottom of the screen show whichever you used last.
 
@@ -258,11 +264,11 @@ Everything works with the keyboard or controllers, and the **Controls** page in 
 
 ## Art direction (work in progress)
 
-The look is **toy diorama**: soft, matte, low-poly shapes like painted wooden toys. The practice island floats in a sunny sky with puffy 3D clouds (`scripts/art_style.gd`).
+The look is **toy diorama**: soft, matte, low-poly shapes like painted wooden toys. The hub floats in a sunny sky with puffy 3D clouds (`scripts/art_style.gd`).
 
 ### Match worlds
 
-Every match picks one of five worlds at random for the scenery round the track: its own sky, ground, lighting, track colours and moving details. Online, the host picks and everyone sees the same one.
+Every match also gets a random track width (between 4.2 and 6.6 m, see `TRACK_WIDTHS` in `scripts/main.gd`), so no two starts feel the same. Every match picks one of five worlds at random for the scenery round the track: its own sky, ground, lighting, track colours and moving details. Online, the host picks and everyone sees the same one.
 
 | World | What's there | File |
 | --- | --- | --- |
@@ -358,7 +364,7 @@ scripts/
   cosmetics.gd       every marble look and its rarity
   hats.gd            builds the hat shapes
   eyes.gd            builds the eyes, and makes them blink and wince
-  bot.gd             computer players (draft, build, roll, practice island)
+  bot.gd             computer players (draft, build, roll, hub)
   net.gd             online play: hosting, joining, the lobby and what's sent
   loot_crates.gd     loot crate prices and odds
   closet.gd          the full-screen closet
@@ -375,7 +381,7 @@ scripts/
   steam_service.gd   everything that talks to Steam: lobbies, invites, presence, achievements
   achievements.gd    the achievement list, unlocking and saving
   achievement_icon.gd  draws the achievement badges
-  hub.gd             the practice island (practice run, closet plate, trophies, PLAY arch, name tags)
+  hub.gd             the hub (practice run, closet plate, trophies, PLAY arch, name tags)
   ball_return.gd     the bowling end: lane, gutters, pit and ball return
   arena/             the five match worlds, one file each, plus shared helpers
   casino/            the casino island and blackjack
@@ -391,7 +397,7 @@ scripts/
   controls.gd        all the key and controller bindings
   controls_diagram.gd  the drawn keyboard and controller on the Controls page
   art_style.gd       the shared look: sky, haze and puffy clouds
-  cloud_layer.gd     drifting clouds (match and practice island)
+  cloud_layer.gd     drifting clouds (match and hub)
   camera_rig.gd      follow camera
   hud.gd             everything on screen: scores, draft cards, ready screen, STRIKE!, scoreboard
 fonts/               the two fonts and their licences
@@ -409,7 +415,7 @@ tests/
   sim_roll.gd        plays frames with no one at the keys and prints results
   sim_items.gd       tries the teleporter, wind fan and Wall Breaker
   sim_gap.gd         rolls over a gap, with or without well-timed hops
-  sim_hub.gd         checks the practice island's teleports, closet, a loot crate, derby bet and PLAY arch
+  sim_hub.gd         checks the hub's teleports, closet, a loot crate, derby bet and PLAY arch
   test_crates.gd     opens 100,000 crates and checks the odds (1% trophy and so on)
   sim_bots.gd        one idle person and three bots: checks bots draft, build and roll on their own
   test_achievements.gd  achievements unlock, count, save and reach Steam; the game runs fine with no Steam

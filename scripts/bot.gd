@@ -9,15 +9,30 @@ extends RefCounted
 ## Draft: wanders over to a free card and grabs it.
 ## Build: picks a spot down the track that fits, slides there and drops.
 ## Roll: keeps to the middle of the lane, leans forward and hops gaps.
-## Practice island: potters about and hops now and then.
+## The hub: potters about and hops now and then.
+##
+## How good a bot is comes from its `level` (see SKILLS): better bots steer
+## tighter, lean forward harder (so roll faster), rarely miss a hop, decide
+## quicker, and put their pieces where the marbles actually roll.
+
+## One row per difficulty. steer/damp: how hard it corrects toward the
+## middle of the lane; wobble: sloppiness; push: forward lean (1 = flat out);
+## miss: chance of fluffing a hop; think: how long it dithers (x normal);
+## aim: 0 = drops pieces anywhere, 1 = right on the racing line.
+const SKILLS := [
+	{"name": "EASY", "steer": 0.5, "damp": 0.15, "wobble": 0.6, "push": 0.4, "miss": 0.45, "think": 1.5, "aim": 0.0},
+	{"name": "NORMAL", "steer": 0.9, "damp": 0.35, "wobble": 0.25, "push": 0.6, "miss": 0.12, "think": 1.0, "aim": 0.3},
+	{"name": "HARD", "steer": 1.1, "damp": 0.45, "wobble": 0.1, "push": 0.85, "miss": 0.03, "think": 0.7, "aim": 0.6},
+	{"name": "EXPERT", "steer": 1.3, "damp": 0.55, "wobble": 0.03, "push": 0.95, "miss": 0.0, "think": 0.5, "aim": 0.8},
+]
 
 var seat := 0
+## 0 easy, 1 normal, 2 hard, 3 expert.
+var level := 1
 ## The stick, as main.gd reads it: x = right, y = back (forward is -1).
 var lean := Vector2.ZERO
 ## Buttons pressed this frame ("confirm", "rotate", ...).
 var presses: Array = []
-## How sloppy the bot is with steering (0 = perfect).
-var wobble := 0.25
 ## Seconds a bot looks at the draft cards before moving (random in range),
 ## and how fast it moves its pointer (1 = as fast as a person can).
 const DRAFT_THINK := Vector2(1.8, 3.6)
@@ -68,6 +83,7 @@ func think(game, delta: float) -> void:
 		# In the draft, take a moment to look over the cards first.
 		_wait = _rng.randf_range(DRAFT_THINK.x, DRAFT_THINK.y) if game.state == game.State.DRAFT \
 				else _rng.randf_range(0.5, 1.4)
+		_wait *= _skill().think
 		_target_slot = -1
 		_target_part = -1
 	_wait -= delta
@@ -119,7 +135,9 @@ func _build(game) -> void:
 	if _target_part != db.part[seat] or db.message[seat] == "Blocked":
 		_target_part = db.part[seat]
 		var from: Vector2 = db.cursor_pos[seat]
-		var guess := Vector2(_rng.randf_range(-1.6, 1.6), from.y - _rng.randf_range(4.0, 22.0))
+		# Better bots put pieces nearer the middle, where marbles roll.
+		var spread: float = builder.half_width * (1.0 - 0.8 * _skill().aim)
+		var guess := Vector2(_rng.randf_range(-spread, spread), from.y - _rng.randf_range(4.0, 22.0))
 		if PieceCatalog.is_track(id):
 			guess.x = 0.0
 			if PieceCatalog.turns(id) and _rng.randf() < 0.5:
@@ -146,15 +164,21 @@ func _roll(game, delta: float) -> void:
 	var lane := track.world_frame_at(d)
 	var across := lane.basis.x.dot(m.global_position - lane.origin)
 	var slide := m.linear_velocity.dot(lane.basis.x)
-	var steer := -(across * 0.9 + slide * 0.35)
-	steer += sin(_noise_t * 1.7 + seat) * wobble
-	lean = Vector2(clampf(steer, -1.0, 1.0), -0.6)
-	# Hop just before a gap.
+	var skill := _skill()
+	var steer: float = -(across * skill.steer + slide * skill.damp)
+	steer += sin(_noise_t * 1.7 + seat) * skill.wobble
+	lean = Vector2(clampf(steer, -1.0, 1.0), -skill.push)
+	# Hop just before a gap (sometimes fluffing it, on the easier levels).
 	_hop_wait -= delta
 	var speed := m.linear_velocity.length()
 	if _hop_wait <= 0.0 and not track.in_gap(d) and track.in_gap(d + 0.9 + speed * 0.12):
-		presses.append("confirm")
 		_hop_wait = 1.0
+		if _rng.randf() >= skill.miss:
+			presses.append("confirm")
+
+
+func _skill() -> Dictionary:
+	return SKILLS[clampi(level, 0, SKILLS.size() - 1)]
 
 
 func _hub(game, delta: float) -> void:

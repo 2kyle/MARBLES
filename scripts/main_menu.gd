@@ -35,6 +35,7 @@ const GOLD := Color(1.0, 0.82, 0.25)
 const TITLE := "MARBLES 4P"
 const VERSION := "prototype"
 
+var _retry_button: Button
 var settings: GameSettings
 ## Set by main.gd; the online page asks it whether Steam is running.
 var steam: SteamService
@@ -198,7 +199,9 @@ func open_main() -> void:
 
 
 ## Show the pause menu over a match.
-func open_pause() -> void:
+## `retry`: show RETRY FRAME (not at the hub, where there's no frame).
+func open_pause(retry := true) -> void:
+	_retry_button.visible = retry
 	paused_menu = true
 	_stack = ["pause"]
 	_show_top()
@@ -299,7 +302,7 @@ func toast(text: String) -> void:
 func _build_main_page() -> void:
 	var page := _page("main", "")
 	_button(page, "PLAY", func(): _push("play"), true)
-	_button(page, "PRACTICE ISLAND", _on_practice)
+	_button(page, "THE HUB", _on_practice)
 	_button(page, "ONLINE", func(): _push("online"))
 	_button(page, "SETTINGS", func(): _push("settings"))
 	_button(page, "CONTROLS", func(): _push("controls"))
@@ -326,6 +329,10 @@ func _build_play_page() -> void:
 		settings.bot_count = mini(i, 4 - settings.player_count)
 		bots.index = settings.bot_count
 		_save())
+	var skill := _stepper(page, "BOT SKILL", MarbleBot.SKILLS.map(func(k): return k.name))
+	skill.value_changed.connect(func(i):
+		settings.bot_level = i
+		_save())
 	var frames := _stepper(page, "FRAMES", [3, 5, 10])
 	frames.value_changed.connect(func(i):
 		settings.frames_per_match = [3, 5, 10][i]
@@ -337,6 +344,7 @@ func _build_play_page() -> void:
 	page.set_meta("sync", func():
 		players.index = settings.player_count - 1
 		bots.index = settings.bot_count
+		skill.index = settings.bot_level
 		frames.index = maxi([3, 5, 10].find(settings.frames_per_match), 0)
 		bump.index = 0 if settings.marbles_collide else 1)
 	_note(page, "Everyone shares this keyboard. Players 3 and 4 use I J K L and the number pad.")
@@ -379,13 +387,17 @@ func _build_lobby_page() -> void:
 		settings.bot_count = i
 		_save()
 		lobby_bots_changed.emit(i))
+	var skill := _stepper(page, "BOT SKILL", MarbleBot.SKILLS.map(func(k): return k.name))
+	skill.value_changed.connect(func(i):
+		settings.bot_level = i
+		_save())
 	var frames := _stepper(page, "FRAMES", [3, 5, 10])
 	frames.value_changed.connect(func(i):
 		settings.frames_per_match = [3, 5, 10][i]
 		_save())
 	_lobby_invite = _button(page, "INVITE STEAM FRIENDS", func(): invite_requested.emit())
 	var start := _button(page, "START NOW", func(): lobby_start_requested.emit(), true)
-	_lobby_host_only = [bots, frames, start]
+	_lobby_host_only = [bots, skill, frames, start]
 	_lobby_wait = Label.new()
 	_lobby_wait.text = "Waiting for the host to start..."
 	_lobby_wait.add_theme_font_size_override("font_size", 20)
@@ -395,6 +407,7 @@ func _build_lobby_page() -> void:
 	page.add_child(_lobby_wait)
 	page.set_meta("sync", func():
 		bots.index = settings.bot_count
+		skill.index = settings.bot_level
 		frames.index = maxi([3, 5, 10].find(settings.frames_per_match), 0))
 	_button(page, "LEAVE GAME", func(): lobby_leave_requested.emit())
 
@@ -445,7 +458,7 @@ func _build_controls_page() -> void:
 	keys.focus_entered.connect(func(): diagram.kind = ControlsDiagram.Kind.KEYBOARD)
 	pad.focus_entered.connect(func(): diagram.kind = ControlsDiagram.Kind.CONTROLLER)
 	page.add_child(diagram)
-	_note(page, "Move = lean while rolling, steer the pointer in the draft and slide your piece in the build. On the practice island, the turn key (or B) leaves a plate.")
+	_note(page, "Move = lean while rolling, steer the pointer in the draft and slide your piece in the build. At the hub, the turn key (or B) leaves a plate.")
 	_button(page, "BACK", back)
 
 
@@ -511,7 +524,7 @@ func _build_credits_page() -> void:
 func _build_pause_page() -> void:
 	var page := _page("pause", "PAUSED")
 	_button(page, "RESUME", func(): resume_requested.emit(), true)
-	_button(page, "RETRY FRAME", func(): restart_frame_requested.emit())
+	_retry_button = _button(page, "RETRY FRAME", func(): restart_frame_requested.emit())
 	_button(page, "SETTINGS", func(): _push("settings"))
 	_button(page, "CONTROLS", func(): _push("controls"))
 	_button(page, "QUIT TO MENU", func(): quit_to_menu_requested.emit())

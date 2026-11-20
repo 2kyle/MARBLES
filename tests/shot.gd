@@ -6,6 +6,7 @@ var _t := 0
 var out := "user://shot.png"
 var mode := "match"
 var arg := ""
+var arg2 := ""
 
 func _initialize() -> void:
 	Achievements.save_path = "user://test_achievements.cfg"
@@ -13,6 +14,7 @@ func _initialize() -> void:
 	if a.size() > 0: out = a[0]
 	if a.size() > 1: mode = a[1]
 	if a.size() > 2: arg = a[2]
+	if a.size() > 3: arg2 = a[3]
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 
@@ -36,8 +38,11 @@ func _setup() -> void:
 				game.force_theme = arg
 				game._new_match()
 				game.show_title()
-		"match", "roll", "end", "draft", "return":
+		"match", "roll", "end", "draft", "return", "build", "podium":
 			game.force_theme = arg
+			game.settings.player_count = 2
+			game.settings.bot_count = 2
+			game._setup_local_seats()
 			game._new_match()
 			game.menu.close()
 		"hub", "casino", "crate", "bar":
@@ -62,6 +67,21 @@ func _tick() -> void:
 		"draft":
 			if _t == 4:
 				game._start_draft()
+		"podium":
+			if _t == 4:
+				game.frame = game.frames_per_match
+				game.totals = [40, 12, 77, 3]
+				game.state = game.State.MATCH_OVER
+				game._show_podium()
+			if _t == 6:
+				game.camera.snap_to(game.camera.target)
+			if arg2 == "":
+				game.podium.age = minf(game.podium.age, 2.0)
+		"build":
+			if _t == 4:
+				game._start_draft()
+			if _t == 6:
+				game._start_build()
 		"return":
 			# Look along the bowling end: lane, gutters, pit and ball return.
 			if _t == 4:

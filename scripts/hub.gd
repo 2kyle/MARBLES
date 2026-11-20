@@ -747,7 +747,7 @@ func _signs() -> void:
 	# A wooden welcome sign by the spawn.
 	LowPoly.box(self, Vector3(0.15, 1.6, 0.15), Vector3(-4.6, 0.8, 13.5), Color(0.5, 0.35, 0.22), 0.0)
 	LowPoly.box(self, Vector3(2.8, 0.9, 0.12), Vector3(-4.6, 1.6, 13.5), Color(0.72, 0.52, 0.32), 0.0)
-	LowPoly.label(self, Vector3(-4.6, 1.6, 13.57), "MARBLES 4P\nPRACTICE ISLAND", 40, Color(0.3, 0.18, 0.08))
+	LowPoly.label(self, Vector3(-4.6, 1.6, 13.57), "MARBLES 4P\nTHE HUB", 40, Color(0.3, 0.18, 0.08))
 
 
 func _sky_life() -> void:

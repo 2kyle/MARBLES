@@ -10,7 +10,7 @@ extends RefCounted
 
 const PLAYER_KEYS := [
 	# left, right, forward, back, rotate, confirm
-	[KEY_A, KEY_D, KEY_W, KEY_S, KEY_Q, KEY_E],                       # Player 1
+	[KEY_A, KEY_D, KEY_W, KEY_S, KEY_Q, KEY_SPACE],                   # Player 1 (E works too)
 	[KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_SHIFT, KEY_ENTER],    # Player 2
 	[KEY_J, KEY_L, KEY_I, KEY_K, KEY_U, KEY_O],                       # Player 3
 	[KEY_KP_4, KEY_KP_6, KEY_KP_8, KEY_KP_5, KEY_KP_7, KEY_KP_9],     # Player 4
@@ -134,6 +134,8 @@ static func describe(player: int) -> String:
 	var names := []
 	for key in k:
 		names.append(OS.get_keycode_string(key))
+	if player == 0:
+		return "W A S D move, Q rotate, Space place"
 	if player == 1:
 		return "arrows move, Right Shift rotate, Enter place"
 	return "%s %s %s %s move, %s rotate, %s place" % [
@@ -162,6 +164,10 @@ static func _add(action: String, keys: Array) -> void:
 		if action == "p2_rotate":
 			ev.location = KEY_LOCATION_RIGHT  # right Shift only
 		InputMap.action_add_event(action, ev)
+	if action == "p1_confirm":
+		var e := InputEventKey.new()
+		e.physical_keycode = KEY_E
+		InputMap.action_add_event(action, e)
 	if action == "p2_confirm":
 		var kp := InputEventKey.new()
 		kp.physical_keycode = KEY_KP_ENTER

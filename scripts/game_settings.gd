@@ -18,6 +18,8 @@ var camera_shake := 1.0
 ## How many people play at this computer, and how many bots join them.
 var player_count := 1
 var bot_count := 1
+## How good the bots are: 0 easy, 1 normal, 2 hard, 3 expert.
+var bot_level := 1
 var frames_per_match := 10
 var marbles_collide := true
 
@@ -35,6 +37,7 @@ func load_from_disk() -> void:
 	# on the new default of one person and one bot.
 	player_count = clampi(cfg.get_value("match", "humans", player_count), 1, 4)
 	bot_count = clampi(cfg.get_value("match", "bots", bot_count), 0, 4 - player_count)
+	bot_level = clampi(cfg.get_value("match", "bot_level", bot_level), 0, 3)
 	frames_per_match = cfg.get_value("match", "frames", frames_per_match)
 	marbles_collide = cfg.get_value("match", "bumping", marbles_collide)
 
@@ -48,6 +51,7 @@ func save_to_disk() -> void:
 	cfg.set_value("camera", "shake", camera_shake)
 	cfg.set_value("match", "humans", player_count)
 	cfg.set_value("match", "bots", bot_count)
+	cfg.set_value("match", "bot_level", bot_level)
 	cfg.set_value("match", "frames", frames_per_match)
 	cfg.set_value("match", "bumping", marbles_collide)
 	cfg.save(PATH)

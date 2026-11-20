@@ -33,6 +33,7 @@ func _process(_delta: float) -> bool:
 	if _ticks == 2:
 		game.settings.player_count = 1
 		game.settings.bot_count = 3
+		game.settings.bot_level = int(OS.get_environment("BOT_LEVEL")) if OS.get_environment("BOT_LEVEL") != "" else 1
 		game._on_play_requested()
 		check("1 person + 3 bots = 4 seats", game.player_count == 4)
 		check("seat 2-4 are bots", game.is_bot(1) and game.is_bot(2) and game.is_bot(3) and not game.is_bot(0))

@@ -204,10 +204,8 @@ func describe(player: int) -> String:
 	if id == "":
 		return ""
 	var name := PieceCatalog.display_name(id).to_upper()
-	if PieceCatalog.is_track(id):
-		name = "TRACK ALTERING\n" + name
 	if PieceCatalog.parts(picks[player]) > 1:
-		name += "  (%d/%d)" % [part[player] + 1, PieceCatalog.parts(picks[player])]
+		name += " %d/%d" % [part[player] + 1, PieceCatalog.parts(picks[player])]
 	if PieceCatalog.turns(id):
 		return name + ("  < LEFT" if PieceCatalog.turns_left(cursor_angle[player]) else "  RIGHT >")
 	return name
@@ -310,8 +308,17 @@ func _update_visuals() -> void:
 		var tag: Node3D = _tags[p]
 		tag.transform = floor_xf
 		var label: Label3D = tag.get_node("Name")
-		label.text = describe(p) + ("\nBLOCKED" if blocked else "")
-		label.modulate = Color(1.0, 0.35, 0.3) if blocked else Color.WHITE
+		# One short line in the player's colour, gone once placed. When
+		# cursors are close, later players' labels sit higher so they
+		# never print over each other.
+		label.visible = not has_placed[p]
+		label.text = ("BLOCKED" if blocked else describe(p))
+		label.modulate = Color(1.0, 0.35, 0.3) if blocked else (colors[p] as Color).lightened(0.35)
+		var below := 0
+		for q in p:
+			if not has_placed[q] and cursor_pos[q].distance_to(cursor_pos[p]) < 4.0:
+				below += 1
+		label.position.y = 2.2 + 0.75 * below
 		var arrow: Node3D = tag.get_node("Arrow")
 		arrow.visible = not ghost.has_meta("track_card")
 		var cur := current_id(p)
@@ -360,9 +367,9 @@ func _make_tag(player: int) -> Node3D:
 	var label := Label3D.new()
 	label.name = "Name"
 	label.font = TITLE_FONT
-	label.font_size = 72
-	label.pixel_size = 0.009
-	label.outline_size = 18
+	label.font_size = 64
+	label.pixel_size = 0.0075
+	label.outline_size = 16
 	label.outline_modulate = Color(0.06, 0.05, 0.12)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true

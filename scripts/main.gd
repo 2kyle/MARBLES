@@ -26,13 +26,14 @@ const PLAYER_COLORS := [
 	Color(0.7, 0.45, 0.95),  # violet
 	Color(0.6, 0.95, 0.3),   # lime
 ]
-const PLAYER_NAMES := ["Player 1", "Player 2", "Player 3", "Player 4"]
 ## Where each marble starts across the lane, metres from the centre.
 ## The practice island is its own place, far away from the match island
 ## (which is hidden while you're there).
 const HUB_SCENE := preload("res://scenes/hub.tscn")
 const HUB_POSITION := Vector3(0, 60, 3000)
 const SPAWN_X := [-1.5, 1.5, -0.5, 0.5]
+## Each match's track is a random width between these (metres).
+const TRACK_WIDTHS := Vector2(4.2, 6.6)
 
 ## Marbles in the match (1 to 4). Each extra player uses the next key set.
 @export_range(1, 4) var player_count := 2
@@ -85,7 +86,13 @@ enum CameraFollow { ALL_MARBLES, ONE_MARBLE }
 
 @export var marble_scene: PackedScene = preload("res://scenes/marble.tscn")
 
-var state := State.MENU
+var state := State.MENU:
+	set(v):
+		state = v
+		_state_age = 0.0
+## Seconds since the state last changed. Space both hops and starts the next
+## frame, so a press right after a change is ignored (see seat_pressed).
+var _state_age := 0.0
 
 ## Who plays each seat.
 enum Seat { LOCAL, BOT, REMOTE }
@@ -126,6 +133,8 @@ var crate_screen: CrateScreen
 var table_open: Array = ["", "", "", ""]
 ## The world round the track this match (sky, ground, scenery).
 var arena: Arena
+## The victory podium, shown when a match ends.
+var podium: Podium
 var _hub_env: Environment
 var _menu_time := 0.0
 ## Coins, owned looks and equipped looks for each seat (saved to disk).
@@ -283,7 +292,7 @@ func _enter_hub() -> void:
 	_setup_local_seats()
 	player_count = clampi(settings.player_count, 1, 4)
 	camera_shake = settings.camera_shake
-	steam.presence("On the practice island")
+	steam.presence("At the hub")
 	_ensure_hub()
 	hub.mirror = false
 	_close_screens()
@@ -577,7 +586,7 @@ func _pause() -> void:
 		return
 	# Online, the game keeps going for everyone else.
 	get_tree().paused = not net.active()
-	menu.open_pause()
+	menu.open_pause(state != State.HUB)
 
 
 func _resume() -> void:
@@ -590,12 +599,7 @@ func _on_restart_frame_requested() -> void:
 	if net.active():
 		menu.toast("No retries in online games")
 		return
-	if state == State.HUB:
-		hub.stop_marbles()
-		_close_screens()
-		hub.start(player_count, seat_looks, marble_scene)
-		table_open = ["", "", "", ""]
-	elif state in [State.COUNTDOWN, State.ROLLING, State.RESULTS]:
+	if state in [State.COUNTDOWN, State.ROLLING, State.RESULTS]:
 		_prepare_roll()
 		_start_countdown()
 	else:
@@ -630,7 +634,7 @@ func _new_match(new_track := true) -> void:
 	_prepare_roll()
 	if net.is_host():
 		net.send_event("match", {"layout": track.layout, "start": track.start_xz,
-				"decor": ($Course/Decor as TrackDecor).seed, "theme": arena.id, "lobby": net.lobby,
+				"decor": ($Course/Decor as TrackDecor).seed, "theme": arena.id, "width": track.lane_width, "lobby": net.lobby,
 				"frames": frames_per_match, "collide": marbles_collide})
 
 
@@ -645,12 +649,13 @@ func _new_track() -> void:
 		hi = hi.max(Vector2(p.x, p.z))
 	($Course/Decor as TrackDecor).seed = _rng.randi()
 	var theme: String = force_theme if force_theme != "random" else Arena.random_theme(_rng)
-	_set_arena(theme, layout, -(lo + hi) / 2.0)
+	var width := snappedf(_rng.randf_range(TRACK_WIDTHS.x, TRACK_WIDTHS.y), 0.1)
+	_set_arena(theme, layout, -(lo + hi) / 2.0, width)
 
 
 ## Build the track from `layout` inside the arena `theme`: its colours, sky,
 ## sun and scenery. The decor seed keeps the scenery the same online.
-func _set_arena(theme: String, layout: Array, start_xz: Vector2) -> void:
+func _set_arena(theme: String, layout: Array, start_xz: Vector2, width: float) -> void:
 	if arena == null or arena.id != theme:
 		if arena:
 			arena.queue_free()
@@ -659,6 +664,8 @@ func _set_arena(theme: String, layout: Array, start_xz: Vector2) -> void:
 	track.floor_color = arena.track_floor
 	track.wall_color = arena.track_wall
 	track.support_color = arena.track_support
+	track.lane_width = width
+	builder.half_width = width / 2.0 - 0.7   # where pieces may go
 	track.apply_layout(layout, start_xz)
 	_place_deck()
 	arena.build(track, deck, ($Course/Decor as TrackDecor).seed)
@@ -692,8 +699,32 @@ func _place_deck() -> void:
 		arena.refit(track, deck)
 
 
+## The match is over: the top three on the podium, fourth in the bin.
+## It stands where the pins were, so the pins and real marbles hide.
+func _show_podium() -> void:
+	if podium == null:
+		podium = Podium.new()
+		podium.name = "Podium"
+		deck.add_child(podium)
+	podium.position = ($Course/Deck/RackSpot as Node3D).position + Vector3(0, 0, -0.5)
+	var order := range(player_count)
+	order.sort_custom(func(a, b): return totals[a] > totals[b] or (totals[a] == totals[b] and a < b))
+	var looks := []
+	var names := []
+	for p in player_count:
+		looks.append(look_for(p))
+		names.append(seat_name(p))
+	podium.show_for(order, looks, player_colors, names, marble_scene)
+	rack.visible = false
+	for m in marbles:
+		m.visible = false
+
+
 func _prepare_roll() -> void:
 	## Put fresh marbles at the start gate (frozen) and a fresh rack of pins.
+	if podium:
+		podium.clear()
+	rack.visible = course.visible   # (hidden while at the hub)
 	for m in marbles:
 		remove_child(m)
 		m.queue_free()
@@ -763,6 +794,7 @@ func _release_marbles() -> void:
 
 
 func _process(delta: float) -> void:
+	_state_age += delta
 	if net.is_client():
 		_client_process(delta)
 		return
@@ -1037,7 +1069,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			_prepare_roll()
 			_start_countdown()
 	elif event.is_action_pressed("roll"):
-		request_next()
+		# Not the instant the scores appear, or a late hop would skip them.
+		if not (state in [State.RESULTS, State.MATCH_OVER] and _state_age < 0.8):
+			request_next()
 
 
 ## Space / Y: start the match, the next frame, or a new match.
@@ -1059,6 +1093,12 @@ func request_next() -> void:
 
 # ------------------------------------------------------------ Seats
 
+func _new_bot(p: int) -> MarbleBot:
+	var bot := MarbleBot.new(p)
+	bot.level = settings.bot_level
+	return bot
+
+
 ## Local play: people first (from the Play page), then bots.
 func _setup_local_seats() -> void:
 	var people := clampi(settings.player_count, 1, 4)
@@ -1076,7 +1116,7 @@ func _make_bots_and_looks(lobby: Array = []) -> void:
 	bots = [null, null, null, null]
 	for p in 4:
 		if seat_kinds[p] == Seat.BOT:
-			bots[p] = MarbleBot.new(p)
+			bots[p] = _new_bot(p)
 			seat_looks.append(MarbleBot.look(p))
 		elif p < lobby.size() and not (seat_kinds[p] == Seat.LOCAL and net.active()):
 			seat_looks.append(_look_from_ids(lobby[p].get("look", {})))
@@ -1173,6 +1213,8 @@ func seat_lean(p: int) -> Vector2:
 
 
 func seat_pressed(p: int, button: String) -> bool:
+	if button == "confirm" and _state_age < 0.25:
+		return false   # the same press that changed the screen
 	return p < _pressed.size() and (_pressed[p] as Array).has(button)
 
 
@@ -1321,7 +1363,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 		for p in player_count:
 			if seat_kinds[p] == Seat.REMOTE and (p >= net.lobby.size() or net.lobby[p].kind == "bot"):
 				seat_kinds[p] = Seat.BOT
-				bots[p] = MarbleBot.new(p)
+				bots[p] = _new_bot(p)
 		menu.toast("A player left: a bot took their seat")
 		return
 	if not net.is_client():
@@ -1368,7 +1410,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 			match_coins = [0, 0, 0, 0]
 			builder.clear()
 			($Course/Decor as TrackDecor).seed = data.decor
-			_set_arena(data.get("theme", "beach"), data.layout, data.start)
+			_set_arena(data.get("theme", "beach"), data.layout, data.start, data.get("width", 5.0))
 			state = State.WAITING
 			_refresh_colors()
 			_prepare_roll()
@@ -1409,6 +1451,8 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 			if data.striker >= 0:
 				hud.show_strike(data.striker, player_colors[data.striker])
 			_frame_achievements(data.striker)
+			if state == State.MATCH_OVER:
+				_show_podium()
 
 
 ## Client: each frame, send my input and show the host's newest snapshot.
@@ -1585,6 +1629,8 @@ func _finish_frame() -> void:
 	if striker >= 0:
 		hud.show_strike(striker, player_colors[striker])
 	_frame_achievements(striker)
+	if state == State.MATCH_OVER:
+		_show_podium()
 	net.send_event("result", {"result": last_result, "totals": totals, "points": frame_points,
 			"coins": coins_earned, "match_coins": match_coins, "state": state, "striker": striker})
 
@@ -1863,7 +1909,13 @@ func _update_camera() -> void:
 	if state == State.ROLLING:
 		# Swing to the pins for each impact, then back to anyone still rolling.
 		pin_cam = _no_marbles_rolling() or _roll_time - _last_arrival_time < pin_cam_time
-	if pin_cam:
+	if state == State.MATCH_OVER and podium and podium.visible:
+		camera.heading = -deck.global_basis.z
+		camera.follow_offset = Vector3(0, 1.6, 4.6)
+		camera.look_ahead = Vector3(0, -0.1, -3.0)
+		camera.target = podium.to_global(Vector3(0.6, 0.9, 0))
+		camera.frame_points = podium.frame_points()
+	elif pin_cam:
 		camera.heading = -deck.global_basis.z
 		camera.follow_offset = Vector3(0, 3.2, 6.5)
 		camera.look_ahead = Vector3(0, -1.0, -3.0)

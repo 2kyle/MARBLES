@@ -8,6 +8,8 @@ extends CanvasLayer
 ## with cut, faceted corners to suit the low-poly look. SemiBold for normal
 ## text (set for the whole project in ui/theme.tres), Bold for titles.
 
+## Seconds the podium shows on its own before the final scores come up.
+const PODIUM_TIME := 5.0
 const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
@@ -153,6 +155,10 @@ func refresh(game) -> void:
 
 	var show_board: bool = game.state in [game.State.RESULTS, game.State.MATCH_OVER] \
 			or (Input.is_action_pressed("scoreboard") and not game.state in [game.State.WAITING, game.State.HUB])
+	# Match over: let everyone enjoy the podium for a few seconds first.
+	if game.state == game.State.MATCH_OVER and game.podium and game.podium.visible \
+			and game.podium.age < PODIUM_TIME and not Input.is_action_pressed("scoreboard"):
+		show_board = false
 	# Let a STRIKE! play before the scores come in.
 	_strike_left = maxf(_strike_left - get_process_delta_time(), 0.0)
 	if _strike_left > 0.0 and not Input.is_action_pressed("scoreboard"):
@@ -451,7 +457,7 @@ func _update_ready(game) -> void:
 	_ready_sub.visible = show
 	if not show:
 		return
-	_ready_sub.text = "PRESS %s TO START  ·  CHANGE LOOKS IN THE CLOSET ON THE PRACTICE ISLAND" % _gk("SPACE")
+	_ready_sub.text = "PRESS %s TO START  ·  CHANGE LOOKS IN THE CLOSET AT THE HUB" % _gk("SPACE")
 	var pulse := 1.0 + sin(Time.get_ticks_msec() / 1000.0 * 3.0) * 0.04
 	_ready_title.pivot_offset = _ready_title.size / 2.0
 	_ready_title.scale = Vector2(pulse, pulse)
@@ -569,13 +575,11 @@ func _update_hub(game) -> void:
 		(box.get_child(4) as Label).text = foot
 
 
-## Cards as short text, like "A♠ 10♥". Hearts and diamonds aren't coloured
-## here (one label), but the suits still read clearly.
+## Cards as short text, like "A♠ 10♥".
 func _cards_text(cards: Array) -> String:
-	var suits := ["\u2660", "\u2665", "\u2666", "\u2663"]
 	var out: PackedStringArray = []
 	for c in cards:
-		out.append(Blackjack.card_name(c) + suits[c[1]])
+		out.append(Blackjack.card_name(c) + Blackjack.SUITS[c[1]])
 	return " ".join(out)
 
 
@@ -660,7 +664,7 @@ func _build_board() -> void:
 func _make_board_row(frames: int, header: bool) -> PanelContainer:
 	var card := PanelContainer.new()
 	var st := _pill(Color(1, 1, 1, 0.0 if header else 0.06), 14, 6 if header else 8)
-	st.border_width_left = 0 if header else 8
+	st.border_width_bottom = 0 if header else 4
 	card.add_theme_stylebox_override("panel", st)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -669,6 +673,7 @@ func _make_board_row(frames: int, header: bool) -> PanelContainer:
 	name.custom_minimum_size = Vector2(70, 0)
 	name.add_theme_font_override("font", TITLE_FONT)
 	name.add_theme_font_size_override("font_size", 28)
+	_shadow(name)
 	row.add_child(name)
 	for f in frames:
 		var cell := Label.new()
@@ -676,6 +681,7 @@ func _make_board_row(frames: int, header: bool) -> PanelContainer:
 		cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cell.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		cell.add_theme_font_size_override("font_size", 14 if header else 20)
+		_shadow(cell)
 		row.add_child(cell)
 	var total := Label.new()
 	total.custom_minimum_size = Vector2(90, 0)
@@ -683,6 +689,7 @@ func _make_board_row(frames: int, header: bool) -> PanelContainer:
 	total.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	total.add_theme_font_override("font", TITLE_FONT)
 	total.add_theme_font_size_override("font_size", 14 if header else 38)
+	_shadow(total)
 	row.add_child(total)
 	var plus := Label.new()
 	plus.custom_minimum_size = Vector2(70, 0)
@@ -692,6 +699,12 @@ func _make_board_row(frames: int, header: bool) -> PanelContainer:
 	plus.add_theme_constant_override("outline_size", 6)
 	row.add_child(plus)
 	return card
+
+
+## A dark edge round white text, so it reads on any player colour.
+func _shadow(l: Label) -> void:
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.55))
+	l.add_theme_constant_override("outline_size", 5)
 
 
 func _fill_board(game) -> void:
@@ -720,10 +733,12 @@ func _fill_board(game) -> void:
 			leader = p
 	for p in game.player_count:
 		var card: PanelContainer = _board_grid.get_child(p + 1)
+		# The whole row is the player's colour, with white writing on it.
 		var st: StyleBoxFlat = card.get_theme_stylebox("panel")
-		st.border_color = game.player_colors[p]
+		st.bg_color = (game.player_colors[p] as Color).darkened(0.25)
+		st.border_color = (game.player_colors[p] as Color).lightened(0.2)
 		var row: HBoxContainer = card.get_child(0)
-		var color: Color = game.player_colors[p].lightened(0.25)
+		var color := Color.WHITE
 		var name: Label = row.get_child(0)
 		name.text = ("★ " if p == leader and game.totals[p] > 0 else "") + game.seat_name(p)
 		name.add_theme_color_override("font_color", color)
@@ -731,7 +746,7 @@ func _fill_board(game) -> void:
 			var cell: Label = row.get_child(1 + f)
 			var played: bool = f < game.frame_points.size()
 			cell.text = str(game.frame_points[f][p]) if played else "·"
-			cell.add_theme_color_override("font_color", Color(1, 1, 1, 1.0 if played else 0.25))
+			cell.add_theme_color_override("font_color", Color(1, 1, 1, 1.0 if played else 0.35))
 		var total: Label = row.get_child(1 + frames)
 		var shown: int = _board_shown.get(p, game.totals[p])
 		total.text = str(shown)
@@ -1023,7 +1038,8 @@ func _update_hints(game) -> void:
 			if not Controls.any_pad():
 				items += [["R", "Retry"], ["C", "Bumping " + ("on" if game.marbles_collide else "off")]]
 		_:
-			items += [[_gk("SPACE"), "Next"], [_gk("TAB"), "Scores"]]
+			var next := "New match" if game.state == game.State.MATCH_OVER else "Next"
+			items += [[_gk("SPACE"), next], [_gk("TAB"), "Scores"]]
 	if not items.is_empty() and items[-1] is String:
 		items.pop_back()
 	var key := str(items)
@@ -1065,7 +1081,7 @@ static func _key_names(p: int) -> Dictionary:
 	if Controls.using_pad[p]:
 		return {"move": "L-STICK", "rotate": "X", "confirm": "A"}
 	match p:
-		0: return {"move": "WASD", "rotate": "Q", "confirm": "E"}
+		0: return {"move": "WASD", "rotate": "Q", "confirm": "SPACE"}
 		1: return {"move": "ARROWS", "rotate": "R-SHIFT", "confirm": "ENTER"}
 		2: return {"move": "IJKL", "rotate": "U", "confirm": "O"}
 		_: return {"move": "NUM 8456", "rotate": "NUM 7", "confirm": "NUM 9"}

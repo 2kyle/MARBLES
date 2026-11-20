@@ -73,7 +73,7 @@ func _process(_d: float) -> bool:
 			pad_button(0, JOY_BUTTON_DPAD_DOWN)
 		2:
 			pad_button(0, JOY_BUTTON_DPAD_DOWN, false)
-			check("D-pad down moves to: " + focused(), focused().begins_with("PRACTICE"))
+			check("D-pad down moves to: " + focused(), focused().begins_with("THE HUB"))
 			key(KEY_S)
 		3:
 			key(KEY_S, false)

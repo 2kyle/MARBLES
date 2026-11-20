@@ -29,7 +29,7 @@ const STEPS := [
 	"text": "Slide your piece anywhere on the winding lane, turn it, and drop it. The ring turns red where it won't fit. Pieces stay all match.",
 	"prompts": [["SLIDE", "WASD", "LS"], ["TURN", "Q", "X"], ["DROP", "SPACE", "A"]]},
 	{"name": "3. ROLL",
-	"text": "Everyone's marble races down the twisty lane to one shared rack of pins. Lean, hop over gaps, and smash as many pins as you can!",
+	"text": "Everyone's bowling ball races down the twisty lane to one shared rack of pins. Lean, hop over gaps, and smash as many pins as you can!",
 	"prompts": [["LEAN", "WASD", "LS"], ["HOP", "SPACE", "A"]]},
 ]
 

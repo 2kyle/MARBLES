@@ -94,7 +94,7 @@ const TRAILS := [
 ]
 
 ## The ultra-rare trophy. It isn't worn: it stands on your practice island.
-const TROPHY := {"id": "golden_marble", "name": "Golden Marble Trophy", "rarity": "ultra"}
+const TROPHY := {"id": "golden_marble", "name": "Golden Ball Trophy", "rarity": "ultra"}
 
 ## The closet's sections, in order.
 const SLOTS := ["hat", "eyes", "color", "style", "trail"]

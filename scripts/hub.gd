@@ -48,6 +48,20 @@ const LIFT_POS := Vector3(8, 0, 8)
 const PORTAL_POS := Vector3(0, 0, 21)
 ## Where Golden Marble Trophies stand (one per player who's won one).
 const TROPHY_POS := Vector3(10.8, 0, 11.2)
+## The practice pieces (and their ITEMS sign), in a little yard behind the
+## start tower, out of the way of the plaza: [piece, spot, extra turn].
+const PLAYGROUND := [
+	["bumper_post", Vector3(15.0, 0, -10.0), 0.0],
+	["bumper_post", Vector3(18.0, 0, -12.0), 0.0],
+	["booster_pad", Vector3(12.0, 0, -8.0), 180.0],
+	["spinner", Vector3(17.0, 0, -5.5), 0.0],
+	["ramp_jump", Vector3(12.0, 0, -13.0), 0.0],
+]
+const ITEMS_SIGN := Vector3(15.0, 0, -3.2)
+const BENCHES := [[Vector3(-5, 0, 18.8), 0.0], [Vector3(5, 0, 18.8), 0.0], [Vector3(-14, 0, 11), PI / 2], [Vector3(11, 0, 23.5), -0.4]]
+## Spots hub things stand on ([centre, radius]), so trees, ferns and rocks
+## don't grow through them (see is_reserved()).
+var reserved: Array = []
 const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 ## How high a player's name tag floats over their marble.
 const TAG_HEIGHT := 0.85
@@ -274,6 +288,7 @@ func release_from_plate(p: int) -> void:
 func _build() -> void:
 	built = true
 	_rng.seed = 4242
+	_reserve()
 	_island()
 	_practice_run()
 	jungle = Jungle.new()
@@ -299,6 +314,29 @@ func _build() -> void:
 	_benches()
 	_balloons()
 	_birds()
+
+
+## Mark where the plaza things, signs, benches, pieces and posts stand,
+## before anything is scattered round the island.
+func _reserve() -> void:
+	for p in PLAYGROUND:
+		reserved.append([p[1], 2.2])
+	reserved.append([ITEMS_SIGN, 1.2])
+	for b in BENCHES:
+		reserved.append([b[0], 1.4])
+	for spot in [[PLATE_POS, 2.6], [LIFT_POS, 2.4], [PORTAL_POS, 3.4], [TROPHY_POS + Vector3(0.9, 0, 0.9), 2.4],
+			[Vector3(-4.6, 0, 13.5), 1.8], [Vector3(14, 0, 1.6), 2.6], [Vector3(14, 0, 5.4), 1.0]]:
+		reserved.append(spot)
+	for pole in BUNTING_POLES:
+		reserved.append([pole * Vector3(1, 0, 1), 0.8])
+
+
+## True if `at` (on the ground) is within `r` of something reserved.
+func is_reserved(at: Vector3, r: float) -> bool:
+	for s in reserved:
+		if Vector2(at.x - s[0].x, at.z - s[0].z).length() < s[1] + r:
+			return true
+	return false
 
 
 func _island() -> void:
@@ -564,15 +602,8 @@ func _hurdles() -> void:
 
 
 func _playground() -> void:
-	# A few real pieces to bump into and try out.
-	var pieces := [
-		["bumper_post", Vector3(13, 0, 15), 0.0],
-		["bumper_post", Vector3(15.5, 0, 12), 0.0],
-		["booster_pad", Vector3(10, 0, 17), 90.0],
-		["spinner", Vector3(-5, 0, 16), 0.0],
-		["ramp_jump", Vector3(4, 0, 15), 180.0],
-	]
-	for p in pieces:
+	# A few real pieces to bump into and try out, behind the start tower.
+	for p in PLAYGROUND:
 		var info := PieceCatalog.info(p[0])
 		var node: Node3D = load(info.scene).instantiate()
 		PieceStyle.dress(node, p[0])
@@ -646,7 +677,7 @@ func _trees() -> void:
 		Vector3(-11, 0, -27), Vector3(24, 0, 19), Vector3(13, 0, -27), Vector3(29, 0, 11),
 		Vector3(-24, 0, 21), Vector3(-25, 0, -18)]
 	for at in spots:
-		if _near_run(at, 3.5) or jungle.is_busy(at, 1.5):
+		if _near_run(at, 3.5) or jungle.is_busy(at, 1.5) or is_reserved(at, 1.7):
 			continue
 		var h := _rng.randf_range(2.2, 3.4)
 		LowPoly.cyl(self, 0.15, 0.25, h, at + Vector3.UP * h / 2.0, Color(0.45, 0.3, 0.18), 6)
@@ -673,7 +704,7 @@ func _trees() -> void:
 		var a := _rng.randf() * TAU
 		var r := _rng.randf_range(16.0, 31.0)
 		var at := Vector3(cos(a) * r, 0, sin(a) * r)
-		if _near_run(at, 2.5) or jungle.is_busy(at, 0.5):
+		if _near_run(at, 2.5) or jungle.is_busy(at, 0.5) or is_reserved(at, 0.3):
 			continue
 		LowPoly.cyl(self, 0.06, 0.08, 0.3, at + Vector3.UP * 0.15, Color(0.95, 0.92, 0.85), 6)
 		var cap := LowPoly.ball(self, at + Vector3.UP * 0.32, 0.2, Color(0.9, 0.2, 0.2))
@@ -737,11 +768,14 @@ func _flowers() -> void:
 func _signs() -> void:
 	LowPoly.label(self, LIFT_POS + Vector3(0, 2.2, 0), "PRACTICE RUN", 56, Color(0.1, 0.25, 0.5), 0.0, true)
 	LowPoly.label(self, Vector3(14, 1.4, 5.4), "HOP!", 56, Color(0.5, 0.1, 0.1), 0.0, true)
-	LowPoly.label(self, Vector3(12, 2.2, 14), "ITEMS", 48, Color(0.2, 0.3, 0.1), 0.0, true)
+	# A little wooden sign for the practice pieces' yard.
+	LowPoly.box(self, Vector3(0.15, 1.8, 0.15), ITEMS_SIGN + Vector3(0, 0.9, 0), Color(0.5, 0.35, 0.22), 0.0)
+	LowPoly.box(self, Vector3(2.2, 0.7, 0.12), ITEMS_SIGN + Vector3(0, 1.8, 0), Color(0.72, 0.52, 0.32), PI)
+	LowPoly.label(self, ITEMS_SIGN + Vector3(0, 1.8, 0.07), "PRACTICE\nPIECES", 32, Color(0.3, 0.18, 0.08))
 	# A wooden welcome sign by the spawn.
 	LowPoly.box(self, Vector3(0.15, 1.6, 0.15), Vector3(-4.6, 0.8, 13.5), Color(0.5, 0.35, 0.22), 0.0)
 	LowPoly.box(self, Vector3(2.8, 0.9, 0.12), Vector3(-4.6, 1.6, 13.5), Color(0.72, 0.52, 0.32), 0.0)
-	LowPoly.label(self, Vector3(-4.6, 1.6, 13.57), "MARBLES 4P\nTHE HUB", 40, Color(0.3, 0.18, 0.08))
+	LowPoly.label(self, Vector3(-4.6, 1.6, 13.57), MainMenu.TITLE + "\nTHE HUB", 40, Color(0.3, 0.18, 0.08))
 
 
 func _sky_life() -> void:
@@ -809,9 +843,8 @@ func _sky_life() -> void:
 	for i in 6:
 		var a := PI * (0.15 + 0.7 * i / 5.0)
 		var at := Vector3(cos(a) * 15.0, 0, 10.0 + sin(a) * 6.0)
-		if _near_run(at, 2.5) or at.distance_to(Vector3(4, 0, 15)) < 3.0 or at.distance_to(Vector3(-5, 0, 16)) < 3.0 \
-				or at.distance_to(TROPHY_POS + Vector3(0.9, 0, 0.9)) < 3.0:
-			continue  # not on the practice run, the playground pieces, crates or trophies
+		if _near_run(at, 2.5) or is_reserved(at, 0.4):
+			continue  # not on the practice run or anything else
 		LowPoly.box(self, Vector3(0.1, 2.2, 0.1), at + Vector3.UP * 1.1, Color(0.2, 0.18, 0.16), 0.0)
 		var bulb := LowPoly.ball(self, at + Vector3.UP * 2.3, 0.18, Color(1.0, 0.75, 0.4))
 		var bm := LowPoly.own_mat(bulb)
@@ -928,18 +961,20 @@ func _casino_island() -> void:
 
 
 ## The sports island (north-east), and the bridge over to it. Its way in is
-## on its own -X side, so it's turned to face the practice island.
+## on its own +Z side, facing the scoreboard and the stands, so it's turned
+## to put that side towards the practice island: you come over the bridge
+## and the whole pitch is laid out in front of you.
 func _sports_island() -> void:
 	sports = SportsIsland.new()
 	sports.name = "SportsIsland"
 	var a := deg_to_rad(SPORTS_ANGLE)
-	sports.position = _island_spot(SPORTS_ANGLE, SportsIsland.RADIUS)
-	sports.rotation.y = -a
-	add_child(sports)
 	var dir := Vector3(cos(a), 0, sin(a))
+	sports.position = _island_spot(SPORTS_ANGLE, SportsIsland.RADIUS)
+	sports.rotation.y = atan2(-dir.x, -dir.z)
+	add_child(sports)
 	var from := dir * (ISLAND_RADIUS - 1.0)
-	sports.build((sports.transform.affine_inverse() * from).x)
-	_bridge(from + Vector3.UP * 0.05, sports.transform * Vector3(-SportsIsland.RADIUS + 0.8, 0.05, 0))
+	sports.build((sports.transform.affine_inverse() * from).z)
+	_bridge(from + Vector3.UP * 0.05, sports.transform * Vector3(0, 0.05, SportsIsland.RADIUS - 0.8))
 
 
 ## A little cottage with a smoking chimney and a garden.
@@ -1002,18 +1037,22 @@ func _cottage(at: Vector3) -> void:
 
 
 ## Strings of little triangle flags over the plaza.
+## Bunting pole tops round the plaza (strings run between them).
+const BUNTING_POLES := [Vector3(-12, 3.2, 17), Vector3(-2.3, 4.0, 21), Vector3(2.3, 4.0, 21), Vector3(12, 3.2, 17),
+		Vector3(-10, 3.0, 4), Vector3(10, 3.0, 4)]
+
 func _bunting() -> void:
 	var colors := [Color(0.95, 0.35, 0.35), Color(1, 0.8, 0.3), Color(0.4, 0.7, 1.0), Color(0.6, 0.85, 0.4), Color(0.85, 0.5, 0.95)]
 	var flag := PrismMesh.new()
 	flag.size = Vector3(0.3, 0.35, 0.02)
-	var lines := [[Vector3(-12, 3.2, 17), Vector3(-2.3, 4.0, 21)], [Vector3(2.3, 4.0, 21), Vector3(12, 3.2, 17)],
-			[Vector3(-12, 3.2, 17), Vector3(-10, 3.0, 4)], [Vector3(12, 3.2, 17), Vector3(10, 3.0, 4)]]
+	var poles := BUNTING_POLES
+	var lines := [[poles[0], poles[1]], [poles[2], poles[3]], [poles[0], poles[4]], [poles[3], poles[5]]]
+	for end: Vector3 in poles:
+		LowPoly.box(self, Vector3(0.12, end.y, 0.12), Vector3(end.x, end.y / 2.0, end.z), Color(0.5, 0.36, 0.24), 0.0)
 	var k := 0
 	for line in lines:
 		var a: Vector3 = line[0]
 		var b: Vector3 = line[1]
-		for end in [a, b]:
-			LowPoly.box(self, Vector3(0.12, end.y, 0.12), Vector3(end.x, end.y / 2.0, end.z), Color(0.5, 0.36, 0.24), 0.0)
 		var n := int(a.distance_to(b) / 0.6)
 		var yaw := atan2(b.x - a.x, b.z - a.z) + PI / 2
 		for i in n:
@@ -1030,7 +1069,7 @@ func _bunting() -> void:
 
 func _benches() -> void:
 	var wood := Color(0.62, 0.42, 0.26)
-	for spot in [[Vector3(-5, 0, 18.8), 0.0], [Vector3(5, 0, 18.8), 0.0], [Vector3(-14, 0, 11), PI / 2], [Vector3(11, 0, 22), -0.4]]:
+	for spot in BENCHES:
 		var at: Vector3 = spot[0]
 		var bench := Node3D.new()
 		bench.position = at

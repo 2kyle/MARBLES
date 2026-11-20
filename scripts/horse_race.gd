@@ -104,11 +104,11 @@ func request_bet(p: int) -> void:
 func status() -> String:
 	match phase:
 		Phase.CALL:
-			return "MARBLE DERBY  ·  Starting in %d" % ceili(_left)
+			return "BOWLING BALL DERBY  ·  Starting in %d" % ceili(_left)
 		Phase.RACING:
-			return "MARBLE DERBY  ·  And they're off!"
+			return "BOWLING BALL DERBY  ·  And they're off!"
 		Phase.FINISHED:
-			return "MARBLE DERBY  ·  %s wins!" % HORSES[winner].name
+			return "BOWLING BALL DERBY  ·  %s wins!" % HORSES[winner].name
 	return ""
 
 
@@ -326,7 +326,7 @@ func _build() -> void:
 	LowPoly.box(self, Vector3(3.6, 2.2, 0.15), Vector3(bx, 3.5, -1.5), Color(0.12, 0.3, 0.2))
 	_board = LowPoly.label(self, Vector3(bx, 3.5, -1.4), "", 30, Color(0.05, 0.15, 0.1))
 	_board.pixel_size = 0.007
-	LowPoly.label(self, Vector3(bx, 5.05, -1.4), "MARBLE DERBY", 64, Color(0.5, 0.25, 0.05))
+	LowPoly.label(self, Vector3(bx, 5.05, -1.4), "BALL DERBY", 64, Color(0.5, 0.25, 0.05))
 
 	# A little stand of cheering spectators on the far side.
 	var crowd := Node3D.new()

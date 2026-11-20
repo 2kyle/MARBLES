@@ -76,8 +76,9 @@ var _hub_marbles: Array = []
 ## The hub places and turns this island before calling build().
 func build(hub_plate: Callable, on_table: Callable, on_crates: Callable) -> void:
 	# Plates are made in this island's own space; turn that into the hub's.
-	var plate := func(at: Vector3, color: Color, on_enter: Callable) -> void:
-		hub_plate.call(transform * at, color, on_enter, transform.basis.z)
+	# `out` is the way you roll off afterwards, in this island's space.
+	var plate := func(at: Vector3, color: Color, on_enter: Callable, out: Vector3) -> void:
+		hub_plate.call(transform * at, color, on_enter, transform.basis * out)
 	_rng.seed = 1977
 	_island()
 	_building()
@@ -321,7 +322,7 @@ func _building() -> void:
 	# Neon signs over each corner of the room.
 	_neon(Vector3(TABLE_POS.x, 5.6, -HALF.y + 0.5), "BLACKJACK", NEON[0], 0.0)
 	_neon(Vector3(BAR_PLATE.x, 5.6, -HALF.y + 0.5), "THE BAR", NEON[1], 0.0)
-	_neon(Vector3(-HALF.x + 0.5, 5.6, DERBY_POS.z - 9.0), "MARBLE DERBY", NEON[2], PI / 2)
+	_neon(Vector3(-HALF.x + 0.5, 5.6, DERBY_POS.z - 9.0), "BALL DERBY", NEON[2], PI / 2)
 	_neon(Vector3(CRATE_PLATE.x, 5.6, HALF.y - 0.5), "LOOT CRATES", NEON[3], PI)
 
 
@@ -368,7 +369,7 @@ func _derby(plate: Callable, on_table: Callable) -> void:
 		b.box(Vector3(3.6 / 6.0, 0.12, 1.4), BET_PLATE + Vector3(-1.5 + k * 0.6, 2.65, -0.7),
 				Color(0.9, 0.25, 0.25) if k % 2 == 0 else Color.WHITE)
 	add_child(b.make())
-	plate.call(BET_PLATE, GOLD, func(p): on_table.call(p, "derby"))
+	plate.call(BET_PLATE, GOLD, func(p): on_table.call(p, "derby"), Vector3.BACK)
 	LowPoly.label(self, BET_PLATE + Vector3(0, 3.1, -1.2), "PLACE BETS", 54, Color(0.5, 0.3, 0.05))
 	# The bookie, in shades of course.
 	_dealer(BET_PLATE + Vector3(-2.6, 0, -1.4), 0.6, Color(0.95, 0.75, 0.3))
@@ -396,7 +397,7 @@ func _blackjack(plate: Callable, on_table: Callable) -> void:
 		b.cyl(1.0, 1.1, 0.1, at + Vector3.UP * 0.05, Color(0.25, 0.12, 0.08), 20)
 		plate.call(at, NEON[k], func(p):
 			blackjack.seat_of[p] = k
-			on_table.call(p, "blackjack"))
+			on_table.call(p, "blackjack"), ((at - TABLE_POS) * Vector3(1, 0, 1)).normalized())
 	add_child(b.make())
 	_dealer(TABLE_POS + Vector3(0, 0, -2.9), 0.0, Color(0.85, 0.85, 0.9))
 
@@ -433,7 +434,7 @@ func _bar(plate: Callable, on_table: Callable) -> void:
 	b.glow_box(Vector3(10.2, 3.0, 0.05), Vector3(BAR_PLATE.x, 2.7, back - 0.3), Color(0.25, 0.12, 0.3))
 	b.cyl(1.0, 1.1, 0.1, BAR_PLATE + Vector3.UP * 0.05, Color(0.25, 0.12, 0.08), 20)
 	add_child(b.make(1.6))
-	plate.call(BAR_PLATE, NEON[1], func(p): on_table.call(p, "bar"))
+	plate.call(BAR_PLATE, NEON[1], func(p): on_table.call(p, "bar"), Vector3.BACK)
 	_dealer(Vector3(BAR_PLATE.x, 0, z - 1.4), 0.0, Color(0.95, 0.95, 0.95), true)
 
 
@@ -448,6 +449,16 @@ func _crates(plate: Callable, on_crates: Callable) -> void:
 	for x in [-1.55, 1.55]:
 		b.glow_box(Vector3(0.1, 2.4, 0.1), m + Vector3(x, 1.2, -0.82), NEON[3])
 	add_child(b.make(2.2))
+	# The machine is solid (you used to be able to roll right into it).
+	var body := StaticBody3D.new()
+	body.name = "CrateMachine"
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(3.2, 2.6, 1.8)
+	shape.shape = box
+	body.position = m + Vector3(0, 1.3, 0)
+	body.add_child(shape)
+	add_child(body)
 	var crate := ItemIcons.crate_model()
 	crate.position = m + Vector3(0, 3.1, 0)
 	crate.scale = Vector3.ONE * 1.3
@@ -455,7 +466,8 @@ func _crates(plate: Callable, on_crates: Callable) -> void:
 	_movers.append(func(t: float, _d: float):
 		crate.rotation.y = sin(t * 0.7) * 0.5
 		crate.position.y = 3.1 + sin(t * 1.8) * 0.12)
-	plate.call(CRATE_PLATE, Color(1.0, 0.6, 0.2), func(p): on_crates.call(p))
+	# Roll off away from the machine, back toward the room.
+	plate.call(CRATE_PLATE, Color(1.0, 0.6, 0.2), func(p): on_crates.call(p), Vector3(-0.6, 0, -0.8))
 	LowPoly.label(self, m + Vector3(0, 1.5, -0.86), "%d COINS" % LootCrates.PRICE, 48, Color(0.2, 0.05, 0.3), PI)
 
 
@@ -623,7 +635,7 @@ func _front() -> void:
 	b.box(Vector3(0.5, 0.25, 15.4), Vector3(x0 + 0.4, HEIGHT + 0.25, 0), GOLD)
 	add_child(b.make())
 	var sign := Label3D.new()
-	sign.text = "THE GROOVY\nMARBLE"
+	sign.text = "THE GROOVY\nGUTTER"
 	sign.font = LowPoly.TITLE_FONT
 	sign.font_size = 150
 	sign.pixel_size = 0.011

@@ -16,25 +16,25 @@ extends RefCounted
 const PIECES := {
 	"bumper_post": {
 		"name": "Bumper post",
-		"about": "Kicks marbles sideways",
+		"about": "Kicks balls sideways",
 		"scene": "res://scenes/pieces/bumper_post.tscn",
 		"kind": "piece", "radius": 0.63, "base_rotation": 0.0,
 	},
 	"angled_rail": {
 		"name": "Angled rail",
-		"about": "Turns marbles",
+		"about": "Turns balls",
 		"scene": "res://scenes/pieces/angled_rail.tscn",
 		"kind": "piece", "radius": 1.4, "base_rotation": 45.0,
 	},
 	"ramp_jump": {
 		"name": "Ramp jump",
-		"about": "Launches marbles",
+		"about": "Launches balls",
 		"scene": "res://scenes/pieces/ramp_jump.tscn",
 		"kind": "piece", "radius": 1.54, "base_rotation": 0.0,
 	},
 	"carpet_strip": {
 		"name": "Carpet strip",
-		"about": "Slows marbles down",
+		"about": "Slows balls down",
 		"scene": "res://scenes/pieces/carpet_strip.tscn",
 		"kind": "piece", "radius": 1.05, "base_rotation": 0.0,
 	},
@@ -47,7 +47,7 @@ const PIECES := {
 	},
 	"spinner": {
 		"name": "Spinner",
-		"about": "Swats marbles",
+		"about": "Swats balls",
 		"scene": "res://scenes/pieces/spinner.tscn",
 		"kind": "piece", "radius": 1.68, "base_rotation": 0.0,
 	},
@@ -59,7 +59,7 @@ const PIECES := {
 	},
 	"curve": {
 		"name": "Curve Wall",
-		"about": "Swings marbles across",
+		"about": "Swings balls across",
 		"scene": "res://scenes/pieces/curve.tscn",
 		"kind": "piece", "radius": 1.26, "base_rotation": 0.0,
 	},
@@ -71,7 +71,7 @@ const PIECES := {
 	},
 	"hump": {
 		"name": "Hump",
-		"about": "Tosses marbles up",
+		"about": "Tosses balls up",
 		"scene": "res://scenes/pieces/hump.tscn",
 		"kind": "piece", "radius": 1.4, "base_rotation": 0.0,
 	},
@@ -115,14 +115,14 @@ const PIECES := {
 	},
 	"teleporter": {
 		"name": "Teleporter",
-		"about": "Warps marbles to its exit",
+		"about": "Warps balls to its exit",
 		"scene": "res://scenes/pieces/teleporter.tscn",
 		"kind": "piece", "radius": 1.1, "base_rotation": 0.0,
 		"parts": 2,
 	},
 	"teleporter_exit": {
 		"name": "Teleporter exit",
-		"about": "Where warped marbles come out",
+		"about": "Where warped balls come out",
 		"scene": "res://scenes/pieces/teleporter.tscn",
 		"kind": "piece", "radius": 1.1, "base_rotation": 0.0,
 		"hidden": true,
@@ -130,7 +130,7 @@ const PIECES := {
 	},
 	"wind_fan": {
 		"name": "Wind Fan",
-		"about": "Blows marbles along",
+		"about": "Blows balls along",
 		"scene": "res://scenes/pieces/wind_fan.tscn",
 		"kind": "piece", "radius": 1.7, "base_rotation": 90.0,
 		"aimed": true,
@@ -185,7 +185,7 @@ static func scale_of(id: String) -> float:
 	return PIECE_SCALE if PIECES.has(id) and PIECES[id].kind == "piece" else 1.0
 
 
-## Pieces that push or send marbles a set way (booster, fan, teleporter
+## Pieces that push or send balls a set way (booster, fan, teleporter
 ## exit). Their floor arrows point the way they push, not down the track.
 static func aimed(id: String) -> bool:
 	return PIECES.has(id) and PIECES[id].get("aimed", false)

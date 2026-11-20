@@ -53,9 +53,10 @@ var _tramp_squash := 0.0
 var _rng := RandomNumberGenerator.new()
 
 
-## Build everything. `bridge_from_x` is where the bridge starts on the
-## practice island's edge, in this island's own coordinates.
-func build(bridge_from_x: float) -> void:
+## Build everything. `bridge_from_z` is where the bridge starts on the
+## practice island's edge, in this island's own coordinates (the bridge
+## comes in on the +Z side, facing the scoreboard).
+func build(bridge_from_z: float) -> void:
 	_rng.seed = 77
 	_island()
 	_fence()
@@ -65,12 +66,12 @@ func build(bridge_from_x: float) -> void:
 	_trampoline()
 	_hoop()
 	_scenery()
-	_entrance(bridge_from_x)
+	_entrance(bridge_from_z)
 
 
 ## Where a marble pops back up if it falls off this island.
 func spawn_point() -> Vector3:
-	return to_global(Vector3(-RADIUS + 3.0, 0.5, 0))
+	return to_global(Vector3(0, 0.5, RADIUS - 3.0))
 
 
 ## Called every physics tick while the practice island is open.
@@ -462,14 +463,14 @@ func _island() -> void:
 
 
 func _fence() -> void:
-	# A low fence round the edge with an opening for the bridge (west).
+	# A low fence round the edge with an opening for the bridge (+Z).
 	var n := 48
 	for i in n:
 		var a0 := TAU * i / n
 		var a1 := TAU * (i + 1) / n
 		var p0 := Vector3(cos(a0), 0, sin(a0)) * (RADIUS - 0.6)
 		var p1 := Vector3(cos(a1), 0, sin(a1)) * (RADIUS - 0.6)
-		if i == 23 or i == 24:
+		if i == 11 or i == 12:
 			continue  # the bridge comes in here
 		LowPoly.box(self, Vector3(0.14, 0.7, 0.14), p0 + Vector3.UP * 0.35, WOOD)
 		var mid := (p0 + p1) / 2.0
@@ -480,32 +481,35 @@ func _fence() -> void:
 
 
 ## An arch where the bridge arrives, saying where you are.
-func _entrance(bridge_from_x: float) -> void:
-	var at := Vector3(-RADIUS + 1.6, 0, 0)
-	for z in [-1.8, 1.8]:
-		LowPoly.box(self, Vector3(0.35, 3.2, 0.35), at + Vector3(0, 1.6, z), Color(0.97, 0.95, 0.9))
-	LowPoly.box(self, Vector3(0.5, 0.8, 4.2), at + Vector3(0, 3.3, 0), BLUE)
-	LowPoly.label(self, at + Vector3(-0.27, 3.3, 0), "SPORTS", 72, Color(0.05, 0.15, 0.4), -PI / 2.0)
-	LowPoly.label(self, at + Vector3(0.27, 3.3, 0), "SPORTS", 72, Color(0.05, 0.15, 0.4), PI / 2.0)
+func _entrance(bridge_from_z: float) -> void:
+	var at := Vector3(0, 0, RADIUS - 1.6)
+	for x in [-1.8, 1.8]:
+		LowPoly.box(self, Vector3(0.35, 3.2, 0.35), at + Vector3(x, 1.6, 0), Color(0.97, 0.95, 0.9))
+	LowPoly.box(self, Vector3(4.2, 0.8, 0.5), at + Vector3(0, 3.3, 0), BLUE)
+	LowPoly.label(self, at + Vector3(0, 3.3, 0.27), "SPORTS", 72, Color(0.05, 0.15, 0.4), 0.0)
+	LowPoly.label(self, at + Vector3(0, 3.3, -0.27), "SPORTS", 72, Color(0.05, 0.15, 0.4), PI)
 	# Pennants along the top.
 	for k in 6:
-		var flag := LowPoly.box(self, Vector3(0.05, 0.4, 0.4), at + Vector3(0, 2.75, -1.25 + k * 0.5),
+		var flag := LowPoly.box(self, Vector3(0.4, 0.4, 0.05), at + Vector3(-1.25 + k * 0.5, 2.75, 0),
 				ORANGE if k % 2 == 0 else Color(1.0, 0.85, 0.3))
-		flag.rotation.x = PI / 4.0
+		flag.rotation.z = PI / 4.0
 	# A sign on the practice island side of the bridge, pointing over.
-	var sign_at := Vector3(bridge_from_x - 2.0, 0, -2.2)
+	var sign_at := Vector3(2.2, 0, bridge_from_z + 2.0)
 	LowPoly.box(self, Vector3(0.15, 1.6, 0.15), sign_at + Vector3(0, 0.8, 0), WOOD.darkened(0.2))
-	LowPoly.box(self, Vector3(0.1, 0.7, 2.4), sign_at + Vector3(0, 1.5, 0), Color(1.0, 0.85, 0.35))
-	LowPoly.label(self, sign_at + Vector3(-0.06, 1.5, 0), "SPORTS  >", 40, Color(0.35, 0.2, 0.0), -PI / 2.0)
+	LowPoly.box(self, Vector3(2.4, 0.7, 0.1), sign_at + Vector3(0, 1.5, 0), Color(1.0, 0.85, 0.35))
+	LowPoly.label(self, sign_at + Vector3(0, 1.5, 0.06), "SPORTS  ^", 40, Color(0.35, 0.2, 0.0), 0.0)
 
 
 func _scenery() -> void:
-	# Bleachers beside the pitch, a few trees, cones and a ball rack.
-	for row in 3:
-		LowPoly.box(self, Vector3(7.0, 0.3, 0.6), PITCH + Vector3(0, 0.15 + row * 0.3, PITCH_HALF.y + 1.4 + row * 0.6),
-				[BLUE, Color(0.97, 0.97, 0.97), ORANGE][row])
-		LowPoly.solid_box(self, Vector3(7.0, 0.3 + row * 0.6, 0.6), PITCH + Vector3(0, (0.3 + row * 0.6) / 2.0, PITCH_HALF.y + 1.4 + row * 0.6))
-	for at in [Vector3(12, 0, -12), Vector3(14, 0, 4), Vector3(-12, 0, -11), Vector3(-4, 0, 14), Vector3(-10, 0, 12)]:
+	# Stands each side of the scoreboard, facing the pitch (and the way in),
+	# a few trees, cones and a ball rack.
+	for side in [-1.0, 1.0]:
+		for row in 3:
+			var at := PITCH + Vector3(side * 6.8, 0, -PITCH_HALF.y - 1.4 - row * 0.6)
+			LowPoly.box(self, Vector3(6.0, 0.3, 0.6), at + Vector3(0, 0.15 + row * 0.3, 0),
+					[BLUE, Color(0.97, 0.97, 0.97), ORANGE][row])
+			LowPoly.solid_box(self, Vector3(6.0, 0.3 + row * 0.6, 0.6), at + Vector3(0, (0.3 + row * 0.6) / 2.0, 0))
+	for at in [Vector3(13.5, 0, -6), Vector3(14, 0, 4), Vector3(-13.5, 0, -6), Vector3(-5, 0, 13), Vector3(-11, 0, 10)]:
 		var h := _rng.randf_range(2.2, 3.2)
 		LowPoly.cyl(self, 0.15, 0.25, h, at + Vector3.UP * h / 2.0, Color(0.45, 0.3, 0.18), 6)
 		LowPoly.ball(self, at + Vector3.UP * (h + 0.6), _rng.randf_range(1.1, 1.5), GRASS.lerp(Color(0.5, 0.7, 0.3), _rng.randf()))

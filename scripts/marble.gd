@@ -347,6 +347,41 @@ func _on_body_entered(body: Node) -> void:
 		wince(4.0)
 
 
+## Bowling ball finger holes: two fingers side by side and a thumb below.
+## They're on the ball's mesh, so they roll round with it.
+const FINGER_HOLES := [[Vector3(-0.32, 0.55, 0.77), 0.042], [Vector3(0.32, 0.55, 0.77), 0.042],
+		[Vector3(0.0, 0.05, 1.0), 0.05]]
+static var _hole_mat: StandardMaterial3D
+
+
+func _add_finger_holes(mesh: MeshInstance3D) -> void:
+	if mesh.has_node("Holes"):
+		return
+	if _hole_mat == null:
+		_hole_mat = StandardMaterial3D.new()
+		_hole_mat.albedo_color = Color(0.04, 0.03, 0.04)
+		_hole_mat.roughness = 0.9
+	var holes := Node3D.new()
+	holes.name = "Holes"
+	mesh.add_child(holes)
+	var r := 0.3
+	for h in FINGER_HOLES:
+		var dir: Vector3 = (h[0] as Vector3).normalized()
+		var disc := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = h[1]
+		cyl.bottom_radius = h[1]
+		cyl.height = 0.03
+		cyl.radial_segments = 10
+		cyl.rings = 1
+		disc.mesh = cyl
+		disc.material_override = _hole_mat
+		disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Stand the disc on the surface, pointing out from the middle.
+		disc.transform = Transform3D(Basis(Quaternion(Vector3.UP, dir)), dir * (r - 0.008))
+		holes.add_child(disc)
+
+
 func _apply_look() -> void:
 	var mesh := get_node_or_null("Mesh") as MeshInstance3D
 	if mesh == null:
@@ -372,6 +407,7 @@ func _apply_look() -> void:
 		mat.set_shader_parameter("roughness_amount", style.roughness)
 		mat.set_shader_parameter("glow", style.glow)
 		mesh.material_override = mat
+	_add_finger_holes(mesh)
 	var trail_id: String = look.get("trail", {"id": "none"}).id
 	if _trail == null:
 		_trail = MarbleTrail.new()

@@ -789,7 +789,7 @@ func _plants() -> void:
 ## True if nothing else is near `at`: the practice run, the plaza, the
 ## bridges' paths, and the jungle's own places (unless `small`).
 func _free(at: Vector3, r: float, small := false) -> bool:
-	if _hub._near_run(at, r + 2.0):
+	if _hub._near_run(at, r + 2.0) or _hub.is_reserved(at, r):
 		return false
 	if Vector2(at.x, at.z - 13.0).length() < 15.0 + r:
 		return false   # the plaza

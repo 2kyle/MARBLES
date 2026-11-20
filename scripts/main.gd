@@ -675,7 +675,7 @@ func _on_restart_frame_requested() -> void:
 		_prepare_roll()
 		_start_countdown()
 	else:
-		menu.toast("You can retry once the marbles are rolling")
+		menu.toast("You can retry once the balls are rolling")
 
 
 func _on_quit_to_menu() -> void:

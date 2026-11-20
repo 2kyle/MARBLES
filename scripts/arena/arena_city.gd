@@ -13,7 +13,7 @@ const ROAD := 9.0
 const WALLS := [Color(0.82, 0.62, 0.5), Color(0.62, 0.66, 0.74), Color(0.86, 0.8, 0.68),
 		Color(0.55, 0.5, 0.6), Color(0.75, 0.45, 0.4), Color(0.5, 0.6, 0.62), Color(0.9, 0.88, 0.84)]
 const NEON := [Color(1.0, 0.3, 0.6), Color(0.3, 0.9, 1.0), Color(1.0, 0.85, 0.3), Color(0.6, 1.0, 0.4), Color(0.75, 0.45, 1.0)]
-const BILLBOARDS := ["MARBLES 4P", "ROLL ON!", "STRIKE CITY", "PIN PALS", "BOWL-O-RAMA", "GO FAST", "HOT DOGS", "24 HR LANES"]
+const BILLBOARDS := [MainMenu.TITLE, "ROLL ON!", "STRIKE CITY", "PIN PALS", "BOWL-O-RAMA", "GO FAST", "HOT DOGS", "24 HR LANES"]
 ## No windows on these (alpha 0 tells the building shader).
 const TREE := Color(0.3, 0.55, 0.3, 0.0)
 

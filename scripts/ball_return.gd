@@ -255,11 +255,32 @@ func _solid() -> void:
 		body.add_child(shape)
 
 
-## The lit hood over the back of the pins, with the game's name on it.
+## The lit hood over the back of the pins (a "masking unit"), painted like
+## an old 1950s bowling alley: cream with a cherry-red frame, the game's
+## name, painted pins and atomic starbursts each side.
 func _hood() -> void:
 	var hood := MeshBatch.new()
-	hood.box(Vector3(10.6, 1.8, 1.6), Vector3(0, 0, 0), Color(0.12, 0.12, 0.16))
-	hood.box(Vector3(10.8, 0.2, 1.8), Vector3(0, 0.95, 0), Color(0.2, 0.2, 0.25))
+	var cream := Color(0.96, 0.9, 0.76)
+	var cherry := Color(0.66, 0.1, 0.12)
+	var teal := Color(0.1, 0.5, 0.5)
+	hood.box(Vector3(10.6, 1.8, 1.6), Vector3(0, 0, 0), cherry.darkened(0.3))
+	hood.box(Vector3(10.2, 1.5, 0.05), Vector3(0, 0, 0.8), cream)
+	hood.box(Vector3(10.8, 0.2, 1.8), Vector3(0, 0.95, 0), cherry)
+	hood.box(Vector3(10.2, 0.08, 0.06), Vector3(0, 0.56, 0.83), teal)
+	for side in [-1.0, 1.0]:
+		# Three painted pins in a little row.
+		for k in 3:
+			var at := Vector3(side * (3.4 + k * 0.42), -0.1, 0.84)
+			hood.box(Vector3(0.18, 0.5, 0.02), at, Color.WHITE)
+			hood.ball(at + Vector3(0, 0.33, 0), 0.1, Color.WHITE, 6, Vector3(1, 1, 0.2))
+			hood.box(Vector3(0.12, 0.04, 0.025), at + Vector3(0, 0.18, 0), cherry)
+		# An atomic starburst.
+		var c := Vector3(side * 2.75, 0.1, 0.84)
+		for k in 6:
+			var a := k * PI / 6.0
+			var d := Vector3(cos(a), sin(a), 0) * 0.32
+			hood.beam(c - d, c + d, 0.035, teal)
+		hood.ball(c, 0.07, cherry, 6)
 	var node := hood.make()
 	add_child(node)
 	node.position = Vector3(0, 4.6, PIT_FRONT - 0.4)
@@ -275,13 +296,12 @@ func _hood() -> void:
 	strip.position = Vector3(0, -0.78, 0.82)
 	node.add_child(strip)
 	var label := Label3D.new()
-	label.text = "MARBLES 4P"
+	label.text = MainMenu.TITLE
 	label.font = preload("res://fonts/ChakraPetch-Bold.ttf")
 	label.font_size = 120
-	label.pixel_size = 0.009
-	label.outline_size = 16
-	label.modulate = Color(1.6, 1.4, 1.0)
-	label.outline_modulate = Color(0.5, 0.2, 0.05)
+	label.pixel_size = 0.0075
+	label.outline_size = 0
+	label.modulate = Color(0.66, 0.1, 0.12)
 	label.shaded = false
-	label.position = Vector3(0, 0.05, 0.82)
+	label.position = Vector3(0, -0.05, 0.85)
 	node.add_child(label)

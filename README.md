@@ -14,7 +14,7 @@ A party game where friends build a bowling lane together, then race physics marb
 
 ## What's in the prototype
 
-The game opens on the **MARBLES 4P** title screen (a working title), with the camera slowly circling the island. From there:
+The game opens on the **BOWLING 4P** title screen (a working title; it's `TITLE` at the top of `scripts/main_menu.gd`, and every sign in the game uses it), with the camera slowly circling the island. From there:
 
 - **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
@@ -49,19 +49,19 @@ Only people come to the island (no bots). The camera is a free third-person came
 
 - **Practice run:** a winding track down from the stone START tower, with a gap to hop and a steep drop. It ends on the plaza, where a big blue pad sends you straight back to the top. The **PRACTICE RUN** pad on the plaza takes you up too.
 - **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch to open your **closet** (see below). One player at a time.
-- **Golden Marble Trophy:** anyone who has pulled the ultra-rare trophy gets it on a little stand on the east side of the plaza.
-- **Casino island:** a short bridge through the north-west gorge (follow the CASINO sign) leads to **The Groovy Marble**, an indoor 70s casino (see below). The derby, blackjack, the bar and the loot crates are all in there.
-- **Marble Derby** (in the casino): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four marble "horses" (Frank, Trunk, Fatty and Jakob) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
+- **Golden Ball Trophy:** anyone who has pulled the ultra-rare trophy gets it on a little stand on the east side of the plaza.
+- **Casino island:** a short bridge through the north-west gorge (follow the CASINO sign) leads to **The Groovy Gutter**, an indoor 70s casino (see below). The derby, blackjack, the bar and the loot crates are all in there.
+- **Ball Derby** (in the casino): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four bowling ball "horses" (Frank, Trunk, Fatty and Jakob) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
 - **Your coins** show in the top right corner the whole time you're on the island.
 - **Sports island:** a short wooden bridge through the north-east gorge (follow the SPORTS sign) leads to a second island (see below).
 - A rope bridge off the north edge leads to a tiny lookout islet, and there's a cottage with a smoking chimney and a vegetable garden, benches, bunting over the plaza, hot-air balloons and flocks of birds.
 - **Jungle things to explore:** stepped temple ruins with a shrine (and a waving monkey), a giant stone head, broken pillars to hop up, rock steps climbing the south-west cliff to a high ledge, bouncy giant mushrooms (roll onto the little red BOING! one and it bounces you from cap to cap), a hollow log to roll through, a glowing crystal cave in the north-east cliff, a waterfall in the east cliff with a hollow behind it, and grassy hills. Parrots fly overhead, frogs hop between lily pads on the pond, and fireflies and leaves drift about.
 - **Secret gems:** six glowing gems are hidden round the jungle (the stone by the spawn says so). Roll into one to collect it: the first time each player finds each gem they get 25 coins, and a message shows how many of the six they've found. Your progress is saved with your coins (`user://profiles.cfg`) and shows next to your coins (◆ 3/6). Gems you've already found come back each visit as faint glass ghosts, so you can see which are left. Find all six to win the **Jungle Gem Crown** hat (a vine circlet with all six gems, rarity *Secret*, never in crates) and the **Treasure Hunter** achievement.
-- **Hurdles** to practise hops, and a few real pieces (bumpers, a booster, a spinner, a jump ramp) to play with.
+- **Hurdles** to practise hops, and a yard of real practice pieces (bumpers, a booster, a spinner, a jump ramp) behind the start tower, by the PRACTICE PIECES sign.
 - **PLAY arch:** roll through it to start a match with the options from the Play page.
 - Fall off the edge and you pop back on the plaza. **Esc** opens the pause menu, where Retry puts everyone back at the start.
 
-![The Marble Derby](docs/derby.png)
+![The Ball Derby](docs/derby.png)
 
 #### Casino island
 
@@ -72,7 +72,7 @@ An indoor casino with a groovy 70s theme: swirly carpet, wood panels, neon signs
 - **Blackjack:** roll onto one of the four stools round the table. Up and down set your wager (10 coins a step); your place key deals, then **hits** (takes a card); your turn key **stands**. Get closer to 21 than the dealer without going over. The dealer draws until they have 17. A win pays double your wager back, a blackjack (21 with your first two cards) pays 2.5x, and a tie gives your wager back. You can't walk away mid-hand. The cards land on the felt, so people watching can follow along.
 - **The bar:** roll onto the plate at the bar, pick a drink with left and right, and order with your place key. Fizzy drinks give your marble the hiccups for a while (little hops and bubbles). Fizzy Lemonade 5 coins, Root Beer Float 10, Galaxy Soda 20 (the biggest hiccups).
 - **Loot crates:** the crate machine in the corner (see Loot crates below).
-- **Marble Derby:** the horse track along the side wall (see above).
+- **Ball Derby:** the horse track along the side wall (see above).
 
 Built in code in `scripts/casino/casino_island.gd`, with blackjack in `scripts/casino/blackjack.gd`.
 
@@ -144,7 +144,7 @@ How it works: the host's computer runs the whole game (physics, pins, scoring an
 
 ![The achievements page](docs/achievements.png)
 
-19 achievements, from finishing your first frame to pulling the Golden Marble. **ACHIEVEMENTS** on the title screen shows them all, with progress on counting ones (like 212 / 500 pins). Unlocking one pops up a badge in the corner. They belong to the computer (one Steam account), so any person playing here can earn them, but bots can't, and online each computer earns its own.
+20 achievements, from finishing your first frame to pulling the Golden Ball. **ACHIEVEMENTS** on the title screen shows them all, with progress on counting ones (like 212 / 500 pins). Unlocking one pops up a badge in the corner. They belong to the computer (one Steam account), so any person playing here can earn them, but bots can't, and online each computer earns its own.
 
 They're saved on this computer (`user://achievements.cfg`) and sent to Steam whenever Steam is running, including any you earned while it wasn't. With the test App ID (480) Steam doesn't know them yet; [docs/STEAM.md](docs/STEAM.md) has the list to add on the Steamworks site.
 
@@ -184,11 +184,11 @@ Every other look is won from loot crates at the casino. A crate costs **100 coin
 | --- | --- |
 | A look: Common / Rare / Epic / Legendary | 46.2% / 23.5% / 10.9% / 3.4% |
 | A pile of coins (50 to 200) | 15% |
-| **Golden Marble Trophy** (ultra rare) | 1% |
+| **Golden Ball Trophy** (ultra rare) | 1% |
 
-A look you already own pays coins back instead (25 for Common up to 150 for Legendary). The Golden Marble Trophy isn't worn: it stands on your hub. The odds are shown on the crate screen, and live in `scripts/loot_crates.gd` if you want to tune them.
+A look you already own pays coins back instead (25 for Common up to 150 for Legendary). The Golden Ball Trophy isn't worn: it stands on your hub. The odds are shown on the crate screen, and live in `scripts/loot_crates.gd` if you want to tune them.
 
-- **Coins:** you get 1 coin per pin you knock down and 1 per bonus point (race, sweep, knock-outs) each frame. At the end of a match you get a prize for where you finished (1st +50, 2nd +30, 3rd +15, 4th +5) and +10 just for finishing. The **COINS EARNED** screen after the podium shows the whole breakdown. The amounts are at the top of `scripts/profiles.gd`. New players start with 150, enough for one crate. The Marble Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on). Bots don't earn coins. Online, your coins and looks are the ones on your own computer (P1's).
+- **Coins:** you get 1 coin per pin you knock down and 1 per bonus point (race, sweep, knock-outs) each frame. At the end of a match you get a prize for where you finished (1st +50, 2nd +30, 3rd +15, 4th +5) and +10 just for finishing. The **COINS EARNED** screen after the podium shows the whole breakdown. The amounts are at the top of `scripts/profiles.gd`. New players start with 150, enough for one crate. The Ball Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on). Bots don't earn coins. Online, your coins and looks are the ones on your own computer (P1's).
 - Looks and rarities live in `scripts/cosmetics.gd`, hat shapes in `scripts/hats.gd`, and coin amounts in `scripts/profiles.gd`.
 
 ### The podium
@@ -407,7 +407,7 @@ scripts/
   jungle.gd          the hub's jungle: cliff walls, ruins, mushrooms, cave, waterfall, secret gems, critters
   low_poly.gd        shared helpers for building simple shapes, labels and confetti in code
   piece_style.gd     the painted-toy colours and patterns for every lane piece
-  horse_race.gd      the Marble Derby betting minigame
+  horse_race.gd      the Ball Derby betting minigame
   main_menu.gd       title screen, Play/Settings/Controls/Credits pages, pause menu
   game_settings.gd   saved settings (screen, sound, camera, match options)
   decor.gd           start/finish arches, lanterns, braces, rocks, islands, buoys

@@ -34,7 +34,8 @@ signal settings_changed
 const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
 const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
-const TITLE := "MARBLES 4P"
+## The game's name on the title screen (and on signs round the world).
+const TITLE := "BOWLING 4P"
 const VERSION := "prototype"
 
 var _retry_button: Button

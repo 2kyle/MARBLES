@@ -18,8 +18,6 @@ signal basket_made(player: int)
 ##
 ## Everything here is just for fun: no coins, nothing is saved.
 
-## Where the island sits, relative to the practice island's middle.
-const OFFSET := Vector3(64, 0, 3)
 const RADIUS := 19.0
 
 ## Soccer pitch: middle, half length (along x) and half width (along z).

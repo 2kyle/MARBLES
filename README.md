@@ -37,22 +37,26 @@ The pictures are drawn in code in `scripts/how_to_play.gd`, and the words and bu
 
 ![The hub](docs/hub.png)
 
-A small floating island to warm up on. It's its own place, high above a sea of clouds with its own sky; the match lake and track are hidden while you're there. Roll with your lean keys (forward is away from the camera) and hop with your place key. Nothing here counts.
+A jungle island to warm up on and explore. It's its own place, high above a sea of clouds with its own sky; the match lake and track are hidden while you're there. Tall mossy rock cliffs ring the island like a jungle valley, with far-off jungle mountains all round, and gorges in the cliffs where the bridges lead out. Roll with your lean keys (forward is away from the camera) and hop with your place key. Nothing here counts.
 
 Only people come to the island (no bots). The camera is a free third-person camera that follows your marble anywhere on the island, so you can explore. Turn it with **Z / X**, the **right stick**, or by holding the **right mouse button** and dragging (drag up and down to look higher or lower), and use the **mouse wheel** to move it closer or further away. If you leave it alone for a second while rolling, it swings round behind you. If a wall or tree gets between the camera and your marble, the camera moves in front of it. With two or more players on one screen, it follows the middle of the group and pulls back to keep everyone in view.
 
 ![The free camera on the island](docs/island_camera.png)
+
+![The jungle island](docs/jungle.png)
 
  A coloured name tag (P1, P2...) with a little arrow floats over each marble so you can always find yourself, and it grows when the camera is far away.
 
 - **Practice run:** a winding track down from the stone START tower, with a gap to hop and a steep drop. It ends on the plaza, where a big blue pad sends you straight back to the top. The **PRACTICE RUN** pad on the plaza takes you up too.
 - **Customize plate:** roll onto the pink pressure plate under the CUSTOMIZE arch to open your **closet** (see below). One player at a time.
 - **Golden Marble Trophy:** anyone who has pulled the ultra-rare trophy gets it on a little stand on the east side of the plaza.
-- **Casino island:** a bridge off the west edge (follow the CASINO sign) leads to **The Groovy Marble**, an indoor 70s casino (see below). The derby, blackjack, the bar and the loot crates are all in there.
+- **Casino island:** a short bridge through the north-west gorge (follow the CASINO sign) leads to **The Groovy Marble**, an indoor 70s casino (see below). The derby, blackjack, the bar and the loot crates are all in there.
 - **Marble Derby** (in the casino): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four marble "horses" (Frank, Trunk, Fatty and Jakob) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
 - **Your coins** show in the top right corner the whole time you're on the island.
-- **Sports island:** a wooden bridge off the east edge (follow the SPORTS sign) leads to a second island (see below).
+- **Sports island:** a short wooden bridge through the north-east gorge (follow the SPORTS sign) leads to a second island (see below).
 - A rope bridge off the north edge leads to a tiny lookout islet, and there's a cottage with a smoking chimney and a vegetable garden, benches, bunting over the plaza, hot-air balloons and flocks of birds.
+- **Jungle things to explore:** stepped temple ruins with a shrine (and a waving monkey), a giant stone head, broken pillars to hop up, rock steps climbing the south-west cliff to a high ledge, bouncy giant mushrooms (roll onto the little red BOING! one and it bounces you from cap to cap), a hollow log to roll through, a glowing crystal cave in the north-east cliff, a waterfall in the east cliff with a hollow behind it, and grassy hills. Parrots fly overhead, frogs hop between lily pads on the pond, and fireflies and leaves drift about.
+- **Secret gems:** six glowing gems are hidden round the jungle (the stone by the spawn says so). Roll into one to collect it: the first time each player finds each gem they get 25 coins, and a message shows how many of the six they've found. Gems come back each visit, but only pay once. Which gems you've found is saved with your coins (`user://profiles.cfg`).
 - **Hurdles** to practise hops, and a few real pieces (bumpers, a booster, a spinner, a jump ramp) to play with.
 - **PLAY arch:** roll through it to start a match with the options from the Play page.
 - Fall off the edge and you pop back on the plaza. **Esc** opens the pause menu, where Retry puts everyone back at the start.
@@ -82,7 +86,7 @@ Built in code in `scripts/casino/casino_island.gd`, with blackjack in `scripts/c
 
 It's built in code in `scripts/sports_island.gd`.
 
-The island is built in code in `scripts/hub.gd` (the derby is `scripts/horse_race.gd`): windmill, pond and waterfall, trees, flowers, lanterns, butterflies, drifting clouds and little floating rocks.
+The island is built in code in `scripts/hub.gd`, with the jungle (cliffs, ruins, mushrooms, cave, waterfall, gems and critters) in `scripts/jungle.gd` (the derby is `scripts/horse_race.gd`): windmill, pond and waterfall, trees, flowers, lanterns, butterflies, drifting clouds and little floating rocks.
 
 
 Looks are changed between games in the closet on the hub, not at the start of a match. Each frame has four steps, like the design doc:
@@ -400,6 +404,7 @@ scripts/
   arena/             the five match worlds, one file each, plus shared helpers
   casino/            the casino island and blackjack
   sports_island.gd   the sports island: soccer pitch and scoreboard, trampoline and hoop
+  jungle.gd          the hub's jungle: cliff walls, ruins, mushrooms, cave, waterfall, secret gems, critters
   low_poly.gd        shared helpers for building simple shapes, labels and confetti in code
   piece_style.gd     the painted-toy colours and patterns for every lane piece
   horse_race.gd      the Marble Derby betting minigame
@@ -437,6 +442,8 @@ tests/
   test_achievements.gd  achievements unlock, count, save and reach Steam; the game runs fine with no Steam
   fake_steam.gd      a stand-in for Steam so tests can play over a "Steam lobby" without Steam
   sim_sports.gd      checks people-only island, name tags, a trampoline basket and a soccer goal
+  sim_jungle.gd      checks the jungle: mushroom bounces, the hollow log, the cliff climb, secret gems and coins
+  hub_view.gd        takes screenshots of the hub from any camera spot (not a test)
   net_host.gd, net_client.gd, run_net_test.sh   plays an online match between two copies of the game
 ```
 
@@ -453,6 +460,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_roll.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_gap.gd -- hop
 godot --headless --fixed-fps 120 --script res://tests/sim_bots.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_sports.gd
+godot --headless --fixed-fps 120 --script res://tests/sim_jungle.gd
 godot --headless --script res://tests/test_achievements.gd
 godot --headless --script res://tests/test_how_to_play.gd
 godot --headless --script res://tests/test_track_cards.gd

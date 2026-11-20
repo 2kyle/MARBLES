@@ -93,6 +93,7 @@ func build(hub_plate: Callable, on_table: Callable, on_crates: Callable) -> void
 	_lounge()
 	_lights()
 	_front()
+	_mountain()
 
 
 ## Where a marble pops back up if it falls off this island.
@@ -238,8 +239,8 @@ func _island() -> void:
 		var at := Vector3(cos(a) * (RADIUS - 3.0), 0, sin(a) * (RADIUS - 3.0))
 		if absf(at.x) < HALF.x + 1.5 and absf(at.z) < HALF.y + 1.5:
 			continue
-		if at.x > HALF.x and absf(at.z) < 5.0:
-			continue   # keep the way to the door clear
+		if at.x < HALF.x + 2.0 or absf(at.z) < 5.0:
+			continue   # only on the front lawn (the mountain is round the rest), off the path
 		_palm(b, at)
 	add_child(b.make())
 
@@ -263,7 +264,7 @@ func _palm(b: MeshBatch, at: Vector3) -> void:
 ## band, wall lamps), with collision so marbles stay in and the camera
 ## stays under the roof.
 func _building() -> void:
-	var outside := Color(0.45, 0.22, 0.5)
+	var outside := Jungle.ROCK.darkened(0.15)   # mostly hidden in the mountain
 	var b := MeshBatch.new()
 	var solid := []
 	var t := 0.5
@@ -282,8 +283,7 @@ func _building() -> void:
 		solid.append([Vector3(t, HEIGHT, seg), Vector3(HALF.x, HEIGHT / 2.0, z)])
 	b.box(Vector3(t, HEIGHT - DOOR_H, DOOR_HALF * 2), Vector3(HALF.x, (HEIGHT + DOOR_H) / 2.0, 0), outside)
 	# Roof (a lip all round) and the dark ceiling inside.
-	b.box(Vector3(HALF.x * 2 + 1.6, 0.6, HALF.y * 2 + 1.6), Vector3(0, HEIGHT + 0.3, 0), Color(0.3, 0.14, 0.32))
-	b.box(Vector3(HALF.x * 2 + 2.0, 0.25, HALF.y * 2 + 2.0), Vector3(0, HEIGHT + 0.05, 0), GOLD)
+	b.box(Vector3(HALF.x * 2 + 1.6, 0.6, HALF.y * 2 + 1.6), Vector3(0, HEIGHT + 0.3, 0), outside.darkened(0.1))
 	solid.append([Vector3(HALF.x * 2 + 1.6, 0.6, HALF.y * 2 + 1.6), Vector3(0, HEIGHT + 0.3, 0)])
 	b.box(Vector3(HALF.x * 2 - 0.2, 0.1, HALF.y * 2 - 0.2), Vector3(0, HEIGHT - 0.05, 0), Color(0.1, 0.06, 0.14))
 	# Inside walls: wood panelling low down, plum above, stripes between.
@@ -670,6 +670,90 @@ func _front() -> void:
 			mi.position = Vector3(x0 + 0.65, y, z)
 			add_child(mi)
 			k += 1
+
+
+## The casino is built into a mountain, like the cliffs round the jungle:
+## rock columns with moss and vines all round the sides and back, craggy
+## mounds over the roof, and only the front (marquee, door and neon) showing,
+## like an old club carved into the rock.
+func _mountain() -> void:
+	var b := MeshBatch.new()
+	var body := StaticBody3D.new()
+	body.name = "Mountain"
+	add_child(body)
+	var spots := []   # [position, radius, height]
+	# Down both long sides and across the back.
+	var x := -HALF.x - 1.0
+	while x < HALF.x + 1.0:
+		for side in [-1.0, 1.0]:
+			spots.append([Vector3(x, 0, side * (HALF.y + _rng.randf_range(1.2, 2.0))), _rng.randf_range(2.4, 3.2)])
+		x += _rng.randf_range(3.0, 4.0)
+	var z := -HALF.y
+	while z <= HALF.y:
+		spots.append([Vector3(-HALF.x - _rng.randf_range(1.2, 2.0), 0, z), _rng.randf_range(2.4, 3.2)])
+		z += _rng.randf_range(3.0, 4.0)
+	# Either side of the front, framing the marquee.
+	for side in [-1.0, 1.0]:
+		for k in 3:
+			spots.append([Vector3(HALF.x + 0.6 + k * 0.4, 0, side * (10.8 + k * 2.6)), _rng.randf_range(2.2, 2.8)])
+	for spot in spots:
+		var at: Vector3 = spot[0]
+		var r: float = spot[1]
+		var h := HEIGHT + _rng.randf_range(1.5, 9.0)
+		_rock(b, at + Vector3.UP * (h - 8.0) / 2.0, r, h + 8.0, _rock_color())
+		# A wide rocky foot, so it reads as a mountain and not a post.
+		_rock(b, at + Vector3.UP * 1.0, r * 1.6, 4.0, _rock_color().darkened(0.08))
+		b.cyl(0.0, r * 0.55, 1.0, at + Vector3.UP * (h + 0.3), Jungle.MOSS.darkened(_rng.randf() * 0.25), 6)
+		b.ball(at + Vector3(_rng.randf_range(-0.8, 0.8), h + 0.5, _rng.randf_range(-0.8, 0.8)), _rng.randf_range(1.0, 1.6),
+				Jungle.LEAF.lerp(Jungle.MOSS, _rng.randf()), 7, Vector3(1, 0.7, 1))
+		# Vines down the outside face.
+		var out := Vector3(signf(at.x) if absf(at.x) > HALF.x else 0.0, 0, signf(at.z) if absf(at.z) > HALF.y else 0.0).normalized()
+		for k in _rng.randi_range(1, 2):
+			var top := at + out * r * 0.7 + Vector3(_rng.randf_range(-1, 1), h - 0.8, _rng.randf_range(-1, 1)) * Vector3(1, 1, 1)
+			var len := _rng.randf_range(3.0, h * 0.7)
+			b.beam(top, top + Vector3.DOWN * len, 0.07, Color(0.25, 0.45, 0.2))
+			for j in int(len / 0.8):
+				b.ball(top + Vector3.DOWN * (j * 0.8 + 0.4), 0.18, Jungle.LEAF.lightened(_rng.randf() * 0.3), 5)
+		var shape := CollisionShape3D.new()
+		var cyl := CylinderShape3D.new()
+		cyl.radius = r * 0.85
+		cyl.height = h
+		shape.shape = cyl
+		shape.position = at + Vector3.UP * h / 2.0
+		body.add_child(shape)
+	# Craggy mounds over the roof, with jungle on top (the front stays clear
+	# for the sign).
+	for gx in range(-18, int(HALF.x) - 5, 6):
+		for gz in range(-12, 13, 6):
+			var at := Vector3(gx + _rng.randf_range(-1.5, 1.5), HEIGHT + 0.4, gz + _rng.randf_range(-1.5, 1.5))
+			var r := _rng.randf_range(3.5, 5.0)
+			b.ball(at, r, _rock_color(), 7, Vector3(1, _rng.randf_range(0.35, 0.7), 1))
+			b.ball(at + Vector3(_rng.randf_range(-1, 1), r * 0.35, _rng.randf_range(-1, 1)), r * 0.5,
+					Jungle.MOSS.darkened(_rng.randf() * 0.2), 6, Vector3(1, 0.5, 1))
+			if _rng.randf() < 0.5:
+				b.ball(at + Vector3(0, r * 0.55, 0), _rng.randf_range(1.0, 1.6), Jungle.LEAF, 7, Vector3(1, 0.8, 1))
+	# A carved frame round the front, so the marquee sits in the rock.
+	for side in [-1.0, 1.0]:
+		_rock(b, Vector3(HALF.x + 0.3, HEIGHT / 2.0 + 1.0, side * 9.4), 1.5, HEIGHT + 4.0, _rock_color())
+	b.box(Vector3(1.2, 1.4, 18.0), Vector3(HALF.x - 0.2, HEIGHT + 4.3, 0), Jungle.ROCK.darkened(0.05))
+	for k in 5:
+		b.ball(Vector3(HALF.x - 0.4, HEIGHT + 5.0, -7.2 + k * 3.6), _rng.randf_range(1.1, 1.6),
+				Jungle.LEAF.lerp(Jungle.MOSS, _rng.randf()), 6, Vector3(1, 0.6, 1))
+	add_child(b.make())
+
+
+func _rock(b: MeshBatch, pos: Vector3, r: float, h: float, color: Color) -> void:
+	var m := CylinderMesh.new()
+	m.top_radius = r * _rng.randf_range(0.4, 0.65)
+	m.bottom_radius = r
+	m.height = h
+	m.radial_segments = _rng.randi_range(5, 7)
+	m.rings = 1
+	b.shape(m, Basis(Vector3.UP, _rng.randf() * TAU), pos, color)
+
+
+func _rock_color() -> Color:
+	return Jungle.ROCK.lerp(Color(0.38, 0.35, 0.32), _rng.randf()).lerp(Jungle.MOSS, _rng.randf() * 0.3)
 
 
 ## A dealer: a marble on a stool in a waistcoat and bow tie, with a green

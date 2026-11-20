@@ -67,7 +67,7 @@ Only people come to the island (no bots). The camera is a free third-person came
 
 ![Blackjack at the casino](docs/casino.png)
 
-An indoor casino with a groovy 70s theme: swirly carpet, wood panels, neon signs, a disco ball over the dance floor, a roulette wheel, slot machines, lava lamps, and a marquee of chasing light bulbs out front. Every dealer and the bartender wears shady sunglasses and keeps an eye on the nearest marble.
+An indoor casino with a groovy 70s theme, built right into a mountain: from outside it looks like the jungle cliffs, with mossy rock columns, vines and jungle over the roof, and only the marquee and door showing. Inside: swirly carpet, wood panels, neon signs, a disco ball over the dance floor, a roulette wheel, slot machines, lava lamps, and a marquee of chasing light bulbs out front. Every dealer and the bartender wears shady sunglasses and keeps an eye on the nearest marble.
 
 - **Blackjack:** roll onto one of the four stools round the table. Up and down set your wager (10 coins a step); your place key deals, then **hits** (takes a card); your turn key **stands**. Get closer to 21 than the dealer without going over. The dealer draws until they have 17. A win pays double your wager back, a blackjack (21 with your first two cards) pays 2.5x, and a tie gives your wager back. You can't walk away mid-hand. The cards land on the felt, so people watching can follow along.
 - **The bar:** roll onto the plate at the bar, pick a drink with left and right, and order with your place key. Fizzy drinks give your marble the hiccups for a while (little hops and bubbles). Fizzy Lemonade 5 coins, Root Beer Float 10, Galaxy Soda 20 (the biggest hiccups).

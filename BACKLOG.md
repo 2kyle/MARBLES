@@ -1,0 +1,53 @@
+# MARBLES 4P Backlog
+
+This is the to-do list for the game, **most important at the top**. Every night at 2 AM (New York time), Claude takes the top item marked **To do**, builds it on its own branch, and opens a pull request for you to playtest. Nothing reaches `main` until you approve it.
+
+**How to use this list**
+
+- **Add an idea:** just tell Claude in the project chat ("add an idea: a loop-de-loop piece"). You can also type it here yourself.
+- **Change the order:** move items up or down. The top **To do** item is built next.
+- **Remove an idea:** delete it, or tell Claude.
+- Items marked *(suggested by Claude)* are Claude's guesses at good next steps. Reorder or delete them freely.
+
+**What the labels mean**
+
+- **To do**: waiting to be built.
+- **In review**: built, with a pull request waiting for your playtest. The branch name is next to it.
+- **Done**: you approved it and it's in `main`.
+- **Dropped**: you said no, so it was left out.
+
+## Up next
+
+1. **To do** · **How to play** pop-up *(suggested by Claude)*
+   The first time someone starts a match, show a short, skippable picture guide: draft a piece, place it, then roll and smash the pins. Add a "How to play" button on the title menu to see it again.
+
+2. **To do** · **Strike replay** *(suggested by Claude)*
+   After a strike, replay the last couple of seconds of the roll in slow motion from a low camera by the pins, then carry on to the scoreboard. Press any key to skip.
+
+3. **To do** · **Match awards** *(suggested by Claude)*
+   At the end of a match, before the podium, show a few fun awards: most strikes, most pins in one roll, fastest marble to the finish, most pieces knocked over.
+
+4. **To do** · **Controller rumble** *(suggested by Claude)*
+   Short controller rumbles when a marble hits a bumper, lands a hop, or gets a strike. Add an on/off switch in Settings.
+
+5. **To do** · **Graphics quality setting** *(suggested by Claude)*
+   A Low / Medium / High choice in Settings (shadows, clouds, water detail) so the game runs smoothly on older laptops.
+
+6. **To do** · **Colour-blind friendly marbles** *(suggested by Claude)*
+   A Settings option that gives each player a pattern or symbol as well as a colour on their marble, name tag and scoreboard row.
+
+7. **To do** · **Loop-de-loop piece** *(suggested by Claude)*
+   A new track piece: a full vertical loop. Fast marbles make it round; slow ones fall back.
+
+## Needs you (Claude can't do these alone)
+
+- **Steam setup:** install the GodotSteam plugin, try online play with a friend, then get your own Steam App ID. Step-by-step guide: [docs/STEAM.md](docs/STEAM.md).
+- **Sound and music:** you're adding these yourself, so Claude leaves audio out.
+
+## In review
+
+*(Nothing yet.)*
+
+## Done
+
+*(Nothing yet.)*

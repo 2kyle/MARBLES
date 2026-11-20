@@ -537,109 +537,186 @@ func _update_hub(game) -> void:
 		panel.visible = kind != ""
 		if kind == "":
 			continue
-		var style: StyleBoxFlat = panel.get_theme_stylebox("panel")
-		style.border_color = game.player_colors[p]
 		var box := panel.get_child(0)
 		var head: HBoxContainer = box.get_child(0)
-		head.get_child(0).text = "%s  %s" % [game.seat_name(p), kind.to_upper()]
-		head.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
-		head.get_child(2).text = "%d COINS" % game.profiles.coins(p)
-		var rows: Array = []   # [key, value, right, value colour] per row
+		(head.get_child(0) as Label).text = game.seat_name(p)
+		(head.get_child(0) as Label).add_theme_color_override("font_color", (game.player_colors[p] as Color).darkened(0.35))
+		(head.get_child(1) as Label).text = {"derby": "THE DERBY", "blackjack": "BLACKJACK", "bar": "THE BAR"}.get(kind, kind.to_upper())
+		var prof: int = game.profile_of(p)
+		(head.get_child(3) as Label).text = "%d COINS" % game.profiles.coins(prof) if prof >= 0 else ""
+		var rows: Array = []   # [key, value (String, or Array of cards), right, value colour] per row
 		var foot := ""
-		var confirm: String = _key_names(game.seat_keys[p]).confirm
+		var keys := _key_names(game.seat_keys[p])
 		match kind:
 			"derby":
 				var derby: HorseRace = game.hub.casino.derby
 				var placed: bool = derby.bets.has(p)
 				var h: int = derby.bets[p].horse if placed else derby.pick[p]
 				var amount: int = derby.bets[p].amount if placed else derby.wager[p]
-				rows.append(["HORSE", ("%d %s" if placed else "<  %d %s  >") % [h + 1, HorseRace.HORSES[h].name],
-						"pays %.1fx" % derby.odds[h], HorseRace.HORSES[h].color.lightened(0.3)])
-				rows.append(["WAGER", ("%d" if placed else "-  %d  +") % amount, "win %d" % roundi(amount * derby.odds[h]), Color.WHITE])
+				rows.append(["HORSE", ("No.%d %s" if placed else "◂ No.%d %s ▸") % [h + 1, HorseRace.HORSES[h].name],
+						"pays %.1fx" % derby.odds[h], (HorseRace.HORSES[h].color as Color).darkened(0.35)])
+				rows.append(["WAGER", ("%d" if placed else "− %d +") % amount, "win %d" % roundi(amount * derby.odds[h]), INK])
 				if derby.message[p] != "":
 					foot = derby.message[p]
 				elif not placed:
-					foot = "%s  Place bet" % confirm
+					foot = "%s  place bet" % keys.confirm
 			"blackjack":
 				var bj: Blackjack = game.hub.casino.blackjack
-				var s: Dictionary = bj.seats[p]
-				if not s.cards.is_empty():
-					var shown: Array = s.dealer.slice(0, 1) if s.hidden else s.dealer
-					rows.append(["DEALER", _cards_text(shown) + ("  ??" if s.hidden else ""),
-							str(Blackjack.value(shown)), Color(1, 1, 1, 0.85)])
-					rows.append(["YOU", _cards_text(s.cards), str(Blackjack.value(s.cards)), Color.WHITE])
-				var betting: bool = s.phase == Blackjack.Phase.BETTING or s.phase == Blackjack.Phase.DONE
-				rows.append(["WAGER", ("-  %d  +" if betting else "%d") % s.wager, "", Color.WHITE])
-				if s.message != "":
-					foot = s.message
-				elif s.phase == Blackjack.Phase.PLAYING:
-					foot = "%s  Hit     %s  Stand" % [confirm, _key_names(game.seat_keys[p]).rotate]
-				elif s.phase == Blackjack.Phase.DEALER:
+				var st: Dictionary = bj.seats[p]
+				if not st.cards.is_empty():
+					var shown: Array = st.dealer.slice(0, 1) if st.hidden else st.dealer
+					rows.append(["DEALER", shown + ([null] if st.hidden else []), str(Blackjack.value(shown)), INK])
+					rows.append(["YOU", st.cards, str(Blackjack.value(st.cards)), INK])
+				var betting: bool = st.phase == Blackjack.Phase.BETTING or st.phase == Blackjack.Phase.DONE
+				rows.append(["WAGER", ("− %d +" if betting else "%d") % st.wager, "", INK])
+				if st.message != "":
+					foot = st.message
+				elif st.phase == Blackjack.Phase.PLAYING:
+					foot = "%s  hit      %s  stand" % [keys.confirm, keys.rotate]
+				elif st.phase == Blackjack.Phase.DEALER:
 					foot = "Dealer's turn..."
 				else:
-					foot = "%s  Deal" % confirm
+					foot = "%s  deal" % keys.confirm
 			"bar":
 				var casino: CasinoIsland = game.hub.casino
 				var d: Dictionary = CasinoIsland.DRINKS[casino.drink_pick[p]]
-				rows.append(["DRINK", "<  %s  >" % d.name, "%d coins" % d.price, d.color.lightened(0.3)])
-				foot = casino.bar_message[p] if casino.bar_message[p] != "" else "%s  Order" % confirm
+				rows.append(["DRINK", "◂ %s ▸" % d.name, "%d coins" % d.price, (d.color as Color).darkened(0.4)])
+				foot = casino.bar_message[p] if casino.bar_message[p] != "" else "%s  order" % keys.confirm
 		for r in 3:
-			var row: HBoxContainer = box.get_child(1 + r)
+			var row: HBoxContainer = box.get_child(2 + r)
 			row.visible = r < rows.size()
 			if not row.visible:
 				continue
-			row.get_child(0).text = rows[r][0]
-			row.get_child(1).text = rows[r][1]
-			row.get_child(1).add_theme_color_override("font_color", rows[r][3])
-			row.get_child(2).text = rows[r][2]
-		(box.get_child(4) as Label).text = foot
+			(row.get_child(0) as Label).text = rows[r][0]
+			var value: Label = row.get_child(1)
+			var cards: HBoxContainer = row.get_child(2)
+			value.visible = rows[r][1] is String
+			cards.visible = not value.visible
+			if value.visible:
+				value.text = rows[r][1]
+				value.add_theme_color_override("font_color", rows[r][3])
+			else:
+				_show_cards(cards, rows[r][1])
+			(row.get_child(3) as Label).text = rows[r][2]
+		(box.get_child(5) as Label).text = foot.to_upper()
 
 
-## Cards as short text, like "A♠ 10♥".
-func _cards_text(cards: Array) -> String:
-	var out: PackedStringArray = []
-	for c in cards:
-		out.append(Blackjack.card_name(c) + Blackjack.SUITS[c[1]])
-	return " ".join(out)
+## Ink and paper for the casino tickets.
+const INK := Color(0.2, 0.1, 0.08)
+const PAPER := Color(0.97, 0.92, 0.8)
+const TICKET_RED := Color(0.66, 0.12, 0.13)
 
 
+## Little playing cards in a row (null = a face-down card).
+func _show_cards(row: HBoxContainer, cards: Array) -> void:
+	while row.get_child_count() < cards.size():
+		var l := Label.new()
+		l.add_theme_font_override("font", TITLE_FONT)
+		l.add_theme_font_size_override("font_size", 18)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.custom_minimum_size = Vector2(36, 0)
+		row.add_child(l)
+	for i in row.get_child_count():
+		var l: Label = row.get_child(i)
+		l.visible = i < cards.size()
+		if not l.visible:
+			continue
+		var c = cards[i]
+		var face := StyleBoxFlat.new()
+		face.set_corner_radius_all(3)
+		face.set_border_width_all(1)
+		face.content_margin_left = 3
+		face.content_margin_right = 3
+		if c == null:
+			face.bg_color = TICKET_RED
+			face.border_color = PAPER
+			l.text = "✦"
+			l.add_theme_color_override("font_color", PAPER)
+		else:
+			face.bg_color = Color.WHITE
+			face.border_color = INK.lightened(0.4)
+			l.text = Blackjack.card_name(c) + Blackjack.SUITS[c[1]]
+			l.add_theme_color_override("font_color", Blackjack.RED if c[1] in [1, 2] else Blackjack.BLACK)
+		l.add_theme_stylebox_override("normal", face)
+
+
+## A casino panel, printed like an old casino ticket: cream card, red
+## border with a thin inner rule, a red name ribbon, dark ink.
 func _make_table_panel() -> PanelContainer:
 	var panel := PanelContainer.new()
-	var style := _pill(PANEL_BG, 14, 12)
-	style.border_width_top = 5
+	var style := StyleBoxFlat.new()
+	style.bg_color = PAPER
+	style.set_corner_radius_all(4)
+	style.set_border_width_all(4)
+	style.border_color = TICKET_RED
+	style.set_content_margin_all(14)
+	style.shadow_color = Color(0, 0, 0, 0.45)
+	style.shadow_offset = Vector2(5, 6)
 	panel.add_theme_stylebox_override("panel", style)
 	panel.custom_minimum_size = Vector2(340, 0)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 5)
 	panel.add_child(box)
 	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 8)
 	var tag := Label.new()
 	tag.add_theme_font_override("font", TITLE_FONT)
-	tag.add_theme_font_size_override("font_size", 24)
+	tag.add_theme_font_size_override("font_size", 22)
 	head.add_child(tag)
+	var title := Label.new()
+	title.add_theme_font_override("font", TITLE_FONT)
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", PAPER)
+	var ribbon := StyleBoxFlat.new()
+	ribbon.bg_color = TICKET_RED
+	ribbon.content_margin_left = 10
+	ribbon.content_margin_right = 10
+	ribbon.set_corner_radius_all(2)
+	title.add_theme_stylebox_override("normal", ribbon)
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(title)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(spacer)
-	head.add_child(_coin_label(20))
+	var coins := Label.new()
+	coins.add_theme_font_override("font", TITLE_FONT)
+	coins.add_theme_font_size_override("font_size", 18)
+	coins.add_theme_color_override("font_color", Color(0.6, 0.42, 0.05))
+	head.add_child(coins)
 	box.add_child(head)
+	# A thin double rule under the heading.
+	var rule := ColorRect.new()
+	rule.color = TICKET_RED
+	rule.custom_minimum_size = Vector2(0, 2)
+	box.add_child(rule)
 	for r in 3:
 		var cols := HBoxContainer.new()
 		cols.add_theme_constant_override("separation", 10)
 		var key := Label.new()
 		key.custom_minimum_size = Vector2(70, 0)
 		key.add_theme_font_size_override("font_size", 13)
-		key.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
+		key.add_theme_color_override("font_color", INK.lightened(0.35))
 		cols.add_child(key)
 		var value := Label.new()
 		value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		value.add_theme_font_override("font", TITLE_FONT)
 		value.add_theme_font_size_override("font_size", 19)
 		cols.add_child(value)
-		cols.add_child(_coin_label(16))
+		var cards := HBoxContainer.new()
+		cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cards.add_theme_constant_override("separation", 4)
+		cols.add_child(cards)
+		var right := Label.new()
+		right.add_theme_font_override("font", TITLE_FONT)
+		right.add_theme_font_size_override("font_size", 16)
+		right.add_theme_color_override("font_color", Color(0.6, 0.42, 0.05))
+		cols.add_child(right)
 		box.add_child(cols)
 	var foot := Label.new()
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	foot.add_theme_font_size_override("font_size", 15)
-	foot.add_theme_color_override("font_color", GOLD)
+	foot.add_theme_font_override("font", TITLE_FONT)
+	foot.add_theme_font_size_override("font_size", 14)
+	foot.add_theme_color_override("font_color", TICKET_RED)
 	foot.custom_minimum_size = Vector2(0, 22)
 	box.add_child(foot)
 	return panel

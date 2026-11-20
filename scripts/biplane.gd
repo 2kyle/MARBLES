@@ -147,7 +147,7 @@ func update(delta: float) -> void:
 	var want_speed := BOOST_SPEED if _boost > 0.0 else SPEED
 	_speed = move_toward(_speed, want_speed, delta * 8.0)
 	# Steering: turn with left/right, pitch with forward/back.
-	_yaw -= steer.x * TURN_RATE * delta
+	var turn := steer.x
 	var want_pitch := steer.y * PITCH_MAX
 	var pos := position
 	if _flying < TAKEOFF_TIME:
@@ -158,13 +158,14 @@ func update(delta: float) -> void:
 			want_pitch = maxf(want_pitch, clampf((MIN_HEIGHT - pos.y) * 0.15, 0.0, PITCH_MAX))
 		elif pos.y > MAX_HEIGHT:
 			want_pitch = minf(want_pitch, -0.2)
-		# Too far out: turn gently back toward the island.
-		var flat := Vector2(pos.x, pos.z)
-		if flat.length() > MAX_RANGE:
-			var home := atan2(-pos.x, -pos.z)
-			_yaw = lerp_angle(_yaw, home, clampf(delta * 0.8, 0.0, 1.0))
+		# Too far out: the plane turns itself back toward the island.
+		if Vector2(pos.x, pos.z).length() > MAX_RANGE:
+			var off := angle_difference(_yaw, atan2(pos.x, pos.z))
+			if absf(off) > 0.15:
+				turn = -signf(off)
+	_yaw -= turn * TURN_RATE * delta
 	_pitch = lerpf(_pitch, want_pitch, clampf(delta * 3.0, 0.0, 1.0))
-	_roll = lerpf(_roll, -steer.x * 0.6, clampf(delta * 4.0, 0.0, 1.0))
+	_roll = lerpf(_roll, -turn * 0.6, clampf(delta * 4.0, 0.0, 1.0))
 	var b := Basis(Vector3.UP, _yaw) * Basis(Vector3.RIGHT, _pitch)
 	pos += -b.z * _speed * delta
 	transform = Transform3D(b, pos)

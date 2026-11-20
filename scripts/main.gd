@@ -321,6 +321,34 @@ func _enter_hub() -> void:
 	hub.start(player_count, seat_looks, marble_scene)
 	hub.refresh_trophies(profiles, settings.player_count)
 	_arrive_on_hub()
+	_refresh_gems()
+
+
+## Show which secret gems everyone here has already found (they come back
+## as faint ghosts), and hand out the gem crown to anyone who has all six
+## (for saves from before it existed).
+func _refresh_gems() -> void:
+	var found_by_all := range(Jungle.GEM_COUNT)
+	for p in player_count:
+		var prof := profile_of(p)
+		if prof < 0:
+			continue
+		var mine: Array = profiles.seats[prof].secrets
+		found_by_all = found_by_all.filter(func(id): return mine.has(id))
+		_check_gem_reward(prof)
+	hub.jungle.reset(found_by_all)
+
+
+## All six gems found: the Jungle Gem Crown and the Treasure Hunter
+## achievement. Returns true the first time.
+func _check_gem_reward(prof: int) -> bool:
+	if profiles.secrets_found(prof) < Jungle.GEM_COUNT:
+		return false
+	Achievements.unlock("GEM_HUNTER")
+	if not profiles.grant(prof, "hat", "gem_crown"):
+		return false
+	profiles.save_to_disk()
+	return true
 
 
 func _ensure_hub() -> void:
@@ -387,6 +415,7 @@ func _enter_online_hub() -> void:
 	hub.start(player_count, seat_looks, marble_scene, _hub_names())
 	hub.refresh_trophies(profiles, 1)
 	_arrive_on_hub()
+	_refresh_gems()
 	steam.presence("On the island with friends")
 	menu.toast("Roll through the PLAY arch when you're ready.  Esc: lobby and invites")
 	if net.is_host():
@@ -480,6 +509,10 @@ func _on_secret_found(p: int, id: int, at: Vector3) -> void:
 			profiles.add_coins(prof, Hub.SECRET_COINS)
 			profiles.save_to_disk()
 			text += "\n+%d COINS" % Hub.SECRET_COINS
+			if _check_gem_reward(prof):
+				text += "\nALL FOUND! JUNGLE GEM CROWN\nIS IN YOUR CLOSET"
+		else:
+			text += "\n(ALREADY FOUND)"
 	hub.jungle.pop_text(at, text, Jungle.GEM_COLORS[id])
 
 

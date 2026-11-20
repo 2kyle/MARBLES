@@ -81,6 +81,7 @@ All the icons are 256 × 256 PNGs, which is the size Steam asks for. If Steamwor
 | NOTHING_BUT_NET | Nothing but Net | Sink a basket off the trampoline. |
 | BACK_OF_THE_NET | Back of the Net | Score a goal on the sports island. |
 | PIGGY_BANK | Piggy Bank | Save up 1,000 coins. |
+| GEM_HUNTER | Treasure Hunter | Find all 6 secret gems in the jungle. |
 
 When they're all in, click **Publish** (Steamworks changes don't go live until you publish).
 

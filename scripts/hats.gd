@@ -95,6 +95,16 @@ static func build(id: String) -> Node3D:
 				_add(root, _ball(0.09), Vector3(cos(a) * 0.73, 1.0, sin(a) * 0.73), gem, Vector3.ZERO, Vector3.ONE, 0.6)
 		"halo":
 			_add(root, _ring(0.62, 0.09, 16), Vector3(0, 1.55, 0), Color(1.0, 0.92, 0.5), Vector3.ZERO, Vector3.ONE, 1.6)
+		"gem_crown":
+			# A twist of jungle vine with leaves and the six secret gems.
+			_add(root, _ring(0.7, 0.11, 14), Vector3(0, 0.82, 0), Color(0.3, 0.55, 0.2))
+			for k in Jungle.GEM_COUNT:
+				var a := k * TAU / Jungle.GEM_COUNT
+				var out := Vector3(cos(a), 0, sin(a))
+				_add(root, _box(Vector3(0.16, 0.04, 0.34)), out * 0.78 + Vector3(0, 0.9, 0), Color(0.4, 0.75, 0.3),
+						Vector3(0.5, -a + PI / 2.0 + 0.6, 0))
+				_add(root, _cone(0.16, 0.42, 6), out * 0.66 + Vector3(0, 1.12, 0), Jungle.GEM_COLORS[k],
+						Vector3.ZERO, Vector3.ONE, 1.2)
 	return root
 
 

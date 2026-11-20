@@ -265,7 +265,7 @@ func _try_on() -> void:
 			_item_status.text = "PRESS %s TO WEAR" % Hud._key_names(player).confirm
 			_item_status.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 		else:
-			_item_status.text = "LOCKED: FIND IT IN A LOOT CRATE"
+			_item_status.text = "LOCKED: " + card.item.get("how", "find it in a loot crate").to_upper()
 			_item_status.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
 
 

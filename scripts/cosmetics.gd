@@ -14,6 +14,8 @@ const RARITIES := {
 	"epic": {"name": "Epic", "color": Color(0.72, 0.42, 1.0)},
 	"legendary": {"name": "Legendary", "color": Color(1.0, 0.72, 0.2)},
 	"ultra": {"name": "Ultra Rare", "color": Color(1.0, 0.35, 0.55)},
+	# Never in a crate: earned by doing something (see "how" on the item).
+	"secret": {"name": "Secret", "color": Color(0.3, 0.95, 0.6)},
 }
 
 const HATS := [
@@ -34,6 +36,7 @@ const HATS := [
 	{"id": "wizard", "name": "Wizard Hat", "rarity": "legendary"},
 	{"id": "crown", "name": "Crown", "rarity": "legendary"},
 	{"id": "halo", "name": "Halo", "rarity": "legendary"},
+	{"id": "gem_crown", "name": "Jungle Gem Crown", "rarity": "secret", "how": "Find all 6 secret gems in the jungle"},
 ]
 
 const EYES := [

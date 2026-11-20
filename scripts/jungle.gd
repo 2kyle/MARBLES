@@ -68,7 +68,9 @@ var _rng := RandomNumberGenerator.new()
 var _batch := MeshBatch.new()
 var _far := MeshBatch.new()
 var _body: StaticBody3D
-var _gems: Array = []      # {node, id, at, taken}
+var _gems: Array = []      # {node, id, at, taken, mat}
+## How a gem you've already found looks: faint see-through glass.
+var _ghost_mat: StandardMaterial3D
 var _parrots: Array = []   # {node, wings, radius, y, speed, angle, center}
 var _frogs: Array = []     # {node, pads, from, to, t, wait}
 var _caps: Array = []      # [cap node, squash]
@@ -122,11 +124,20 @@ func build(hub: Hub) -> void:
 	_falling_leaves()
 
 
-## Put every gem back (each visit to the island).
-func reset() -> void:
+## Put every gem back (each visit to the island). Gems in `found` (found
+## already by everyone playing here) come back as a faint glassy ghost, so
+## you can see your progress; they don't pay again.
+func reset(found: Array = []) -> void:
 	for g in _gems:
 		g.taken = false
-		(g.node as Node3D).visible = true
+		var node: Node3D = g.node
+		node.visible = true
+		var ghost := found.has(g.id)
+		for c in node.get_children():
+			if c is MeshInstance3D:
+				(c as MeshInstance3D).material_override = _ghost_mat if ghost else g.mat
+			elif c is Light3D or c is CPUParticles3D:
+				c.visible = not ghost
 	_cooldown.clear()
 
 
@@ -932,7 +943,12 @@ func _gem(id: int, at: Vector3) -> void:
 	glints.gravity = Vector3.ZERO
 	glints.mesh = _drop_mesh(color.lightened(0.5), 0.04)
 	node.add_child(glints)
-	var gem := {"node": node, "id": id, "at": at, "taken": false}
+	var gem := {"node": node, "id": id, "at": at, "taken": false, "mat": mat}
+	if _ghost_mat == null:
+		_ghost_mat = StandardMaterial3D.new()
+		_ghost_mat.albedo_color = Color(0.85, 0.95, 1.0, 0.25)
+		_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_ghost_mat.roughness = 0.1
 	_gems.append(gem)
 	LowPoly.marble_zone(self, Vector3(1.3, 1.4, 1.3), at + Vector3.UP * 0.6, func(m): _take(gem, m))
 

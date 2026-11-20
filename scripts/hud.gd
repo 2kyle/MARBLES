@@ -507,6 +507,11 @@ func _update_hub(game) -> void:
 		tag.add_theme_font_size_override("font_size", 20)
 		row.add_child(tag)
 		row.add_child(_coin_label(24))
+		var gems := Label.new()
+		gems.add_theme_font_override("font", TITLE_FONT)
+		gems.add_theme_font_size_override("font_size", 20)
+		gems.add_theme_color_override("font_color", Cosmetics.rarity_color("secret"))
+		row.add_child(gems)
 		_hub_coins.add_child(chip)
 	_show_first(_hub_coins, game.player_count)
 	for p in game.player_count:
@@ -517,7 +522,10 @@ func _update_hub(game) -> void:
 		var row := chip.get_child(0)
 		row.get_child(0).text = game.seat_name(p)
 		row.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
-		row.get_child(1).text = "%d COINS" % game.profiles.coins(p)
+		var prof: int = game.profile_of(p)
+		row.get_child(1).text = "%d COINS" % game.profiles.coins(prof) if prof >= 0 else ""
+		# Secret gems found so far (saved between visits).
+		row.get_child(2).text = "◆ %d/%d" % [game.profiles.secrets_found(prof), Jungle.GEM_COUNT] if prof >= 0 else ""
 	if not _tables.visible:
 		return
 	while _tables.get_child_count() < game.player_count:

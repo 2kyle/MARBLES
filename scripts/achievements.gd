@@ -37,6 +37,7 @@ const LIST := [
 	{"id": "NOTHING_BUT_NET", "name": "Nothing but Net", "text": "Sink a basket off the trampoline.", "emblem": "hoop", "color": Color(1.0, 0.5, 0.2)},
 	{"id": "BACK_OF_THE_NET", "name": "Back of the Net", "text": "Score a goal on the sports island.", "emblem": "ball", "color": Color(0.3, 0.75, 0.35)},
 	{"id": "PIGGY_BANK", "name": "Piggy Bank", "text": "Save up 1,000 coins.", "emblem": "coin", "color": Color(0.95, 0.75, 0.25)},
+	{"id": "GEM_HUNTER", "name": "Treasure Hunter", "text": "Find all 6 secret gems in the jungle.", "emblem": "gem", "color": Color(0.2, 0.7, 0.45)},
 ]
 
 ## Where they're saved (tests use their own file).

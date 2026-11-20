@@ -38,13 +38,19 @@ func _initialize() -> void:
 		var want: float = LootCrates.RARITY_WEIGHTS[r] / total * 100.0
 		var got: float = rarities.get(r, 0) * 100.0 / kinds.item
 		check("%s about %.0f%% of looks (%.1f%%)" % [r, want, got], absf(got - want) < 1.5)
-	# Every non-starter look must be winnable.
+	# Every non-starter look must be winnable (secret ones are earned instead).
 	var missing := []
 	for slot in Cosmetics.SLOTS:
 		for it in Cosmetics.items(slot):
-			if it.rarity != "starter" and not seen.has(slot + ":" + it.id):
+			if not it.rarity in ["starter", "secret"] and not seen.has(slot + ":" + it.id):
 				missing.append(slot + ":" + it.id)
 	check("every look can come from a crate (missing: %s)" % [missing], missing.is_empty())
+	var secret_won := false
+	for slot in Cosmetics.SLOTS:
+		for it in Cosmetics.items(slot):
+			if it.rarity == "secret" and seen.has(slot + ":" + it.id):
+				secret_won = true
+	check("secret looks never come from a crate", not secret_won)
 
 	# Opening crates on a profile: pays, grants, refunds duplicates.
 	var prof := Profiles.new()

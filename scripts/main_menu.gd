@@ -552,7 +552,7 @@ func _build_how_to_play_page() -> void:
 	_howto = HowToPlay.new()
 	page.add_child(_howto)
 	_howto_text = _note(page, "")
-	_howto_text.custom_minimum_size = Vector2(HowToPlay.SIZE.x, 66)
+	_howto_text.custom_minimum_size = Vector2(HowToPlay.SIZE.x, 44)
 	_howto_text.add_theme_font_size_override("font_size", 18)
 	_howto_text.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
 	_howto_dots = Label.new()

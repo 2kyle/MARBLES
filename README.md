@@ -29,9 +29,9 @@ During a match, **Esc** opens the pause menu.
 
 ![The How to play guide](docs/how_to_play.png)
 
-The first time anyone starts a match on this computer, a short guide pops up over the READY? screen. It has three little animated pictures, one per step of a frame: **Draft** (grab a piece card with your pointer), **Build** (slide, turn and drop your piece on the lane) and **Roll** (race to the pins). Press **NEXT** (or right) to flip through, **BACK** (or left) to go back, and **GOT IT!** or **SKIP** (or Esc) to start playing. It only pops up once; after that it's always on the title screen under **HOW TO PLAY**. The game remembers you've seen it in `user://settings.cfg`, so deleting that file brings the pop-up back.
+The first time anyone starts a match on this computer, a short guide pops up over the READY? screen. It has three little animated pictures, one per step of a frame: **Draft** (grab a piece card with your pointer), **Build** (slide, turn and drop your piece on a winding lane) and **Roll** (race down the twisty lane to the pins). Under each picture are the buttons for that step, drawn like real keyboard keys and controller buttons (for example the WASD keys or the left stick to move, Space or A to grab). Press **NEXT** (or right) to flip through, **BACK** (or left) to go back, and **GOT IT!** or **SKIP** (or Esc) to start playing. It only pops up once; after that it's always on the title screen under **HOW TO PLAY**. The game remembers you've seen it in `user://settings.cfg`, so deleting that file brings the pop-up back.
 
-The pictures are drawn in code in `scripts/how_to_play.gd`, and the words for each step are in the `STEPS` list at the top of that file if you want to change them.
+The pictures are drawn in code in `scripts/how_to_play.gd`, and the words and button prompts for each step are in the `STEPS` list at the top of that file if you want to change them.
 
 ### The Hub
 

@@ -22,6 +22,9 @@ var bot_count := 1
 var bot_level := 1
 var frames_per_match := 10
 var marbles_collide := true
+## True once the HOW TO PLAY guide has popped up before a first match, so
+## it only pops up once (it's always on the title screen too).
+var seen_how_to_play := false
 
 
 func load_from_disk() -> void:
@@ -40,6 +43,7 @@ func load_from_disk() -> void:
 	bot_level = clampi(cfg.get_value("match", "bot_level", bot_level), 0, 3)
 	frames_per_match = cfg.get_value("match", "frames", frames_per_match)
 	marbles_collide = cfg.get_value("match", "bumping", marbles_collide)
+	seen_how_to_play = cfg.get_value("help", "seen_how_to_play", seen_how_to_play)
 
 
 func save_to_disk() -> void:
@@ -54,6 +58,7 @@ func save_to_disk() -> void:
 	cfg.set_value("match", "bot_level", bot_level)
 	cfg.set_value("match", "frames", frames_per_match)
 	cfg.set_value("match", "bumping", marbles_collide)
+	cfg.set_value("help", "seen_how_to_play", seen_how_to_play)
 	cfg.save(PATH)
 
 

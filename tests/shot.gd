@@ -45,6 +45,15 @@ func _setup() -> void:
 			game._setup_local_seats()
 			game._new_match()
 			game.menu.close()
+		"howto":
+			# The HOW TO PLAY pop-up over a match; arg = step (0, 1 or 2).
+			game.settings.player_count = 2
+			game.settings.bot_count = 2
+			game._setup_local_seats()
+			game._new_match()
+			game.menu.open_how_to_play()
+			for i in int(arg):
+				game.menu._howto_go(1)
 		"hub", "casino", "crate", "bar":
 			game.settings.player_count = 2 if mode == "casino" else 1
 			game._enter_hub()

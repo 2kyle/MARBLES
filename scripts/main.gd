@@ -153,6 +153,10 @@ var last_result: Dictionary = {}
 ## Points each player scored in each finished frame: frame_points[frame][player].
 var frame_points: Array = []
 
+## Pop up the HOW TO PLAY guide before the first match (see
+## _maybe_show_how_to_play). Off for headless test runs.
+var auto_how_to_play := DisplayServer.get_name() != "headless"
+
 var _countdown := 0.0
 var _phase_left := 0.0
 var _roll_time := 0.0
@@ -283,6 +287,18 @@ func _on_play_requested() -> void:
 	draft_build.setup(builder, player_count, player_colors)
 	menu.close()
 	_new_match(false)
+	_maybe_show_how_to_play()
+
+
+## The first time anyone starts a match on this computer, show the HOW TO
+## PLAY guide over the READY? screen. It's skippable and only shows once.
+## Test runs (headless) skip it unless `auto_how_to_play` is turned on.
+func _maybe_show_how_to_play() -> void:
+	if settings.seen_how_to_play or not auto_how_to_play:
+		return
+	settings.seen_how_to_play = true
+	settings.save_to_disk()
+	menu.open_how_to_play()
 
 
 ## PRACTICE ISLAND: put everyone's marble on the floating hub island.

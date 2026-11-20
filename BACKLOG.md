@@ -43,9 +43,9 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **How to play** pop-up *(suggested by Claude)* · branch `nightly/how-to-play-popup`
-  The first time someone starts a match, show a short, skippable picture guide: draft a piece, place it, then roll and smash the pins. Add a "How to play" button on the title menu to see it again.
+*(Nothing yet.)*
 
 ## Done
 
-*(Nothing yet.)*
+- **Done** · **How to play** pop-up *(suggested by Claude)*
+  A short, skippable picture guide (draft, build, roll) with keyboard and controller button prompts. Pops up before the first match, and lives on the title screen as HOW TO PLAY.

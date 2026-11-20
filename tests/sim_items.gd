@@ -1,7 +1,8 @@
 extends SceneTree
 ## Checks the new pieces on a fixed spot of track: a teleporter pair, a wind
-## fan blowing across the track, and a Wall Breaker TA.
-##   godot --headless --fixed-fps 120 --script res://tests/sim_items.gd -- [tele|fan|open]
+## fan blowing across the track, a Wall Breaker TA, and the Narrow Bridge
+## and S-Bend TAs.
+##   godot --headless --fixed-fps 120 --script res://tests/sim_items.gd -- [tele|fan|open|narrow|sbend]
 
 var game: Node
 var _ticks := 0
@@ -41,6 +42,10 @@ func _process(_delta: float) -> bool:
 			"open":
 				b.place("track_open", Vector2(0.0, -8.0), 0.0, 0)
 				print("open stretches: ", game.track.open_edges)
+			"narrow":
+				print("placed narrow: ", b.place("track_narrow", Vector2(0.0, -12.0), 0.0, 0), " ", game.track.narrows)
+			"sbend":
+				print("placed s-bend: ", b.place("track_sbend", Vector2(0.0, -12.0), 0.0, 0))
 		print("placed: ", b.placed.map(func(p): return p.id), " gaps: ", game.track.gaps)
 		game._start_countdown()
 	if game.state == game.State.ROLLING:

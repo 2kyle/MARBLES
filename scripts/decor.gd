@@ -167,7 +167,7 @@ func _lanterns(track: Track) -> void:
 	var pole_mat := _mat(Color(0.18, 0.16, 0.15), 0.4, 0.6)
 	for i in count:
 		var d := 5.0 + i * lantern_spacing
-		if track.in_gap(d, 1.0):
+		if track.in_gap(d, 1.0) or track.in_narrow(d, 1.0):
 			continue
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var f := _local(track.world_frame_at(d))
@@ -228,7 +228,7 @@ func _post_trim(track: Track, watery: bool) -> void:
 		var f := _local(track.world_frame_at(d))
 		var tops := []
 		for side in [-1.0, 1.0]:
-			var top: Vector3 = f.origin + f.basis.x * side * (track.lane_width / 2.0 - 0.3) - f.basis.y * 0.25
+			var top: Vector3 = f.origin + f.basis.x * side * (track.half_width_at(d) - 0.3) - f.basis.y * 0.25
 			tops.append(top)
 			if watery and top.y - track.support_bottom_y > 0.5:
 				foam_spots.append(Vector3(top.x, Arena.GROUND_Y + 0.03, top.z))

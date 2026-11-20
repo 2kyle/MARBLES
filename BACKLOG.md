@@ -43,7 +43,8 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-*(Nothing yet.)*
+- **In review** · **Smoother track-altering (TA) placing + 2 new TAs** · branch `feature/track-piece-polish`
+  TA previews are now a see-through gold piece of track with arrows, a start line with flags, red for danger, a dotted line for where the rest of the track goes, and "WON'T FIT HERE" in red instead of vanishing. New TAs: **S-Bend** and **Narrow Bridge**.
 
 ## Done
 

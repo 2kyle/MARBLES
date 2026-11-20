@@ -137,5 +137,5 @@ func _process(_delta: float) -> bool:
 
 ## Put a marble right on a casino plate.
 func _drop(m: Marble, at: Vector3) -> void:
-	m.global_position = game.hub.to_global(CasinoIsland.OFFSET + at + Vector3(0, 0.4, 0))
+	m.global_position = game.hub.casino.to_global(at + Vector3(0, 0.4, 0))
 	m.linear_velocity = Vector3.ZERO

@@ -15,8 +15,6 @@ extends Node3D
 ## Everything is built in code by build(). Pressure plates come from the
 ## practice island (hub.gd), which tells main.gd who rolled onto what.
 
-## Where the island sits, relative to the practice island's middle.
-const OFFSET := Vector3(-75, 0, 3)
 const RADIUS := 30.0
 ## The building: half its width (x) and depth (z), and its height.
 const HALF := Vector2(22.0, 16.0)
@@ -74,8 +72,12 @@ var _hub_marbles: Array = []
 
 ## Build it all. `bridge_from_x` is where the bridge from the practice
 ## island lands (this island's space); `plate` makes a pressure plate:
-## plate.call(position in the hub's space, colour, Callable(player)).
-func build(plate: Callable, on_table: Callable, on_crates: Callable) -> void:
+## plate.call(position in the hub's space, colour, Callable(player), way out).
+## The hub places and turns this island before calling build().
+func build(hub_plate: Callable, on_table: Callable, on_crates: Callable) -> void:
+	# Plates are made in this island's own space; turn that into the hub's.
+	var plate := func(at: Vector3, color: Color, on_enter: Callable) -> void:
+		hub_plate.call(transform * at, color, on_enter, transform.basis.z)
 	_rng.seed = 1977
 	_island()
 	_building()
@@ -366,7 +368,7 @@ func _derby(plate: Callable, on_table: Callable) -> void:
 		b.box(Vector3(3.6 / 6.0, 0.12, 1.4), BET_PLATE + Vector3(-1.5 + k * 0.6, 2.65, -0.7),
 				Color(0.9, 0.25, 0.25) if k % 2 == 0 else Color.WHITE)
 	add_child(b.make())
-	plate.call(OFFSET + BET_PLATE, GOLD, func(p): on_table.call(p, "derby"))
+	plate.call(BET_PLATE, GOLD, func(p): on_table.call(p, "derby"))
 	LowPoly.label(self, BET_PLATE + Vector3(0, 3.1, -1.2), "PLACE BETS", 54, Color(0.5, 0.3, 0.05))
 	# The bookie, in shades of course.
 	_dealer(BET_PLATE + Vector3(-2.6, 0, -1.4), 0.6, Color(0.95, 0.75, 0.3))
@@ -392,7 +394,7 @@ func _blackjack(plate: Callable, on_table: Callable) -> void:
 	for k in 4:
 		var at := _seat(k)
 		b.cyl(1.0, 1.1, 0.1, at + Vector3.UP * 0.05, Color(0.25, 0.12, 0.08), 20)
-		plate.call(OFFSET + at, NEON[k], func(p):
+		plate.call(at, NEON[k], func(p):
 			blackjack.seat_of[p] = k
 			on_table.call(p, "blackjack"))
 	add_child(b.make())
@@ -431,7 +433,7 @@ func _bar(plate: Callable, on_table: Callable) -> void:
 	b.glow_box(Vector3(10.2, 3.0, 0.05), Vector3(BAR_PLATE.x, 2.7, back - 0.3), Color(0.25, 0.12, 0.3))
 	b.cyl(1.0, 1.1, 0.1, BAR_PLATE + Vector3.UP * 0.05, Color(0.25, 0.12, 0.08), 20)
 	add_child(b.make(1.6))
-	plate.call(OFFSET + BAR_PLATE, NEON[1], func(p): on_table.call(p, "bar"))
+	plate.call(BAR_PLATE, NEON[1], func(p): on_table.call(p, "bar"))
 	_dealer(Vector3(BAR_PLATE.x, 0, z - 1.4), 0.0, Color(0.95, 0.95, 0.95), true)
 
 
@@ -453,7 +455,7 @@ func _crates(plate: Callable, on_crates: Callable) -> void:
 	_movers.append(func(t: float, _d: float):
 		crate.rotation.y = sin(t * 0.7) * 0.5
 		crate.position.y = 3.1 + sin(t * 1.8) * 0.12)
-	plate.call(OFFSET + CRATE_PLATE, Color(1.0, 0.6, 0.2), func(p): on_crates.call(p))
+	plate.call(CRATE_PLATE, Color(1.0, 0.6, 0.2), func(p): on_crates.call(p))
 	LowPoly.label(self, m + Vector3(0, 1.5, -0.86), "%d COINS" % LootCrates.PRICE, 48, Color(0.2, 0.05, 0.3), PI)
 
 

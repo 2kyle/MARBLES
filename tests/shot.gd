@@ -108,10 +108,10 @@ func _tick() -> void:
 			var hub: Hub = game.hub
 			if _t == 5:
 				var at: Vector3 = hub.casino._seat(1) if mode == "casino" else CasinoIsland.BAR_PLATE
-				hub.marbles[0].global_position = hub.to_global(CasinoIsland.OFFSET + at + Vector3(0, 0.4, 0))
+				hub.marbles[0].global_position = hub.casino.to_global(at + Vector3(0, 0.4, 0))
 				hub.marbles[0].linear_velocity = Vector3.ZERO
 				if mode == "casino":
-					hub.marbles[1].global_position = hub.to_global(CasinoIsland.OFFSET + hub.casino._seat(2) + Vector3(0, 0.4, 0))
+					hub.marbles[1].global_position = hub.casino.to_global(hub.casino._seat(2) + Vector3(0, 0.4, 0))
 			if _t == 30:
 				game.profiles.add_coins(0, 100)
 				if mode == "casino":
@@ -121,15 +121,15 @@ func _tick() -> void:
 			if _t >= 6:
 				game.camera.set_process(false)
 				game.camera.set_physics_process(false)
-				var look: Vector3 = hub.to_global(CasinoIsland.OFFSET + (CasinoIsland.TABLE_POS if mode == "casino" else CasinoIsland.BAR_PLATE))
-				var eye: Vector3 = look + ((Vector3(0, 3.0, 3.2) if arg == "zoom" else Vector3(0, 5.5, 8.5)) if mode == "casino" else Vector3(-7, 4.5, 6))
+				var look: Vector3 = hub.casino.to_global(CasinoIsland.TABLE_POS if mode == "casino" else CasinoIsland.BAR_PLATE)
+				var eye: Vector3 = look + hub.casino.global_basis * ((Vector3(0, 3.0, 3.2) if arg == "zoom" else Vector3(0, 5.5, 8.5)) if mode == "casino" else Vector3(-7, 4.5, 6))
 				game.camera.global_position = eye
 				game.camera.look_at(look + Vector3(0, 1, 0))
 		"crate":
 			var hub: Hub = game.hub
 			if _t == 5:
 				game.profiles.add_coins(0, 300)
-				hub.marbles[0].global_position = hub.to_global(CasinoIsland.OFFSET + CasinoIsland.CRATE_PLATE + Vector3(0, 0.4, 0))
+				hub.marbles[0].global_position = hub.casino.to_global(CasinoIsland.CRATE_PLATE + Vector3(0, 0.4, 0))
 				hub.marbles[0].linear_velocity = Vector3.ZERO
 			if _t == 40 and game.crate_screen.is_open():
 				game.crate_screen.request_confirm()

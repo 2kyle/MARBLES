@@ -43,7 +43,8 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-*(Nothing yet.)*
+- **In review** · **Jungle hub island** · branch `claude/project-thread-av9ft0`
+  The hub island becomes an explorable jungle: rock mountain walls all round, the casino and sports islands pulled in close and facing the island, temple ruins, a cliff climb, bouncy mushrooms, a hollow log, a crystal cave, a waterfall, six secret gems that pay coins, and parrots, frogs and a monkey.
 
 ## Done
 

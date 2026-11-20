@@ -24,6 +24,8 @@ func _init() -> void:
 			"coins": STARTING_COINS,
 			"owned": Cosmetics.free_items(),
 			"equipped": {"hat": "none", "eyes": "classic", "color": DEFAULT_COLORS[i], "style": "gloss", "trail": "ribbon"},
+			# Ids of the hub's secret gems this seat has found (jungle.gd).
+			"secrets": [],
 		})
 
 
@@ -41,6 +43,7 @@ func load_from_disk() -> void:
 			if not owned.has(item):
 				owned.append(item)
 		seats[i].owned = owned
+		seats[i].secrets = cfg.get_value(sec, "secrets", [])
 		var eq: Dictionary = cfg.get_value(sec, "equipped", {})
 		for slot in Cosmetics.SLOTS:
 			if eq.has(slot) and owns(i, slot, eq[slot]):
@@ -54,6 +57,7 @@ func save_to_disk() -> void:
 		cfg.set_value(sec, "coins", seats[i].coins)
 		cfg.set_value(sec, "owned", seats[i].owned)
 		cfg.set_value(sec, "equipped", seats[i].equipped)
+		cfg.set_value(sec, "secrets", seats[i].secrets)
 	cfg.save(PATH)
 
 
@@ -88,6 +92,19 @@ func grant(seat: int, slot: String, id: String) -> bool:
 ## Whether this seat has pulled the ultra-rare trophy.
 func has_trophy(seat: int) -> bool:
 	return owns(seat, "trophy", Cosmetics.TROPHY.id)
+
+
+## Note that a seat found secret gem `id`. Returns false if it already had.
+func find_secret(seat: int, id: int) -> bool:
+	if seats[seat].secrets.has(id):
+		return false
+	seats[seat].secrets.append(id)
+	return true
+
+
+## How many of the hub's secret gems a seat has found.
+func secrets_found(seat: int) -> int:
+	return seats[seat].secrets.size()
 
 
 func add_coins(seat: int, amount: int) -> void:

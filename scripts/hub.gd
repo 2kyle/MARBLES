@@ -28,8 +28,20 @@ signal play_requested(player: int)
 signal table_requested(player: int, kind: String)
 ## A player rolled onto the Loot Crates plate.
 signal crates_requested(player: int)
+## A player found one of the jungle's secret gems (`id` 0..Jungle.GEM_COUNT-1).
+signal secret_found(player: int, id: int, at: Vector3)
 
-const ISLAND_RADIUS := 34.0
+const ISLAND_RADIUS := 40.0
+## Where the side islands sit round the practice island: the direction
+## (degrees round from east; +90 is the plaza side) and the gap left for
+## the bridge. Both are swung round towards the north so the three islands
+## huddle together, and turned so their entrances face the middle of the
+## practice island.
+const CASINO_ANGLE := 212.0
+const SPORTS_ANGLE := 328.0
+const BRIDGE_GAP := 5.0
+## Coins for finding a secret gem for the first time.
+const SECRET_COINS := 25
 const SPAWN := Vector3(0, 0.4, 12)
 const PLATE_POS := Vector3(-8, 0, 8)
 const LIFT_POS := Vector3(8, 0, 8)
@@ -54,9 +66,13 @@ var casino: CasinoIsland
 var derby: HorseRace
 ## The sports island off the east edge (soccer and basketball).
 var sports: SportsIsland
+## The jungle: cliff walls, ruins, mushrooms, secrets and critters.
+var jungle: Jungle
 
 ## Which plate each player is parked on (its position).
 var _plate_of: Array = [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]
+## Which way each player rolls off their plate when they're done.
+var _plate_out: Array = [Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK]
 var _plates: Array = []   # [top mesh, position]
 
 var _course: Track
@@ -118,6 +134,7 @@ func start(count: int, looks: Array, marble_scene: PackedScene, names: Array = [
 	on_plate = [false, false, false, false]
 	sync_marbles(count, looks, marble_scene, names)
 	sports.set_mirror(mirror)
+	jungle.reset()
 
 
 ## Online: people came or went, or changed their look. Adds and removes
@@ -225,12 +242,13 @@ func physics_update(delta: float) -> void:
 	sports.update(delta)
 	for m in marbles:
 		if m.global_position.y < global_position.y - 8.0:
-			# Back onto whichever island they fell off.
-			var x := to_local(m.global_position).x
+			# Back onto whichever island they fell off (the nearest one).
+			var at := to_local(m.global_position)
+			var flat := Vector2(at.x, at.z)
 			var back := spawn_point(m.player_id)
-			if x > ISLAND_RADIUS + 4.0:
+			if flat.distance_to(Vector2(sports.position.x, sports.position.z)) < SportsIsland.RADIUS + 3.0:
 				back = sports.spawn_point()
-			elif x < -ISLAND_RADIUS - 4.0:
+			elif flat.distance_to(Vector2(casino.position.x, casino.position.z)) < CasinoIsland.RADIUS + 3.0:
 				back = casino.spawn_point()
 			m.global_position = back + Vector3.UP * 1.5
 			_poof(m.global_position)
@@ -246,8 +264,9 @@ func release_from_plate(p: int) -> void:
 	m.freeze = false
 	m.preview = false
 	on_plate[p] = false
-	m.global_position = to_global(_plate_of[p] + Vector3(0, 0.4, 1.8))
-	m.linear_velocity = global_basis.z * 2.0
+	var out: Vector3 = _plate_out[p]
+	m.global_position = to_global(_plate_of[p] + out * 1.8 + Vector3(0, 0.4, 0))
+	m.linear_velocity = global_basis * out * 2.0
 
 
 # ------------------------------------------------------------ Building
@@ -256,8 +275,11 @@ func _build() -> void:
 	built = true
 	_rng.seed = 4242
 	_island()
-	_fence()
 	_practice_run()
+	jungle = Jungle.new()
+	jungle.name = "Jungle"
+	add_child(jungle)
+	jungle.build(self)
 	_customize_plate()
 	_casino_island()
 	_sports_island()
@@ -311,36 +333,6 @@ func _island() -> void:
 		var r := ISLAND_RADIUS - 1.2
 		var h := _rng.randf_range(1.5, 5.0)
 		LowPoly.cyl(self, 0.06, 0.04, h, Vector3(cos(a) * r, -1.6 - h / 2.0, sin(a) * r), Color(0.3, 0.55, 0.25), 4)
-
-
-func _fence() -> void:
-	# A low fence round the edge. It has gaps between rails, and you can hop
-	# it, so you can still fall off for fun (you pop back on the plaza).
-	var wood := Color(0.62, 0.45, 0.3)
-	var body := StaticBody3D.new()
-	add_child(body)
-	var n := 72
-	for i in n:
-		var a0 := TAU * i / n
-		var a1 := TAU * (i + 1) / n
-		var p0 := Vector3(cos(a0), 0, sin(a0)) * (ISLAND_RADIUS - 0.6)
-		var p1 := Vector3(cos(a1), 0, sin(a1)) * (ISLAND_RADIUS - 0.6)
-		if i in [53, 54, 0, 1, 34, 35]:
-			continue  # openings for the bridges (lookout north, sports east, casino west)
-		LowPoly.box(self, Vector3(0.14, 0.7, 0.14), p0 + Vector3.UP * 0.35, wood, 0.0)
-		if i % 9 == 4:
-			continue  # a gap in the fence
-		var mid := (p0 + p1) / 2.0
-		var yaw := atan2(p1.x - p0.x, p1.z - p0.z)
-		var length := p0.distance_to(p1)
-		LowPoly.box(self, Vector3(0.08, 0.1, length), mid + Vector3.UP * 0.5, wood.lightened(0.1), yaw)
-		var shape := CollisionShape3D.new()
-		var box := BoxShape3D.new()
-		box.size = Vector3(0.12, 0.55, length)
-		shape.shape = box
-		shape.position = mid + Vector3.UP * 0.28
-		shape.rotation.y = yaw
-		body.add_child(shape)
 
 
 ## The practice run: a real track (the same kind as in a match) coming
@@ -477,8 +469,9 @@ func refresh_trophies(profiles: Profiles, count: int) -> void:
 
 
 ## A round plate that sinks when a marble rolls on. The marble is parked
-## on it and `on_enter(player)` is called.
-func _pressure_plate(at: Vector3, color: Color, on_enter: Callable) -> void:
+## on it and `on_enter(player)` is called. `out` is the way the marble
+## rolls off again afterwards (in the island's space).
+func _pressure_plate(at: Vector3, color: Color, on_enter: Callable, out := Vector3.BACK) -> void:
 	var top := LowPoly.cyl(self, 1.0, 1.05, 0.12, at + Vector3.UP * 0.1, color, 24)
 	var mat := LowPoly.own_mat(top)
 	mat.emission_enabled = true
@@ -500,6 +493,7 @@ func _pressure_plate(at: Vector3, color: Color, on_enter: Callable) -> void:
 		if body is Marble and marbles.has(body) and not on_plate[body.player_id]:
 			on_plate[body.player_id] = true
 			_plate_of[body.player_id] = at
+			_plate_out[body.player_id] = out
 			_hold_on_plate.call_deferred(body)
 			on_enter.call(body.player_id))
 
@@ -652,7 +646,7 @@ func _trees() -> void:
 		Vector3(-11, 0, -27), Vector3(24, 0, 19), Vector3(13, 0, -27), Vector3(29, 0, 11),
 		Vector3(-24, 0, 21), Vector3(-25, 0, -18)]
 	for at in spots:
-		if _near_run(at, 3.5):
+		if _near_run(at, 3.5) or jungle.is_busy(at, 1.5):
 			continue
 		var h := _rng.randf_range(2.2, 3.4)
 		LowPoly.cyl(self, 0.15, 0.25, h, at + Vector3.UP * h / 2.0, Color(0.45, 0.3, 0.18), 6)
@@ -679,7 +673,7 @@ func _trees() -> void:
 		var a := _rng.randf() * TAU
 		var r := _rng.randf_range(16.0, 31.0)
 		var at := Vector3(cos(a) * r, 0, sin(a) * r)
-		if _near_run(at, 2.5):
+		if _near_run(at, 2.5) or jungle.is_busy(at, 0.5):
 			continue
 		LowPoly.cyl(self, 0.06, 0.08, 0.3, at + Vector3.UP * 0.15, Color(0.95, 0.92, 0.85), 6)
 		var cap := LowPoly.ball(self, at + Vector3.UP * 0.32, 0.2, Color(0.9, 0.2, 0.2))
@@ -797,7 +791,9 @@ func _sky_life() -> void:
 	# Little rocks floating around the island, bobbing gently.
 	for i in 8:
 		var a := TAU * i / 8.0 + 0.3
-		var r := ISLAND_RADIUS + _rng.randf_range(5.0, 10.0)
+		var r := ISLAND_RADIUS + _rng.randf_range(6.0, 11.0)
+		if jungle._in_gap(rad_to_deg(a), 14.0):
+			continue  # keep clear of the bridges
 		var rock := Node3D.new()
 		rock.position = Vector3(cos(a) * r, _rng.randf_range(-6.0, 2.0), sin(a) * r)
 		add_child(rock)
@@ -859,7 +855,7 @@ func _cloud_sea() -> void:
 
 ## A rope bridge off the north edge to a tiny islet with a lookout.
 func _lookout() -> void:
-	var islet := Vector3(0, 0, -45)
+	var islet := Vector3(0, 0, -ISLAND_RADIUS - 11.0)
 	# The islet itself (you can roll on it).
 	LowPoly.solid_cyl(self, 6.0, 2.0, islet + Vector3.DOWN)
 	LowPoly.cyl(self, 6.0, 5.8, 0.4, islet + Vector3.DOWN * 0.2, Color(0.36, 0.66, 0.3), 16)
@@ -901,33 +897,49 @@ func _bridge(start: Vector3, end: Vector3) -> void:
 		LowPoly.box(self, Vector3(0.04, 0.04, length), mid + right * side + Vector3.UP * 0.5, Color(0.85, 0.75, 0.55), yaw)
 
 
-## The casino island to the west, and a long bridge over to it.
+## Where a side island's middle goes, `angle` degrees round, so that a
+## bridge BRIDGE_GAP long reaches it.
+func _island_spot(angle: float, radius: float) -> Vector3:
+	var dir := Vector3(cos(deg_to_rad(angle)), 0, sin(deg_to_rad(angle)))
+	return dir * (ISLAND_RADIUS + BRIDGE_GAP + radius)
+
+
+## The casino island (north-west), and a bridge over to it. Its door is on
+## its own +X side, so it's turned to face the practice island.
 func _casino_island() -> void:
 	casino = CasinoIsland.new()
 	casino.name = "Casino"
-	casino.position = CasinoIsland.OFFSET
+	var a := deg_to_rad(CASINO_ANGLE)
+	casino.position = _island_spot(CASINO_ANGLE, CasinoIsland.RADIUS)
+	casino.rotation.y = PI - a
 	add_child(casino)
 	casino.build(_pressure_plate, func(p, kind): table_requested.emit(p, kind), func(p): crates_requested.emit(p))
 	derby = casino.derby
-	var z := CasinoIsland.OFFSET.z
-	_bridge(Vector3(-ISLAND_RADIUS + 1.0, 0.05, z), Vector3(CasinoIsland.OFFSET.x + CasinoIsland.RADIUS - 0.8, 0.05, z))
+	var dir := Vector3(cos(a), 0, sin(a))
+	var side := Vector3(-dir.z, 0, dir.x)
+	_bridge(dir * (ISLAND_RADIUS - 1.0) + Vector3.UP * 0.05, casino.transform * Vector3(CasinoIsland.RADIUS - 0.8, 0.05, 0))
 	# A signpost by the bridge pointing the way.
-	LowPoly.box(self, Vector3(0.18, 2.6, 0.18), Vector3(-ISLAND_RADIUS + 3.0, 1.3, z + 2.2), Color(0.5, 0.35, 0.22), 0.0)
-	LowPoly.box(self, Vector3(2.6, 0.7, 0.12), Vector3(-ISLAND_RADIUS + 3.0, 2.3, z + 2.2), Color(0.45, 0.22, 0.5), 0.0)
-	var l := LowPoly.label(self, Vector3(-ISLAND_RADIUS + 3.0, 2.3, z + 2.27), "< CASINO", 44, Color(0.2, 0.0, 0.2))
+	var post := dir * (ISLAND_RADIUS - 5.0) + side * 2.6
+	var yaw := atan2(-dir.x, -dir.z)
+	LowPoly.box(self, Vector3(0.18, 2.6, 0.18), post + Vector3.UP * 1.3, Color(0.5, 0.35, 0.22), yaw)
+	LowPoly.box(self, Vector3(2.6, 0.7, 0.12), post + Vector3.UP * 2.3, Color(0.45, 0.22, 0.5), yaw)
+	var l := LowPoly.label(self, post + Vector3.UP * 2.3 - dir * 0.07, "CASINO", 44, Color(0.2, 0.0, 0.2), yaw)
 	l.modulate = Color(1.0, 0.85, 0.4)
 
 
-## The sports island to the east, and the bridge over to it.
+## The sports island (north-east), and the bridge over to it. Its way in is
+## on its own -X side, so it's turned to face the practice island.
 func _sports_island() -> void:
 	sports = SportsIsland.new()
 	sports.name = "SportsIsland"
-	sports.position = SportsIsland.OFFSET
+	var a := deg_to_rad(SPORTS_ANGLE)
+	sports.position = _island_spot(SPORTS_ANGLE, SportsIsland.RADIUS)
+	sports.rotation.y = -a
 	add_child(sports)
-	var from_x := ISLAND_RADIUS - 1.0
-	sports.build(from_x - SportsIsland.OFFSET.x)
-	var z := SportsIsland.OFFSET.z
-	_bridge(Vector3(from_x, 0.05, z), Vector3(SportsIsland.OFFSET.x - SportsIsland.RADIUS + 0.8, 0.05, z))
+	var dir := Vector3(cos(a), 0, sin(a))
+	var from := dir * (ISLAND_RADIUS - 1.0)
+	sports.build((sports.transform.affine_inverse() * from).x)
+	_bridge(from + Vector3.UP * 0.05, sports.transform * Vector3(-SportsIsland.RADIUS + 0.8, 0.05, 0))
 
 
 ## A little cottage with a smoking chimney and a garden.
@@ -1077,7 +1089,7 @@ func _birds() -> void:
 				bird.add_child(wing)
 			_bobbers.append({"node": bird, "y": bird.position.y, "speed": 6.0, "phase": k * 0.7, "amount": 0.12})
 		_clouds.append({"node": flock, "angle": TAU * f / 3.0, "radius": 22.0 + f * 9.0,
-				"y": 14.0 + f * 4.0, "speed": 0.08 + f * 0.02})
+				"y": 19.0 + f * 4.0, "speed": 0.08 + f * 0.02})
 
 
 ## True if `at` (on the island) is within `r` metres of the practice run.

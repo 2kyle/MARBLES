@@ -328,6 +328,7 @@ func _ensure_hub() -> void:
 	hub.play_requested.connect(_on_hub_play)
 	hub.table_requested.connect(_on_hub_table)
 	hub.crates_requested.connect(_on_hub_crates)
+	hub.secret_found.connect(_on_secret_found)
 	if not hub.built:
 		hub._build()
 	hub.sports.goal_scored.connect(_on_goal_scored)
@@ -460,6 +461,21 @@ func _update_online_hub(delta: float) -> void:
 func _on_remote_look(seat: int) -> void:
 	if hub and state == State.HUB:
 		hub.release_from_plate(seat)
+
+
+## Someone rolled into one of the jungle's secret gems. The first time a
+## player finds each gem they get some coins (saved, so it only pays once).
+func _on_secret_found(p: int, id: int, at: Vector3) -> void:
+	var text := "SECRET GEM!\n%s" % Jungle.GEM_NAMES[id]
+	var prof := profile_of(p)
+	if prof >= 0:
+		var is_new := profiles.find_secret(prof, id)
+		text += "\n%d / %d FOUND" % [profiles.secrets_found(prof), Jungle.GEM_COUNT]
+		if is_new:
+			profiles.add_coins(prof, Hub.SECRET_COINS)
+			profiles.save_to_disk()
+			text += "\n+%d COINS" % Hub.SECRET_COINS
+	hub.jungle.pop_text(at, text, Jungle.GEM_COLORS[id])
 
 
 ## Goals and baskets: achievements here, and online the host tells

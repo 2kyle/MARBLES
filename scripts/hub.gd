@@ -9,9 +9,11 @@ extends Node3D
 ##     top, and the PRACTICE RUN pad on the plaza takes you up too.
 ##   - a CUSTOMIZE pressure plate: roll onto it to open the closet
 ##   - the casino island over the west bridge (casino/casino_island.gd):
-##     the Marble Derby, blackjack, the bar and the loot crates
-##   - a trophy stand for anyone who's won the Golden Marble Trophy
-##   - hurdles to practise hopping, and a few pieces to bump into
+##     the Ball Derby, blackjack, the bar and the loot crates
+##   - a trophy stand for anyone who's won the Golden Ball Trophy
+##   - hurdles to practise hopping, and a yard of practice pieces behind
+##     the start tower
+##   - a lookout islet with a biplane you can fly (biplane.gd)
 ##   - a PLAY arch that starts a real match (online, rolling through it
 ##     marks you READY; the match starts once everyone is)
 ## Fall off the island and you pop back on the plaza (no penalty here).

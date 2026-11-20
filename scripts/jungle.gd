@@ -209,13 +209,20 @@ func _solid_cyl(r: float, h: float, pos: Vector3) -> void:
 
 ## A craggy rock: a tapered six-sided column turned a random way.
 func _rock(batch: MeshBatch, pos: Vector3, r: float, h: float, color: Color, lean := 0.0) -> void:
+	rock_shape(batch, _rng, pos, r, h, color, lean)
+
+
+## A craggy rock column (a tapering cylinder with 5 to 7 sides, turned at
+## random). Static so the casino's mountain can use the same rocks.
+static func rock_shape(batch: MeshBatch, rng: RandomNumberGenerator, pos: Vector3, r: float, h: float,
+		color: Color, lean := 0.0) -> void:
 	var m := CylinderMesh.new()
-	m.top_radius = r * _rng.randf_range(0.4, 0.65)
+	m.top_radius = r * rng.randf_range(0.4, 0.65)
 	m.bottom_radius = r
 	m.height = h
-	m.radial_segments = _rng.randi_range(5, 7)
+	m.radial_segments = rng.randi_range(5, 7)
 	m.rings = 1
-	var basis := Basis(Vector3.UP, _rng.randf() * TAU)
+	var basis := Basis(Vector3.UP, rng.randf() * TAU)
 	if lean != 0.0:
 		basis = Basis(Vector3(pos.z, 0, -pos.x).normalized(), lean) * basis
 	batch.shape(m, basis, pos, color)
@@ -229,7 +236,12 @@ func _tilted_box(batch: MeshBatch, size: Vector3, basis: Basis, pos: Vector3, co
 
 
 func _rock_color() -> Color:
-	return ROCK.lerp(Color(0.38, 0.35, 0.32), _rng.randf()).lerp(MOSS, _rng.randf() * 0.3)
+	return rock_tint(_rng)
+
+
+## A slightly different grey-brown for each rock, some a little mossy.
+static func rock_tint(rng: RandomNumberGenerator) -> Color:
+	return ROCK.lerp(Color(0.38, 0.35, 0.32), rng.randf()).lerp(MOSS, rng.randf() * 0.3)
 
 
 # ------------------------------------------------------------ The cliff wall

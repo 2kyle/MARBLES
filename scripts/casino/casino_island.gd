@@ -700,9 +700,9 @@ func _mountain() -> void:
 		var at: Vector3 = spot[0]
 		var r: float = spot[1]
 		var h := HEIGHT + _rng.randf_range(1.5, 9.0)
-		_rock(b, at + Vector3.UP * (h - 8.0) / 2.0, r, h + 8.0, _rock_color())
+		Jungle.rock_shape(b, _rng, at + Vector3.UP * (h - 8.0) / 2.0, r, h + 8.0, Jungle.rock_tint(_rng))
 		# A wide rocky foot, so it reads as a mountain and not a post.
-		_rock(b, at + Vector3.UP * 1.0, r * 1.6, 4.0, _rock_color().darkened(0.08))
+		Jungle.rock_shape(b, _rng, at + Vector3.UP * 1.0, r * 1.6, 4.0, Jungle.rock_tint(_rng).darkened(0.08))
 		b.cyl(0.0, r * 0.55, 1.0, at + Vector3.UP * (h + 0.3), Jungle.MOSS.darkened(_rng.randf() * 0.25), 6)
 		b.ball(at + Vector3(_rng.randf_range(-0.8, 0.8), h + 0.5, _rng.randf_range(-0.8, 0.8)), _rng.randf_range(1.0, 1.6),
 				Jungle.LEAF.lerp(Jungle.MOSS, _rng.randf()), 7, Vector3(1, 0.7, 1))
@@ -727,33 +727,19 @@ func _mountain() -> void:
 		for gz in range(-12, 13, 6):
 			var at := Vector3(gx + _rng.randf_range(-1.5, 1.5), HEIGHT + 0.4, gz + _rng.randf_range(-1.5, 1.5))
 			var r := _rng.randf_range(3.5, 5.0)
-			b.ball(at, r, _rock_color(), 7, Vector3(1, _rng.randf_range(0.35, 0.7), 1))
+			b.ball(at, r, Jungle.rock_tint(_rng), 7, Vector3(1, _rng.randf_range(0.35, 0.7), 1))
 			b.ball(at + Vector3(_rng.randf_range(-1, 1), r * 0.35, _rng.randf_range(-1, 1)), r * 0.5,
 					Jungle.MOSS.darkened(_rng.randf() * 0.2), 6, Vector3(1, 0.5, 1))
 			if _rng.randf() < 0.5:
 				b.ball(at + Vector3(0, r * 0.55, 0), _rng.randf_range(1.0, 1.6), Jungle.LEAF, 7, Vector3(1, 0.8, 1))
 	# A carved frame round the front, so the marquee sits in the rock.
 	for side in [-1.0, 1.0]:
-		_rock(b, Vector3(HALF.x + 0.3, HEIGHT / 2.0 + 1.0, side * 9.4), 1.5, HEIGHT + 4.0, _rock_color())
+		Jungle.rock_shape(b, _rng, Vector3(HALF.x + 0.3, HEIGHT / 2.0 + 1.0, side * 9.4), 1.5, HEIGHT + 4.0, Jungle.rock_tint(_rng))
 	b.box(Vector3(1.2, 1.4, 18.0), Vector3(HALF.x - 0.2, HEIGHT + 4.3, 0), Jungle.ROCK.darkened(0.05))
 	for k in 5:
 		b.ball(Vector3(HALF.x - 0.4, HEIGHT + 5.0, -7.2 + k * 3.6), _rng.randf_range(1.1, 1.6),
 				Jungle.LEAF.lerp(Jungle.MOSS, _rng.randf()), 6, Vector3(1, 0.6, 1))
 	add_child(b.make())
-
-
-func _rock(b: MeshBatch, pos: Vector3, r: float, h: float, color: Color) -> void:
-	var m := CylinderMesh.new()
-	m.top_radius = r * _rng.randf_range(0.4, 0.65)
-	m.bottom_radius = r
-	m.height = h
-	m.radial_segments = _rng.randi_range(5, 7)
-	m.rings = 1
-	b.shape(m, Basis(Vector3.UP, _rng.randf() * TAU), pos, color)
-
-
-func _rock_color() -> Color:
-	return Jungle.ROCK.lerp(Color(0.38, 0.35, 0.32), _rng.randf()).lerp(Jungle.MOSS, _rng.randf() * 0.3)
 
 
 ## A dealer: a marble on a stool in a waistcoat and bow tie, with a green

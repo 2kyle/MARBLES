@@ -36,6 +36,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 6. **To do** · **Loop-de-loop piece** *(suggested by Claude)*
    A new track piece: a full vertical loop. Fast marbles make it round; slow ones fall back.
 
+7. **To do** · **Biplane rings and online plane** *(suggested by Claude)*
+   Floating rings round the island to fly the biplane through (a little race against the clock), and show the plane to online guests too (right now only the person flying it sees the plane; guests see the ball flying).
+
+8. **To do** · **Pick the game's real name** *(suggested by Claude)*
+   The title is now **BOWLING 4P** as a stand-in. Pick a name and it changes everywhere at once (`TITLE` in `scripts/main_menu.gd`).
+
 ## Needs you (Claude can't do these alone)
 
 - **Steam setup:** install the GodotSteam plugin, try online play with a friend, then get your own Steam App ID. Step-by-step guide: [docs/STEAM.md](docs/STEAM.md).

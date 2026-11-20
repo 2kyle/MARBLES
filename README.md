@@ -20,9 +20,18 @@ The game opens on the **MARBLES 4P** title screen (a working title), with the ca
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** hosts or joins a game over the internet or your home network (see below).
 - **Settings** has fullscreen, vsync, volume, camera shake and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
+- **How to play** is a short picture guide to a frame: draft a piece, build it into the lane, then roll and smash the pins (see below).
 - **Controls**, **Credits** and **Quit**.
 
 During a match, **Esc** opens the pause menu.
+
+### How to play guide
+
+![The How to play guide](docs/how_to_play.png)
+
+The first time anyone starts a match on this computer, a short guide pops up over the READY? screen. It has three little animated pictures, one per step of a frame: **Draft** (grab a piece card with your pointer), **Build** (slide, turn and drop your piece on a winding lane) and **Roll** (race down the twisty lane to the pins). Under each picture are the buttons for that step, drawn like real keyboard keys and controller buttons (for example the WASD keys or the left stick to move, Space or A to grab). Press **NEXT** (or right) to flip through, **BACK** (or left) to go back, and **GOT IT!** or **SKIP** (or Esc) to start playing. It only pops up once; after that it's always on the title screen under **HOW TO PLAY**. The game remembers you've seen it in `user://settings.cfg`, so deleting that file brings the pop-up back.
+
+The pictures are drawn in code in `scripts/how_to_play.gd`, and the words and button prompts for each step are in the `STEPS` list at the top of that file if you want to change them.
 
 ### The Hub
 
@@ -438,6 +447,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_gap.gd -- hop
 godot --headless --fixed-fps 120 --script res://tests/sim_bots.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_sports.gd
 godot --headless --script res://tests/test_achievements.gd
+godot --headless --script res://tests/test_how_to_play.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam
 ```

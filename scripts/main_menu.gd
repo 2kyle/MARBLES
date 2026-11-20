@@ -10,6 +10,8 @@ extends CanvasLayer
 ## net.gd do the networking); the lobby page shows who's in, lets the host
 ## invite Steam friends, add bots and start.
 ## ACHIEVEMENTS lists every achievement and which ones you have.
+## HOW TO PLAY is a short picture guide (draft, build, roll). main.gd also
+## shows it over the first match anyone starts on this computer.
 ##
 ## Keyboard: arrows (or W/S) move between buttons, Enter (or E) picks,
 ## left/right change a setting, Esc goes back. The mouse works too.
@@ -57,6 +59,12 @@ var _lobby_wait: Label
 var _lobby_invite: Button
 var _lobby_steam := false
 var _lobby_in_game := false
+var _howto: HowToPlay
+var _howto_step: Label
+var _howto_text: Label
+var _howto_dots: Label
+var _howto_prev: Button
+var _howto_next: Button
 
 
 ## A button that cycles through values with left/right (or a click).
@@ -139,6 +147,7 @@ func _ready() -> void:
 	_build_settings_page()
 	_build_controls_page()
 	_build_credits_page()
+	_build_how_to_play_page()
 	_build_pause_page()
 
 	var version := Label.new()
@@ -207,6 +216,14 @@ func open_pause(retry := true) -> void:
 	_show_top()
 
 
+## Show the HOW TO PLAY guide over a match that's about to start (the
+## first time). GOT IT or SKIP closes it and the match carries on.
+func open_how_to_play() -> void:
+	paused_menu = true
+	_stack = ["howto"]
+	_show_top()
+
+
 func close() -> void:
 	_stack.clear()
 	_lobby_in_game = false
@@ -251,6 +268,8 @@ func is_open() -> bool:
 ## backing out of the lobby leaves the online game.
 func back() -> void:
 	if not _stack.is_empty() and _stack[-1] == "lobby" and _lobby_in_game:
+		close()
+	elif _stack == ["howto"]:
 		close()
 	elif not _stack.is_empty() and _stack[-1] == "lobby":
 		lobby_leave_requested.emit()
@@ -305,6 +324,7 @@ func _build_main_page() -> void:
 	_button(page, "THE HUB", _on_practice)
 	_button(page, "ONLINE", func(): _push("online"))
 	_button(page, "SETTINGS", func(): _push("settings"))
+	_button(page, "HOW TO PLAY", func(): _push("howto"))
 	_button(page, "CONTROLS", func(): _push("controls"))
 	_button(page, "ACHIEVEMENTS", func(): _push("achievements"))
 	_button(page, "CREDITS", func(): _push("credits"))
@@ -519,6 +539,79 @@ func _build_credits_page() -> void:
 	var page := _page("credits", "CREDITS")
 	_note(page, "Made with Godot 4 (godotengine.org).\n\nFont: Chakra Petch by the Chakra Petch Project Authors,\nunder the SIL Open Font License.\n\nSteam support: GodotSteam (MIT License) and the Steamworks SDK.\n\nEverything else is built in code for this prototype.")
 	_button(page, "BACK", back)
+
+
+## The picture guide: one step at a time, with NEXT (GOT IT on the last
+## step), BACK and SKIP. Left and right on the picture flip steps too.
+func _build_how_to_play_page() -> void:
+	var page := _page("howto", "HOW TO PLAY")
+	_howto_step = Label.new()
+	_howto_step.add_theme_font_override("font", TITLE_FONT)
+	_howto_step.add_theme_font_size_override("font_size", 24)
+	page.add_child(_howto_step)
+	_howto = HowToPlay.new()
+	page.add_child(_howto)
+	_howto_text = _note(page, "")
+	_howto_text.custom_minimum_size = Vector2(HowToPlay.SIZE.x, 44)
+	_howto_text.add_theme_font_size_override("font_size", 18)
+	_howto_text.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
+	_howto_dots = Label.new()
+	_howto_dots.add_theme_font_size_override("font_size", 18)
+	_howto_dots.add_theme_color_override("font_color", GOLD)
+	page.add_child(_howto_dots)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	page.add_child(row)
+	_howto_next = _button(row, "NEXT  >", func(): _howto_go(1), true)
+	_howto_prev = _button(row, "<  BACK", func(): _howto_go(-1))
+	_button(row, "SKIP", _howto_done)
+	# Left/right on any of the buttons flips the page, like a picture book.
+	for b in row.get_children():
+		(b as Button).gui_input.connect(func(e: InputEvent):
+			if e.is_action_pressed("ui_left") or e.is_action_pressed("ui_right"):
+				_howto_go(1 if e.is_action_pressed("ui_right") else -1, false)
+				b.accept_event())
+	_note(page, "Everyone's keys are on the CONTROLS page.")
+	page.set_meta("sync", func():
+		_howto.step = 0
+		_howto_refresh())
+
+
+## Move `by` steps through the guide. Past the last step, the guide closes
+## (only for NEXT: left/right just stop at the ends).
+func _howto_go(by: int, can_finish := true) -> void:
+	var to := _howto.step + by
+	if to >= HowToPlay.STEPS.size():
+		if can_finish:
+			_howto_done()
+		return
+	if to < 0:
+		return
+	_howto.step = to
+	_howto_refresh()
+	if not _howto_prev.visible:
+		_howto_next.grab_focus()
+
+
+func _howto_refresh() -> void:
+	var s: Dictionary = HowToPlay.STEPS[_howto.step]
+	_howto_step.text = s.name
+	_howto_text.text = s.text
+	var last := _howto.step == HowToPlay.STEPS.size() - 1
+	_howto_next.text = "GOT IT!" if last else "NEXT  >"
+	_howto_prev.visible = _howto.step > 0
+	var dots := []
+	for i in HowToPlay.STEPS.size():
+		dots.append("●" if i == _howto.step else "○")
+	_howto_dots.text = "  ".join(dots)
+
+
+## GOT IT / SKIP: back to the title, or on with the match.
+func _howto_done() -> void:
+	if _stack.size() > 1:
+		back()
+	else:
+		close()
 
 
 func _build_pause_page() -> void:

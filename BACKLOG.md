@@ -47,5 +47,8 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## Done
 
+- **Done** · **Smoother track-altering (TA) placing + 2 new TAs**
+  TA previews are a see-through gold piece of track with arrows, a start line with flags, red for danger, a dotted line for where the rest of the track goes, and "WON'T FIT HERE" in red instead of vanishing. New TAs: **S-Bend** and **Narrow Bridge**.
+
 - **Done** · **How to play** pop-up *(suggested by Claude)*
   A short, skippable picture guide (draft, build, roll) with keyboard and controller button prompts. Pops up before the first match, and lives on the title screen as HOW TO PLAY.

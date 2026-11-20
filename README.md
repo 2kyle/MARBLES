@@ -201,10 +201,13 @@ The scoreboard then pops in and counts each player's new points up into their to
 
 Track-altering cards (**TAs** for short) are in the same draft pool as everything else. In the game they're marked **Track Altering**, with a gold badge and gold name on their cards. Every crate has at least one TA. They work a little differently from pieces:
 
-- A coloured bar goes across the whole track. You only slide it up and down the track, not side to side.
-- The new stretch of track it adds shows as a striped yellow ribbon with little rails, starting at the bar. The rest of the track after it shows faintly, so you can see where everything ends up. A gap shows as a red patch.
-- For bends and hairpins, your rotate key flips the turn between **LEFT** and **RIGHT**. The floating label and your chip at the bottom of the screen say which way it's set.
-- The label says **BLOCKED** (and the bar turns red) where the new shape would run into the track or the pin deck.
+- A start line in your colour (a stripe across the floor with a little flag on each wall) marks where the new stretch begins. You only slide it up and down the track, not side to side, and it moves a metre at a time.
+- The new stretch shows as a see-through **gold** piece of track, walls and all, with white arrows showing which way marbles will roll. It gently pulses until you drop it.
+- **Red** means danger: a gap's hole, walls a Wall Breaker will knock off, or the sides a Narrow Bridge takes away.
+- A **dotted white line** shows where the rest of the track will swing to after the new stretch.
+- For bends, hairpins and S-Bends, your rotate key flips the turn between **LEFT** and **RIGHT**. The floating label and your chip at the bottom of the screen say which way it's set.
+- If the new shape would run into the track or the pin deck, the whole preview (and your start line) turns red and the label says **WON'T FIT HERE**. Slide it somewhere else.
+- When you drop it, the changed stretch glows for a moment so everyone can see what happened.
 
 Pieces further down the track move with it, and the pins move to the new end.
 
@@ -228,7 +231,9 @@ Pieces further down the track move with it, and the pins move to the new end.
 | TA: Gap Jump | Changes the track itself: adds a short gap that marbles have to hop over |
 | Teleporter | Placed in two parts: drop the blue entry, then the orange exit (its arrow is the way marbles come out). A marble that rolls onto the entry pops out of the exit at the same speed. Each marble can use it once per frame |
 | Wind Fan | A big fan that blows any marble in front of it the way it faces. It starts blowing across the track; turn it to blow marbles toward a wall, off an open edge, or down the track |
-| TA: Wall Breaker | Takes the side walls off 10 m of track from where you drop it, without changing its shape. The stretch shows red and white stripes while you place it |
+| TA: Wall Breaker | Takes the side walls off 10 m of track from where you drop it, without changing its shape. The walls that will go show red while you place it |
+| TA: S-Bend | Changes the track itself: adds a wiggle, left then right (rotate key flips it to right then left) |
+| TA: Narrow Bridge | Changes the track itself: adds a 9 m plank under 2 m wide with no walls. Steady marbles make it across; wobbly ones fall off. Pieces can't be placed on it |
 | Bomb (item) | Drop it on the lane to blow up every piece inside the red circle. It doesn't stay |
 
 ![The pieces in their painted-toy finish](docs/pieces.png)
@@ -422,7 +427,9 @@ tests/
   test_scoring.gd    checks the scoring rules
   test_controls.gd   presses fake keys and controller buttons through menus, settings and a match
   sim_roll.gd        plays frames with no one at the keys and prints results
-  sim_items.gd       tries the teleporter, wind fan and Wall Breaker
+  sim_items.gd       tries the teleporter, wind fan, Wall Breaker, Narrow Bridge and S-Bend
+  test_track_cards.gd  drops every TA card on a track and checks its preview and what it changed
+  shot_ta.gd         screenshot of a TA card being placed (see the top of the file)
   sim_gap.gd         rolls over a gap, with or without well-timed hops
   sim_hub.gd         checks the hub's teleports, closet, a loot crate, derby bet and PLAY arch
   test_crates.gd     opens 100,000 crates and checks the odds (1% trophy and so on)
@@ -448,6 +455,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_bots.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_sports.gd
 godot --headless --script res://tests/test_achievements.gd
 godot --headless --script res://tests/test_how_to_play.gd
+godot --headless --script res://tests/test_track_cards.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam
 ```

@@ -153,7 +153,7 @@ func start_build() -> void:
 			continue
 		_ghosts.append(builder.make_ghost(picks[p]))
 		if PieceCatalog.is_track(picks[p]):
-			_markers.append(_make_bar(colors[p]))
+			_markers.append(_make_gate(colors[p]))
 		else:
 			_markers.append(_make_marker(colors[p], PieceCatalog.info(picks[p]).radius))
 		_tags.append(_make_tag(p))
@@ -282,6 +282,15 @@ func cursor_blocked(player: int) -> bool:
 
 # ---------------------------------------------------------------- Visuals
 
+var _pulse := 0.0
+
+
+## Track card previews breathe gently so they read as "not placed yet".
+func _process(delta: float) -> void:
+	_pulse += delta
+	if builder:
+		builder.ta_material().albedo_color.a = 0.8 + 0.2 * sin(_pulse * 4.0)
+
 ## Redraw the cursors (online clients call this after a snapshot moves them).
 func refresh_visuals() -> void:
 	_update_visuals()
@@ -299,12 +308,21 @@ func _update_visuals() -> void:
 			var id := current_id(p)
 			ghost.transform = builder.piece_xform(id, cursor_pos[p], cursor_angle[p]) \
 					.translated(builder.lane_xform(cursor_pos[p]).basis.y * 0.02)
-		var marker: MeshInstance3D = _markers[p]
 		var blocked := cursor_blocked(p)
 		var floor_xf := builder.lane_xform(cursor_pos[p], 0.0, 0.012 + 0.004 * p)
-		marker.transform = floor_xf * Transform3D(Basis.from_scale(Vector3(1, 0.15, 1)), Vector3.ZERO)
-		var mat: StandardMaterial3D = marker.mesh.material
-		mat.albedo_color = Color(0.9, 0.1, 0.1) if blocked else colors[p]
+		if ghost.has_meta("track_card"):
+			# The start line sits where the new stretch begins (it snaps a
+			# metre at a time, like the preview).
+			var gate: Node3D = _markers[p]
+			floor_xf = builder.ta_gate_xform(picks[p], cursor_pos[p], cursor_angle[p])
+			gate.transform = floor_xf
+			var gate_mat: StandardMaterial3D = gate.get_meta("mat")
+			gate_mat.albedo_color = Color(0.9, 0.1, 0.1) if blocked else colors[p]
+		else:
+			var marker: MeshInstance3D = _markers[p]
+			marker.transform = floor_xf * Transform3D(Basis.from_scale(Vector3(1, 0.15, 1)), Vector3.ZERO)
+			var mat: StandardMaterial3D = marker.mesh.material
+			mat.albedo_color = Color(0.9, 0.1, 0.1) if blocked else colors[p]
 		var tag: Node3D = _tags[p]
 		tag.transform = floor_xf
 		var label: Label3D = tag.get_node("Name")
@@ -312,7 +330,9 @@ func _update_visuals() -> void:
 		# cursors are close, later players' labels sit higher on screen so they
 		# never print over each other.
 		label.visible = not has_placed[p]
-		label.text = ("BLOCKED" if blocked else describe(p))
+		label.text = describe(p)
+		if blocked:
+			label.text = "WON'T FIT HERE" if ghost.has_meta("track_card") else "BLOCKED"
 		label.modulate = Color(1.0, 0.35, 0.3) if blocked else (colors[p] as Color).lightened(0.35)
 		var below := 0
 		for q in p:
@@ -345,19 +365,46 @@ func _make_marker(color: Color, radius: float) -> MeshInstance3D:
 	return marker
 
 
-## A bar across the track for track cards: the new stretch starts here.
-func _make_bar(color: Color) -> MeshInstance3D:
-	var marker := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(builder.track.lane_width + 0.3, 2.4, 0.25)
+## A start line for track cards, in the player's colour: a stripe across
+## the floor with a little flag on each wall. The new stretch starts here.
+func _make_gate(color: Color) -> Node3D:
+	var gate := Node3D.new()
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = color
-	mesh.material = mat
-	marker.mesh = mesh
-	marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	builder.add_child(marker)
-	return marker
+	gate.set_meta("mat", mat)
+	var w: float = builder.track.lane_width
+	var h: float = builder.track.wall_height
+	var stripe := MeshInstance3D.new()
+	var stripe_mesh := BoxMesh.new()
+	stripe_mesh.size = Vector3(w, 0.04, 0.22)
+	stripe.mesh = stripe_mesh
+	stripe.position.y = 0.04
+	gate.add_child(stripe)
+	for side in [-1.0, 1.0]:
+		var pole := MeshInstance3D.new()
+		var pole_mesh := CylinderMesh.new()
+		pole_mesh.top_radius = 0.05
+		pole_mesh.bottom_radius = 0.05
+		pole_mesh.height = 1.1
+		pole.mesh = pole_mesh
+		pole.position = Vector3(side * (w / 2.0 + 0.12), h + 0.55, 0)
+		gate.add_child(pole)
+		# A little pennant pointing down the track.
+		var flag := MeshInstance3D.new()
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for v in [Vector3(0, 0, 0), Vector3(0, -0.36, 0), Vector3(0, -0.18, -0.55)]:
+			st.add_vertex(v)
+		flag.mesh = st.commit()
+		flag.position = Vector3(side * (w / 2.0 + 0.12), h + 1.08, 0)
+		gate.add_child(flag)
+	for c in gate.get_children():
+		(c as MeshInstance3D).material_override = mat
+		(c as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	builder.add_child(gate)
+	return gate
 
 
 ## A floating label with the piece's name (and which way it bends), plus an

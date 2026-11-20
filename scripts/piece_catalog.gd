@@ -141,6 +141,19 @@ const PIECES := {
 		"scene": "res://scenes/pieces/track_open.tscn",
 		"kind": "track", "segment": "open", "radius": 1.6, "base_rotation": 0.0,
 	},
+	"track_sbend": {
+		"name": "S-Bend",
+		"about": "Wiggles left, then right",
+		"turns": true,
+		"scene": "res://scenes/pieces/track_sbend.tscn",
+		"kind": "track", "segment": "sbend", "radius": 1.6, "base_rotation": 0.0,
+	},
+	"track_narrow": {
+		"name": "Narrow Bridge",
+		"about": "A thin plank, no walls",
+		"scene": "res://scenes/pieces/track_narrow.tscn",
+		"kind": "track", "segment": "narrow", "radius": 1.6, "base_rotation": 0.0,
+	},
 	"bomb": {
 		"name": "Bomb",
 		"about": "Blows up pieces",
@@ -220,10 +233,15 @@ static func is_track(id: String) -> bool:
 	return PIECES.has(id) and PIECES[id].kind == "track"
 
 
-## The new stretch of track a track card adds, turning left or right.
-static func track_segment(id: String, turn_left: bool) -> Dictionary:
+## The new stretch of track a track card adds, turning left or right: one
+## TrackGen segment, or an Array of them (the S-Bend is two bends).
+static func track_segment(id: String, turn_left: bool) -> Variant:
 	var sign := 1.0 if turn_left else -1.0
 	match PIECES[id].segment:
+		"sbend":
+			return TrackGen.s_bend(sign)
+		"narrow":
+			return TrackGen.narrow()
 		"drop":
 			return TrackGen.drop()
 		"gap":

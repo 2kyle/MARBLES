@@ -52,7 +52,7 @@ func can_place(id: String, pos: Vector2, angle := 0.0) -> bool:
 		return true
 	if PieceCatalog.is_track(id):
 		return _reshaped_layout(id, pos, angle) != null
-	if track.in_gap(-pos.y, 1.2):
+	if track.in_gap(-pos.y, 1.2) or track.in_narrow(-pos.y, 1.0):
 		return false
 	var r: float = PieceCatalog.info(id).radius
 	for p in placed:
@@ -112,37 +112,55 @@ func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 	return true
 
 
-## The layout with track card `id` dropped at `pos`, or null if the track
-## would run into itself (or the track wasn't made from a layout).
-func _reshaped_layout(id: String, pos: Vector2, angle: float) -> Variant:
+## What dropping track card `id` at `pos` would do: a Dictionary with
+##   layout: the new layout (even if it doesn't fit)
+##   fits:   false if the track would run into itself
+##   from, to: where the new (or changed) stretch is, in layout metres
+## or null if the track wasn't made from a layout. Cached per whole metre,
+## so the preview only changes when the cursor crosses a metre mark.
+func ta_plan(id: String, pos: Vector2, angle: float) -> Variant:
 	if track.layout.is_empty():
 		return null
 	var left := PieceCatalog.turns_left(angle)
-	var key := "%s|%d|%s|%d" % [id, roundi(-pos.y), left, track.layout.hash()]
+	var ground := roundf(track.distance_to_ground(-clamp_pos(pos).y))
+	var key := "%s|%d|%s|%d" % [id, ground, left, track.layout.hash()]
 	if _fit_cache.has(key):
 		return _fit_cache[key]
-	var seg := PieceCatalog.track_segment(id, left)
-	var result = null
-	if seg.get("open", false):
+	var seg = PieceCatalog.track_segment(id, left)
+	var plan := {}
+	if seg is Dictionary and seg.get("open", false):
 		# Wall Breaker: same shape, the walls just come off.
-		result = TrackGen.open_range(track.layout, -pos.y, seg.len)
+		var opened := TrackGen.open_range(track.layout, ground, seg.len)
+		plan = {"layout": opened, "fits": true, "from": ground, "to": ground + seg.len}
+		for r in TrackGen.open_ranges(opened):
+			if r[0] <= ground + 0.5 and r[1] >= ground + 0.5:
+				plan.from = r[0]
+				plan.to = r[1]
+		# The start and finish keep their walls, so the stretch may be cut short.
+		var first_ok: float = maxf(1.0, roundf(track.layout[0].len))
+		plan.from = maxf(plan.from, first_ok)
 	else:
-		result = TrackGen.insert(track.layout, -pos.y, seg)
-		if not TrackGen.fits(result, track.start_xz):
-			result = null
+		plan = TrackGen.insert_info(track.layout, ground, seg)
+		plan.fits = TrackGen.fits(plan.layout, track.start_xz)
 	if _fit_cache.size() > 200:
 		_fit_cache.clear()
-	_fit_cache[key] = result
-	return result
+	_fit_cache[key] = plan
+	return plan
+
+
+func _reshaped_layout(id: String, pos: Vector2, angle: float) -> Variant:
+	var plan = ta_plan(id, pos, angle)
+	return plan.layout if plan != null and plan.fits else null
 
 
 func _reshape(id: String, pos: Vector2, angle: float) -> bool:
-	var new_layout = _reshaped_layout(id, pos, angle)
-	if new_layout == null:
+	var plan = ta_plan(id, pos, angle)
+	if plan == null or not plan.fits:
 		return false
-	var added := TrackGen.total_length(new_layout) - TrackGen.total_length(track.layout)
-	var at := -pos.y
-	track.apply_layout(new_layout, track.start_xz)
+	var old_len := track.length()
+	var at := track.ground_to_distance(plan.from)
+	track.apply_layout(plan.layout, track.start_xz)
+	var added := track.length() - old_len
 	# Pieces further down the track move along with it.
 	for p in placed:
 		if -p.pos.y > at:
@@ -154,88 +172,254 @@ func _reshape(id: String, pos: Vector2, angle: float) -> bool:
 		_zone.queue_free()
 		_zone = null
 		show_zone(true)
+	_reshape_flash(id, track.ground_to_distance(plan.from), track.ground_to_distance(plan.to))
 	track_reshaped.emit()
 	return true
 
 
-## For a track card's ghost: the new shape of the track from where the
-## card would go, as a see-through ribbon. The stretch the card adds is
-## bright and striped; the rest of the track after it is faint, and a gap
-## shows as a hole. Null if it doesn't fit.
+## Where a track card's start line goes for a cursor at `pos`: across the
+## track at the start of the new stretch. Track-local.
+func ta_gate_xform(id: String, pos: Vector2, angle: float) -> Transform3D:
+	var plan = ta_plan(id, pos, angle)
+	var d := -clamp_pos(pos).y if plan == null else track.ground_to_distance(plan.from)
+	return track.frame_at(d)
+
+
+# Preview colours. Gold = new track, red = danger (gaps, missing walls,
+# or a card that won't fit), white dots = where the rest of the track goes.
+const TA_NEW := Color(1.0, 0.8, 0.15, 0.5)
+const TA_NEW_EDGE := Color(1.0, 0.92, 0.45, 0.85)
+const TA_DANGER := Color(1.0, 0.22, 0.15, 0.5)
+const TA_BAD := Color(1.0, 0.15, 0.12, 0.45)
+const TA_DOT := Color(1.0, 1.0, 1.0, 0.75)
+
+
+## For a track card's ghost: what the track would look like with the card
+## dropped at `pos`, as one mesh (vertex colours, see-through):
+##   - the new stretch as a gold see-through piece of track, walls and all,
+##     with arrows showing which way marbles roll
+##   - gaps, missing walls and a Narrow Bridge's missing floor in red
+##   - a dotted line down the middle of where the rest of the track will go
+##   - everything red if the card won't fit there
 func reshape_preview(id: String, pos: Vector2, angle: float) -> ArrayMesh:
-	var new_layout = _reshaped_layout(id, pos, angle)
-	if new_layout == null:
+	var plan = ta_plan(id, pos, angle)
+	if plan == null:
 		return null
-	var at := clampf(-pos.y, 0.0, track.length())
+	if plan.has("mesh"):
+		return plan.mesh
+	var kind: String = PieceCatalog.info(id).segment
+	var new_layout: Array = plan.layout
 	var pts := TrackGen.points(new_layout, track.start_xz)
-	var i0 := clampi(roundi(at), 0, pts.size() - 1)
-	# Where the new stretch is (metres along the ground).
-	var seg := PieceCatalog.track_segment(id, PieceCatalog.turns_left(angle))
-	var new_from := 0.0
-	var new_to := 0.0
-	var best := INF
-	var t := 0.0
-	for s in new_layout:
-		var n := float(maxi(1, roundi(s.len)))
-		if s.hash() == seg.hash() and absf(t - at) < best:
-			best = absf(t - at)
-			new_from = t
-			new_to = t + n
-		t += n
-	if seg.get("open", false):
-		for r in TrackGen.open_ranges(new_layout):
-			if r[0] <= at + 1.0 and r[1] >= at:
-				new_from = r[0]
-				new_to = r[1]
-	var walls_off: bool = seg.get("open", false)
-	var holes := TrackGen.gap_ranges(new_layout)
-	# Line the preview up with the real track where the card goes.
-	var shift := track.frame_at(at).origin - pts[i0]
+	var curve := Track.curve_through(pts)
+	var along := PackedFloat32Array([0.0])
+	for i in range(1, pts.size()):
+		along.append(along[i - 1] + pts[i].distance_to(pts[i - 1]))
+	var g0 := clampi(int(plan.from), 0, pts.size() - 1)
+	var g1 := clampi(int(plan.to), 0, pts.size() - 1)
+	var a0 := along[g0]
+	var a1 := along[g1]
+	var shift_at := a0
+	if kind == "gap":
+		# A gap is short: show a little track either side so it reads.
+		a0 = maxf(a0 - 2.0, 0.0)
+		a1 = minf(a1 + 2.0, along[-1])
+	# The new track sits a little higher or lower (it always ends at the
+	# pins), so line it up with the real track where the card goes.
+	var shift := track.frame_at(track.ground_to_distance(plan.from)).origin - curve.sample_baked(shift_at, true)
+	var hw := track.lane_width / 2.0
+	var wall_h := track.wall_height
+	var bad: bool = not plan.fits
+	var new_col := TA_BAD if bad else TA_NEW
+	var edge_col := TA_BAD if bad else TA_NEW_EDGE
+
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var hw := track.lane_width / 2.0
-	var pl := Vector3.ZERO
-	var pr := Vector3.ZERO
-	var new_col := Color(1.0, 0.82, 0.15, 0.75)
-	var stripe_col := Color(1.0, 0.95, 0.6, 0.85)
-	var rest_col := Color(1.0, 1.0, 1.0, 0.18)
-	for i in range(i0, pts.size()):
-		var fwd := (pts[mini(i + 1, pts.size() - 1)] - pts[maxi(i - 1, 0)]).normalized()
-		var right := fwd.cross(Vector3.UP).normalized() * hw
-		var o := pts[i] + shift + Vector3.UP * 0.05
-		var l := o - right
-		var r := o + right
-		if i > i0:
-			var mid := i - 0.5
-			var in_hole := false
-			for h in holes:
-				in_hole = in_hole or (mid >= h[0] and mid <= h[1])
-			if in_hole:
-				# A gap: drawn as a red warning patch where the floor will be missing.
-				st.set_color(Color(1.0, 0.2, 0.15, 0.55 if mid >= new_from and mid <= new_to else 0.25))
-				for v in [pl, r, pr, pl, l, r]:
-					st.add_vertex(v)
+	var holes := TrackGen.gap_ranges(new_layout)
+	var narrow_ranges := []
+	for r in TrackGen.narrow_ranges(new_layout):
+		narrow_ranges.append([along[clampi(int(r[0]), 0, along.size() - 1)], along[clampi(int(r[1]), 0, along.size() - 1)]])
+	var n := maxi(2, ceili((a1 - a0) / 0.5) + 1)
+	var prev := {}
+	for k in n:
+		var d := lerpf(a0, a1, k / float(n - 1))
+		var xf := track.frame_on(curve, d)
+		xf.origin += shift
+		var o := xf.origin + xf.basis.y * 0.04
+		var r := xf.basis.x
+		var u := xf.basis.y
+		var ground_m := 0.0
+		for i in range(1, along.size()):
+			if along[i] >= d:
+				ground_m = i - 1 + (d - along[i - 1]) / maxf(along[i] - along[i - 1], 0.001)
+				break
+		var in_hole := false
+		for h in holes:
+			in_hole = in_hole or (ground_m > h[0] and ground_m < h[1])
+		var plank := hw
+		for nr in narrow_ranges:
+			if d > nr[0] and d < nr[1]:
+				var t := clampf(minf(d - nr[0], nr[1] - d) / Track.NARROW_TAPER, 0.0, 1.0)
+				plank = lerpf(hw, Track.NARROW_WIDTH / 2.0, smoothstep(0.0, 1.0, t))
+		var row := {
+			"l": o - r * hw, "r": o + r * hw,
+			"pl": o - r * plank, "pr": o + r * plank,
+			"lt": o - r * hw + u * wall_h, "rt": o + r * hw + u * wall_h,
+			"lo": o - r * (hw + 0.25) + u * wall_h, "ro": o + r * (hw + 0.25) + u * wall_h,
+			"hole": in_hole, "o": o, "u": u, "r_dir": r, "d": d,
+		}
+		if not prev.is_empty():
+			var hole: bool = row.hole or prev.hole
+			if kind == "open":
+				# Same track, walls marked red: these are what disappear.
+				var red := TA_BAD if bad else Color(1, 0.2, 0.15, 0.7)
+				for sd in [-1.0, 1.0]:
+					var pin: Vector3 = (prev.l if sd < 0 else prev.r) - prev.r_dir * sd * 0.05
+					var rin: Vector3 = (row.l if sd < 0 else row.r) - row.r_dir * sd * 0.05
+					var ptop: Vector3 = (prev.lt if sd < 0 else prev.rt) + prev.u * 0.05
+					var rtop: Vector3 = (row.lt if sd < 0 else row.rt) + row.u * 0.05
+					var pout: Vector3 = (prev.lo if sd < 0 else prev.ro) + prev.u * 0.05
+					var rout: Vector3 = (row.lo if sd < 0 else row.ro) + row.u * 0.05
+					_tri_quad(st, red, pin, rin, rtop - row.r_dir * sd * 0.05, ptop - prev.r_dir * sd * 0.05)
+					_tri_quad(st, red, ptop, rtop, rout, pout)
+			elif hole:
+				# A gap: a red hole with bright lips at both ends.
+				_tri_quad(st, TA_BAD if bad else Color(1, 0.2, 0.15, 0.6), prev.l, row.l, row.r, prev.r)
 			else:
-				var col := rest_col
-				if mid >= new_from and mid <= new_to:
-					col = stripe_col if i % 2 == 0 else new_col
-					if walls_off:
-						# Red and white hazard stripes where the walls go.
-						col = Color(1, 0.25, 0.2, 0.75) if i % 2 == 0 else Color(1, 1, 1, 0.7)
-				st.set_color(col)
-				for v in [pl, r, pr, pl, l, r]:
-					st.add_vertex(v)
-				# Little rails along the new stretch so its shape reads
-				# from any camera angle.
-				if col != rest_col and not walls_off:
-					var up := Vector3.UP * 0.45
-					st.set_color(new_col)
-					for v in [pl, l, l + up, pl, l + up, pl + up, pr, pr + up, r + up, pr, r + up, r]:
-						st.add_vertex(v)
-		pl = l
-		pr = r
+				# The floor (only the plank on a Narrow Bridge, with the
+				# missing sides in red).
+				_tri_quad(st, new_col, prev.pl, row.pl, row.pr, prev.pr)
+				if kind == "narrow":
+					_tri_quad(st, TA_BAD if bad else TA_DANGER, prev.l, row.l, row.pl, prev.pl)
+					_tri_quad(st, TA_BAD if bad else TA_DANGER, prev.pr, row.pr, row.r, prev.r)
+				else:
+					# Walls: inside face and top.
+					_tri_quad(st, new_col, prev.l, row.l, row.lt, prev.lt)
+					_tri_quad(st, new_col, prev.r, row.r, row.rt, prev.rt)
+					_tri_quad(st, edge_col, prev.lt, row.lt, row.lo, prev.lo)
+					_tri_quad(st, edge_col, prev.rt, row.rt, row.ro, prev.ro)
+		prev = row
+	# Lips at the ends of any gap, and arrows down the middle of the new stretch.
+	for h in holes:
+		if h[1] < plan.from or h[0] > plan.to:
+			continue
+		for gm in [h[0], h[1]]:
+			var lip := track.frame_on(curve, along[clampi(int(gm), 0, along.size() - 1)])
+			lip.origin += shift + lip.basis.y * 0.06
+			_tri_quad(st, TA_BAD if bad else Color(1, 0.3, 0.2, 0.95),
+					lip.origin - lip.basis.x * hw - lip.basis.z * 0.2, lip.origin + lip.basis.x * hw - lip.basis.z * 0.2,
+					lip.origin + lip.basis.x * hw + lip.basis.z * 0.2, lip.origin - lip.basis.x * hw + lip.basis.z * 0.2)
+	var arrow_col := Color(1, 1, 1, 0.8) if not bad else Color(1, 0.8, 0.8, 0.6)
+	var ad := a0 + 1.2
+	while ad < a1 - 0.6:
+		var ax := track.frame_on(curve, ad)
+		ax.origin += shift + ax.basis.y * 0.07
+		var on_hole := false
+		var gm := 0.0
+		for i in range(1, along.size()):
+			if along[i] >= ad:
+				gm = float(i)
+				break
+		for h in holes:
+			on_hole = on_hole or (gm > h[0] and gm < h[1] + 1)
+		if not on_hole:
+			_chevron(st, ax, 0.5, arrow_col)
+		ad += 1.8
 	st.generate_normals()
-	return st.commit()
+	var mesh := st.commit()
+	mesh.surface_set_material(0, ta_material())
+	# Where the rest of the track will go: a dotted line down its middle,
+	# drawn on top of everything so the real track can't hide it.
+	st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var any_dots := false
+	if kind != "open":
+		var len := curve.get_baked_length()
+		var dd := a1 + 1.0
+		while dd < len - 1.0:
+			var dx := track.frame_on(curve, dd)
+			dx.origin += shift + dx.basis.y * 0.1
+			_dot(st, dx, 0.16, TA_BAD if bad else TA_DOT)
+			any_dots = true
+			dd += 1.6
+	if any_dots:
+		st.generate_normals()
+		st.commit(mesh)
+		mesh.surface_set_material(1, ta_material(true))
+	plan.mesh = mesh
+	return plan.mesh
+
+
+var _ta_mats := {}
+
+
+## The see-through material track card previews use. `on_top` draws over
+## everything (for the dotted line). The build cursors pulse its alpha.
+func ta_material(on_top := false) -> StandardMaterial3D:
+	if not _ta_mats.has(on_top):
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.vertex_color_use_as_albedo = true
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		if on_top:
+			mat.no_depth_test = true
+			mat.render_priority = 1
+		else:
+			# A faint second pass drawn over everything, so any part of the
+			# new track hidden behind the real one still shows through.
+			var ghost := mat.duplicate() as StandardMaterial3D
+			ghost.no_depth_test = true
+			ghost.albedo_color = Color(1, 1, 1, 0.3)
+			mat.next_pass = ghost
+		_ta_mats[on_top] = mat
+	return _ta_mats[on_top]
+
+
+func _tri_quad(st: SurfaceTool, col: Color, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	st.set_color(col)
+	for v in [a, b, c, a, c, d]:
+		st.add_vertex(v)
+
+
+## A flat arrow lying on the track at `xf`, pointing down the track.
+func _chevron(st: SurfaceTool, xf: Transform3D, size: float, col: Color) -> void:
+	var fwd := -xf.basis.z
+	var side := xf.basis.x
+	var tip := xf.origin + fwd * size * 0.5
+	var back := xf.origin - fwd * size * 0.15
+	var t := size * 0.28
+	_tri_quad(st, col, back - side * size, tip, tip - fwd * t, back - side * size - fwd * t)
+	_tri_quad(st, col, tip, back + side * size, back + side * size - fwd * t, tip - fwd * t)
+
+
+## A small flat diamond lying on the track at `xf`.
+func _dot(st: SurfaceTool, xf: Transform3D, r: float, col: Color) -> void:
+	var fwd := -xf.basis.z * r * 1.4
+	var side := xf.basis.x * r
+	_tri_quad(st, col, xf.origin - fwd, xf.origin + side, xf.origin + fwd, xf.origin - side)
+
+
+## A quick glow over the stretch a track card just changed, so everyone
+## sees what happened. Gold for new track, red where walls came off.
+func _reshape_flash(id: String, d0: float, d1: float) -> void:
+	if d1 - d0 < 0.5:
+		return
+	var kind: String = PieceCatalog.info(id).segment
+	var glow := MeshInstance3D.new()
+	var mesh := track.ribbon_mesh(d0, d1, track.lane_width / 2.0 + 0.3, 0.05)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = Color(1, 0.3, 0.2, 0.85) if kind in ["open", "narrow", "gap"] else Color(1, 0.85, 0.25, 0.85)
+	mesh.surface_set_material(0, mat)
+	glow.mesh = mesh
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(glow)
+	var tw := glow.create_tween().set_parallel(true)
+	tw.tween_property(mat, "albedo_color:a", 0.0, 0.9).set_ease(Tween.EASE_IN)
+	tw.tween_property(glow, "position:y", 0.6, 0.9).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_callback(glow.queue_free)
 
 
 ## Remove every placed piece whose centre is within `radius` of `pos`.
@@ -279,12 +463,6 @@ func clear() -> void:
 func make_ghost(id: String) -> Node3D:
 	if PieceCatalog.is_track(id):
 		var ribbon := MeshInstance3D.new()
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.vertex_color_use_as_albedo = true
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		ribbon.material_override = mat
 		ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ribbon.set_meta("track_card", id)
 		add_child(ribbon)

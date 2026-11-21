@@ -73,6 +73,27 @@ const STYLES := {
 		"Mesh": {"base": Color(0.55, 0.4, 0.9), "accent": Color(0.85, 0.8, 1.0), "pattern": "checks", "scale": 2.2},
 		"Stripe": {"base": GOLD},
 	},
+	"pop_bumper": {
+		"Base": {"base": WHITE, "accent": Color(1.0, 0.25, 0.45), "pattern": "stripes", "scale": 6.0, "axis": Vector3.UP, "rough": 0.3},
+		"Skirt": {"base": INK, "rough": 0.4},
+	},
+	"pendulum": {
+		"*": {"base": Color(0.62, 0.43, 0.28), "accent": Color(0.42, 0.28, 0.18), "pattern": "wood", "scale": 6.0},
+		"Bar": {"base": Color(1.0, 0.82, 0.3), "accent": INK, "pattern": "stripes", "scale": 4.0, "axis": Vector3(1, 0, 0.6)},
+		"Swing/Ball": {"base": Color(0.22, 0.12, 0.5), "accent": Color(0.45, 0.2, 0.75), "pattern": "dots", "scale": 7.0, "rough": 0.12},
+		"Arm/Rod": {"base": Color(0.75, 0.77, 0.8), "rough": 0.3},
+		"Swing/Ball/Hole0": {"base": Color(0.03, 0.03, 0.05), "rough": 1.0},
+		"Swing/Ball/Hole1": {"base": Color(0.03, 0.03, 0.05), "rough": 1.0},
+		"Swing/Ball/Hole2": {"base": Color(0.03, 0.03, 0.05), "rough": 1.0},
+	},
+	"magnet": {
+		"Disc": {"base": Color(0.28, 0.3, 0.4), "accent": Color(0.35, 0.38, 0.5), "pattern": "checks", "scale": 3.0, "rough": 0.8},
+		"Shoe": {"base": Color(0.92, 0.18, 0.2), "rough": 0.35},
+	},
+	"bounce_pad": {
+		"Mat": {"base": Color(1.0, 0.35, 0.3), "accent": Color(1.0, 0.55, 0.45), "pattern": "dots", "scale": 6.0, "rough": 0.9},
+		"Frame": {"base": INK, "accent": Color(1.0, 0.8, 0.3), "pattern": "stripes", "scale": 10.0, "axis": Vector3(1, 0, 1)},
+	},
 	"bomb": {
 		"Body": {"base": Color(0.18, 0.18, 0.26), "accent": Color(0.28, 0.28, 0.38), "pattern": "dots", "scale": 5.0, "rough": 0.3},
 		"Cap": {"base": Color(0.8, 0.65, 0.42)},

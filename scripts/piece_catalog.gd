@@ -87,6 +87,30 @@ const PIECES := {
 		"scene": "res://scenes/pieces/tilt_table.tscn",
 		"kind": "piece", "radius": 1.68, "base_rotation": 0.0,
 	},
+	"pop_bumper": {
+		"name": "Pop Bumper",
+		"about": "Pinball kick, any way",
+		"scene": "res://scenes/pieces/pop_bumper.tscn",
+		"kind": "piece", "radius": 0.75, "base_rotation": 0.0,
+	},
+	"pendulum": {
+		"name": "Pendulum",
+		"about": "Swings across the lane",
+		"scene": "res://scenes/pieces/pendulum.tscn",
+		"kind": "piece", "radius": 1.6, "base_rotation": 0.0,
+	},
+	"magnet": {
+		"name": "Magnet",
+		"about": "Drags balls in",
+		"scene": "res://scenes/pieces/magnet.tscn",
+		"kind": "piece", "radius": 1.5, "base_rotation": 0.0,
+	},
+	"bounce_pad": {
+		"name": "Bounce Pad",
+		"about": "Springs balls high",
+		"scene": "res://scenes/pieces/bounce_pad.tscn",
+		"kind": "piece", "radius": 0.95, "base_rotation": 0.0,
+	},
 	"track_bend": {
 		"name": "Track Bend",
 		"about": "Bends the track",

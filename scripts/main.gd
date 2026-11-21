@@ -18,7 +18,9 @@ extends Node3D
 
 ## MENU is the title screen (the camera slowly circles the island).
 ## WAITING is the ready screen before a match (press Space / Y to start).
-enum State { WAITING, DRAFT, BUILD, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER, MENU, HUB }
+## REPLAY is the slow-motion strike replay (added last so the numbers
+## sent between online players stay the same).
+enum State { WAITING, DRAFT, BUILD, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER, MENU, HUB, REPLAY }
 
 const PLAYER_COLORS := [
 	Color(0.95, 0.3, 0.55),  # pink
@@ -111,6 +113,11 @@ var steam: SteamService
 var steam_backend: Object
 ## Strikes each seat has got this match (for the Turkey achievement).
 var _strikes: Array = [0, 0, 0, 0]
+## Records each roll so a strike can be replayed in slow motion.
+var replay := StrikeReplay.new()
+## Where the game goes once the replay ends (RESULTS or MATCH_OVER), and who struck.
+var _after_replay := State.RESULTS
+var _replay_striker := -1
 ## Online island: who's rolled through the PLAY arch (ready for a match),
 ## seconds left before the match starts once everyone is (-1 = not
 ## counting), and a short wait so rolling through once doesn't flip twice.
@@ -834,6 +841,7 @@ func _prepare_roll() -> void:
 	_put_marbles_at_gate()
 	rack.reset()
 	ball_return.reset()
+	replay.start(marbles + rack.pins)
 	_freeze_if_client()
 	_hop_latch = [false, false, false, false]
 	_update_camera()
@@ -887,6 +895,9 @@ func _process(delta: float) -> void:
 		_gather_build_inputs(delta)
 	elif state == State.HUB:
 		_gather_hub_inputs()
+	elif state == State.REPLAY:
+		if not replay.update(delta):
+			_end_replay()
 	_update_camera()
 	hud.refresh(self)
 
@@ -911,7 +922,9 @@ func _physics_process(delta: float) -> void:
 		State.ROLLING:
 			_gather_inputs()
 			_update_roll(delta)
-			ball_return.update(marbles, delta)
+			replay.record(delta, rack.pins)
+			if state != State.REPLAY:
+				ball_return.update(marbles, delta)
 		State.RESULTS, State.MATCH_OVER:
 			ball_return.update(marbles, delta)
 		State.HUB:
@@ -1138,6 +1151,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if state == State.MENU or menu.is_open():
 		return  # the menu handles its own keys
+	if state == State.REPLAY:
+		# Any key or button skips the strike replay.
+		if (event is InputEventKey or event is InputEventJoypadButton or event is InputEventMouseButton) \
+				and event.is_pressed() and not event.is_echo():
+			get_viewport().set_input_as_handled()
+			replay.finish()
+			_end_replay()
+		return
 	if event.is_action_pressed("quit") and closet.is_open():
 		_close_closet()
 	elif event.is_action_pressed("quit") and crate_screen.is_open():
@@ -1719,9 +1740,17 @@ func _finish_frame() -> void:
 	state = State.MATCH_OVER if frame >= frames_per_match else State.RESULTS
 	_award_coins()
 	var striker := strike_player()
+	_frame_achievements(striker)
+	if striker >= 0 and _start_replay(striker):
+		return   # the scores come in once the replay is over
+	_show_frame_result(striker)
+
+
+## The STRIKE! banner, the podium at the end of a match, and the result for
+## online players.
+func _show_frame_result(striker: int) -> void:
 	if striker >= 0:
 		hud.show_strike(striker, player_colors[striker])
-	_frame_achievements(striker)
 	if state == State.MATCH_OVER:
 		_show_podium()
 	net.send_event("result", {"result": last_result, "totals": totals, "points": frame_points,
@@ -1761,6 +1790,32 @@ func _frame_achievements(striker: int) -> void:
 		steam.presence("Just finished a match")
 	else:
 		steam.presence("In a match (frame %d of %d)" % [frame, frames_per_match])
+
+
+## Strike! Play the last moments back in slow motion from by the pins.
+## Not online (everyone would have to watch it together), and not if it's
+## switched off in Settings. Returns false if there's no replay to show.
+func _start_replay(striker: int) -> bool:
+	if net.active() or not settings.strike_replay or not replay.begin():
+		return false
+	_after_replay = state
+	_replay_striker = striker
+	state = State.REPLAY
+	for m in marbles:
+		m.clear_trail()
+	_update_camera()
+	camera.snap_to(camera.target)
+	return true
+
+
+## The replay finished or was skipped: on to STRIKE! and the scores.
+func _end_replay() -> void:
+	if state != State.REPLAY:
+		return
+	for m in marbles:
+		m.clear_trail()
+	state = _after_replay
+	_show_frame_result(_replay_striker)
 
 
 ## The player who knocked down every pin by themselves this frame, or -1
@@ -2010,6 +2065,19 @@ func _update_camera() -> void:
 			camera.frame_points.append(c + Vector3.UP * 3.0)
 			# Room behind the cursor too, so the HUD chips don't cover it.
 			camera.frame_points.append(c + back * 2.5)
+		return
+	if state == State.REPLAY:
+		# Strike replay: low down beside the front pins, looking up the
+		# lane at an angle so the marble comes crashing in.
+		var lane := -deck.global_basis.z
+		camera.heading = lane.rotated(Vector3.UP, 0.4)
+		camera.follow_offset = Vector3(0, 0.9, 3.6)
+		camera.look_ahead = Vector3(0, 0.2, -2.6)
+		camera.target = rack.global_position
+		var depth := rack.rows * rack.spacing * sqrt(3.0) / 2.0
+		var wide := rack.rows * rack.spacing * 0.5
+		for corner in [Vector3(0, 1.0, 0.4), Vector3(-wide, 0.2, -depth), Vector3(wide, 0.2, -depth)]:
+			camera.frame_points.append(rack.to_global(corner))
 		return
 	var pin_cam := state == State.RESULTS or state == State.MATCH_OVER
 	if state == State.ROLLING:

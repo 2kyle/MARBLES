@@ -42,6 +42,21 @@ This is the to-do list for the game, **most important at the top**. Every night 
 8. **To do** · **Strike replay online** *(suggested by Claude)*
    Show the slow-motion strike replay in online games too, so everyone watches it together (right now it only plays at one computer).
 
+9. **To do** · **Alley decorations for the hub** *(suggested by Claude)*
+   Giant bowling pin statues by the PLAY arch, a neon "LANES" sign, a shoe-rental counter and a ball rack, all with marquee lights. Left out of the Big Saturday update so it didn't clash with the hub clipping fixes.
+
+10. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
+   An achievement for a perfect 300, SKEE-JUMP for online guests, and a high-score table per player.
+
+11. **To do** · **More pop words** *(suggested by Claude)*
+   WHOOSH! on boosters, ZAP! on teleporters, SPLASH! when a marble falls in the water, GUTTER! on a gutter cut.
+
+12. **To do** · **Corkscrew TA** *(suggested by Claude)*
+   A full spiral that drops under itself. Needs the track to allow crossing over itself (supports and a clearance check by height), so it's a bigger job.
+
+13. **To do** · **Aimed Bounce Pad** *(suggested by Claude)*
+   Let the Bounce Pad tilt (rotate key) so it can fling marbles sideways off the track or onto another part of it.
+
 ## Needs you (Claude can't do these alone)
 
 - **Steam setup:** install the GodotSteam plugin, try online play with a friend, then get your own Steam App ID. Step-by-step guide: [docs/STEAM.md](docs/STEAM.md).
@@ -50,7 +65,8 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-*(Nothing yet.)*
+- **In review** · **Big Saturday update** (branch `claude/project-thread-7x3r7q`)
+  4 new pieces (Pop Bumper, Pendulum, Magnet, Bounce Pad), 3 new TAs (Oil Slick, Zig-Zag, Rollercoaster Hill), the retro alley look (LOUNGE / ARCADE filter, marquee chase lights, warmer light), forgiving hops with squash and stretch and an air shadow, a retro sign title and livelier menus and draft cards, comic pop words, and the SKEE-JUMP minigame. Each part is its own commit, so any one can be left out.
 
 ## Done
 

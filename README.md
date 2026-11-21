@@ -19,7 +19,7 @@ The game opens on the **BOWLING WIP** title screen (a working title; it's `TITLE
 - **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** hosts or joins a game over the internet or your home network (see below).
-- **Settings** has fullscreen, vsync, volume, camera shake, strike replay on/off and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
+- **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), volume, camera shake, strike replay on/off and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
 - **How to play** is a short picture guide to a frame: draft a piece, build it into the lane, then roll and smash the pins (see below).
 - **Controls**, **Credits** and **Quit**.
 
@@ -82,7 +82,10 @@ Built in code in `scripts/casino/casino_island.gd`, with blackjack in `scripts/c
 
 - **Soccer:** a small pitch with a blue goal on the left and an orange goal on the right. Push the big ball into the orange goal to score for blue, and into the blue goal to score for orange. The scoreboard behind the pitch keeps count, everyone gets a GOAL! and confetti, and the ball goes back to the middle for kick-off. If the ball gets knocked off the pitch it comes back to the middle too.
 - **Hoops:** roll onto the trampoline set into the ground and it throws you at the basketball hoop. Most throws go in (not all!). A basket gets a SWISH!, a burst of confetti and adds one to the BASKETS count on the backboard.
+- **SKEE-JUMP:** a retro arcade lane under a marquee sign. Roll down the lane, hit the yellow kicker ramp and fly onto the striped board. Where you **first land** is your score: 10, 20, 30, 50, or the thin 100 strip near the back. Too slow and you're SHORT; too fast and you sail OVER into the back net for nothing. Full speed reaches about the 50; the 100 needs a hop off the end of the kicker. Three balls a game (you're put back at the start after each), and a coin for every 10 points at the end. Built in `scripts/skee_jump.gd`; the scoring bands are the `BANDS` list at the top.
 - Fall off the sports island and you come back on the sports island, not the main one.
+
+![SKEE-JUMP](docs/big-update/skee.jpg)
 
 It's built in code in `scripts/sports_island.gd`.
 
@@ -100,7 +103,7 @@ A match is 10 frames. Every match starts on a new random track that winds left a
 
 ### Hopping and gaps
 
-While rolling, tap your place key (E for P1, Enter for P2) to hop. It's a small hop, about 0.8 m, which is just enough to clear the 0.7 m side walls if you want to jump off or cut a corner, and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
+While rolling, tap your place key (E for P1, Enter for P2) to hop. Hops are forgiving: one pressed a split second after rolling off an edge still works, and one pressed just before landing happens the moment you touch down. While your marble is in the air a soft round shadow sits right under it, so you can see where it'll land. The ball squashes when it lands and stretches when it hops (just the picture, not the physics). It's a small hop, about 0.8 m, which is just enough to clear the 0.7 m side walls if you want to jump off or cut a corner, and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
 
 ### Bots
 
@@ -248,6 +251,13 @@ Pieces further down the track move with it, and the pins move to the new end.
 | TA: Wall Breaker | Takes the side walls off 10 m of track from where you drop it, without changing its shape. The walls that will go show red while you place it |
 | TA: S-Bend | Changes the track itself: adds a wiggle, left then right (rotate key flips it to right then left) |
 | TA: Narrow Bridge | Changes the track itself: adds a 9 m plank under 2 m wide with no walls. Steady marbles make it across; wobbly ones fall off. Pieces can't be placed on it |
+| Pop Bumper | A pinball bumper. Touch it and it throws you away from its middle, hard, any direction (even back up the lane), with a POP! |
+| Pendulum | A heavy bowling ball swinging side to side across the lane from a little gantry. Time your run or get batted sideways |
+| Magnet | Drags marbles toward its middle. Fast ones whip round it and fly off at a new angle; slow ones get stuck circling for a moment |
+| Bounce Pad | A trampoline in the lane: springs marbles up about 2 m with a BOING!, keeping their speed down the lane |
+| TA: Oil Slick | Adds 10 m of freshly oiled lane with almost no grip (rainbow sheen). Steering barely works, so you keep whatever line you came in on |
+| TA: Zig-Zag | Adds three quick bends: left, right, left (rotate key flips it) |
+| TA: Rollercoaster Hill | Adds a climb then a steep drop. Slow marbles may roll back and need a push |
 | Bomb (item) | Drop it on the lane to blow up every piece inside the red circle. It doesn't stay |
 
 ![The pieces in their painted-toy finish](docs/pieces.png)
@@ -292,7 +302,14 @@ Player 1's hop / place / grab key is **Space** (E still works too). Everything w
 
 ## Art direction (work in progress)
 
-The look is **toy diorama**: soft, matte, low-poly shapes like painted wooden toys. The hub floats in a sunny sky with puffy 3D clouds (`scripts/art_style.gd`).
+The look is **toy diorama** with a **retro bowling alley** finish: soft, matte, low-poly shapes like painted wooden toys, seen through warm 70s film. The hub floats in a sunny sky with puffy 3D clouds (`scripts/art_style.gd`).
+
+- **Retro look** (`scripts/retro_filter.gd`, `shaders/retro_screen.gdshader`): a screen filter under the HUD. LOUNGE (the default) gives amber highlights, purple shadows, dark corners and a little film grain; ARCADE adds faint CRT scanlines and colour fringing; OFF is the plain picture. Every effect has its own strength at the top of the shader.
+- **Marquee lights** (`shaders/marquee_lights.gdshader`): chase-light bulbs along the top of the track walls, like an old alley sign. They chase toward the pins, so they also show which way to roll.
+- **Retro sign title** (`scripts/retro_title.gd`): the title's bobbing letters on stacked orange, red and purple stripe shadows, and the matching three-stripe trim on menus and draft cards.
+- **Comic pop words** (`scripts/pop_text.gd`): POP!, BOING! and THUD! pop out of the world. `PopText.spawn(node, where, "TEXT", colour)` adds one anywhere.
+
+![The ARCADE retro look](docs/big-update/arcade.jpg)
 
 ### Your own models (Blender)
 
@@ -456,7 +473,10 @@ tests/
   test_scoring.gd    checks the scoring rules
   test_controls.gd   presses fake keys and controller buttons through menus, settings and a match
   sim_roll.gd        plays frames with no one at the keys and prints results
-  sim_items.gd       tries the teleporter, wind fan, Wall Breaker, Narrow Bridge and S-Bend
+  sim_items.gd       tries the teleporter, wind fan, Wall Breaker, Narrow Bridge and S-Bend, and
+                     any newer piece by id (pop_bumper, pendulum, magnet, bounce_pad, track_oil...)
+  sim_skee.gd        rolls SKEE-JUMP at several speeds and prints the scores
+  shot_pieces.gd     screenshots of the newest pieces, draft cards and SKEE-JUMP
   test_track_cards.gd  drops every TA card on a track and checks its preview and what it changed
   shot_ta.gd         screenshot of a TA card being placed (see the top of the file)
   test_strike_replay.gd  a strike plays the replay, any key skips it, everything ends up back in place

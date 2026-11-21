@@ -345,7 +345,19 @@ func _update_draft(game) -> void:
 		card.stamp.pivot_offset = card.stamp.size / 2.0
 		card.stamp.rotation = -0.2
 		panel.pivot_offset = panel.size / 2.0
-		panel.scale = panel.scale.lerp(Vector2.ONE * target_scale, 0.3)
+		# Deal the cards in one after another: each flips up from small and
+		# tilted with a springy overshoot.
+		var k := clampf((Time.get_ticks_msec() / 1000.0 - card.born - 0.07 * slot) / 0.4, 0.0, 1.0)
+		if k < 1.0:
+			var e := 1.0 + 2.7 * pow(k - 1.0, 3) + 1.7 * pow(k - 1.0, 2)  # ease out, back
+			panel.scale = Vector2.ONE * lerpf(0.2, 1.0, e)
+			panel.rotation = deg_to_rad(lerpf(-14.0, 0.0, e))
+			panel.position.y += (1.0 - e) * 80.0
+			panel.modulate.a = clampf(k * 4.0, 0.0, 1.0)
+		else:
+			panel.rotation = 0.0
+			panel.modulate.a = 1.0
+			panel.scale = panel.scale.lerp(Vector2.ONE * target_scale, 0.3)
 
 	while _pointers.size() < game.player_count:
 		var ptr := DraftPointer.new()
@@ -384,6 +396,7 @@ func _build_cards(crate: Array) -> void:
 		box.alignment = BoxContainer.ALIGNMENT_CENTER
 		box.add_theme_constant_override("separation", 2)
 		panel.add_child(box)
+		box.add_child(RetroTitle.Trim.new())
 		# Track altering cards (TAs) get a gold badge on top.
 		var badge := Label.new()
 		badge.text = PieceCatalog.tag(id) if PieceCatalog.is_track(id) else ""
@@ -428,8 +441,33 @@ func _build_cards(crate: Array) -> void:
 		stamp.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		stamp.visible = false
 		panel.add_child(stamp)  # fills the card, on top of the picture
+		if PieceCatalog.is_new(id):
+			panel.add_child(_new_sticker())
 		_card_layer.add_child(panel)
-		_cards.append({"panel": panel, "style": style, "pic": pic, "stamp": stamp})
+		panel.modulate.a = 0.0
+		# "born": when it was dealt (see _update_draft for the deal-in).
+		_cards.append({"panel": panel, "style": style, "pic": pic, "stamp": stamp,
+				"born": Time.get_ticks_msec() / 1000.0})
+
+
+## A tilted red NEW! sticker for the top corner of a draft card.
+func _new_sticker() -> Control:
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l := Label.new()
+	l.text = "NEW!"
+	l.add_theme_font_override("font", TITLE_FONT)
+	l.add_theme_font_size_override("font_size", 22)
+	l.add_theme_color_override("font_color", Color(1, 0.97, 0.88))
+	var bg := _pill(RetroTitle.STRIPES[1], 12, 2)
+	bg.set_corner_radius_all(14)
+	bg.border_color = Color(0.05, 0.05, 0.12)
+	bg.set_border_width_all(3)
+	l.add_theme_stylebox_override("normal", bg)
+	l.position = Vector2(CARD_W - 92, -16)
+	l.rotation = deg_to_rad(12.0)
+	holder.add_child(l)
+	return holder
 
 
 # ------------------------------------------------------------ Build chips
@@ -1424,6 +1462,11 @@ func _title_label(size: int, preset: int) -> Label:
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.12))
 	l.add_theme_constant_override("outline_size", maxi(6, size / 6))
+	# A chunky retro drop shadow in sign orange.
+	l.add_theme_color_override("font_shadow_color", Color(0.93, 0.4, 0.2, 0.9))
+	l.add_theme_constant_override("shadow_offset_x", maxi(2, size / 14))
+	l.add_theme_constant_override("shadow_offset_y", maxi(3, size / 11))
+	l.add_theme_constant_override("shadow_outline_size", maxi(6, size / 6))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.set_anchors_and_offsets_preset(preset)
 	l.grow_horizontal = Control.GROW_DIRECTION_BOTH

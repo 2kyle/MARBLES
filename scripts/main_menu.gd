@@ -122,15 +122,9 @@ func _ready() -> void:
 	title_box.add_theme_constant_override("separation", -6)
 	_root.add_child(title_box)
 	_title_box = title_box
-	var title := Label.new()
+	var title := RetroTitle.new()
 	title.text = TITLE
-	title.add_theme_font_override("font", TITLE_FONT)
-	title.add_theme_font_size_override("font_size", 104)
-	title.add_theme_color_override("font_color", Color.WHITE)
-	title.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.12))
-	title.add_theme_constant_override("outline_size", 22)
-	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.35))
-	title.add_theme_constant_override("shadow_offset_y", 8)
+	title.font_size = 104
 	title_box.add_child(title)
 
 	_build_main_page()
@@ -639,12 +633,13 @@ func _page(name: String, heading: String) -> VBoxContainer:
 	style.content_margin_top = 24
 	style.content_margin_bottom = 24
 	panel.add_theme_stylebox_override("panel", style)
-	panel.position = Vector2(72, 230)
+	panel.position = Vector2(72, 214)
 	panel.custom_minimum_size = Vector2(440, 0)
 	_root.add_child(panel)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", 7)
 	panel.add_child(box)
+	box.add_child(RetroTitle.Trim.new())
 	if heading != "":
 		var h := Label.new()
 		h.text = heading
@@ -717,7 +712,15 @@ func _style_button(b: Button, big: bool) -> void:
 	b.add_theme_color_override("font_hover_color", Color(0.08, 0.06, 0.04))
 	b.add_theme_color_override("font_focus_color", Color(0.08, 0.06, 0.04))
 	b.add_theme_color_override("font_pressed_color", Color(0.08, 0.06, 0.04))
-	b.focus_entered.connect(func(): b.add_theme_stylebox_override("normal", hot))
+	b.focus_entered.connect(func():
+		b.add_theme_stylebox_override("normal", hot)
+		# A little springy pop when a button lights up.
+		b.pivot_offset = Vector2(24, b.size.y / 2.0)
+		b.scale = Vector2(1.06, 1.06)
+		b.rotation = deg_to_rad(-1.2)
+		var tw := b.create_tween().set_parallel()
+		tw.tween_property(b, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(b, "rotation", 0.0, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 	b.focus_exited.connect(func(): b.add_theme_stylebox_override("normal", normal))
 	b.mouse_entered.connect(b.grab_focus)
 

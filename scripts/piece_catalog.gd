@@ -92,24 +92,28 @@ const PIECES := {
 		"about": "Pinball kick, any way",
 		"scene": "res://scenes/pieces/pop_bumper.tscn",
 		"kind": "piece", "radius": 0.75, "base_rotation": 0.0,
+		"new": true,
 	},
 	"pendulum": {
 		"name": "Pendulum",
 		"about": "Swings across the lane",
 		"scene": "res://scenes/pieces/pendulum.tscn",
 		"kind": "piece", "radius": 1.6, "base_rotation": 0.0,
+		"new": true,
 	},
 	"magnet": {
 		"name": "Magnet",
 		"about": "Drags balls in",
 		"scene": "res://scenes/pieces/magnet.tscn",
 		"kind": "piece", "radius": 1.5, "base_rotation": 0.0,
+		"new": true,
 	},
 	"bounce_pad": {
 		"name": "Bounce Pad",
 		"about": "Springs balls high",
 		"scene": "res://scenes/pieces/bounce_pad.tscn",
 		"kind": "piece", "radius": 0.95, "base_rotation": 0.0,
+		"new": true,
 	},
 	"track_bend": {
 		"name": "Track Bend",
@@ -183,6 +187,7 @@ const PIECES := {
 		"about": "Fresh lane oil, no grip",
 		"scene": "res://scenes/pieces/track_oil.tscn",
 		"kind": "track", "segment": "oil", "radius": 1.6, "base_rotation": 0.0,
+		"new": true,
 	},
 	"track_zigzag": {
 		"name": "Zig-Zag",
@@ -190,12 +195,14 @@ const PIECES := {
 		"turns": true,
 		"scene": "res://scenes/pieces/track_zigzag.tscn",
 		"kind": "track", "segment": "zigzag", "radius": 1.6, "base_rotation": 0.0,
+		"new": true,
 	},
 	"track_hill": {
 		"name": "Rollercoaster Hill",
 		"about": "Up and over, keep speed",
 		"scene": "res://scenes/pieces/track_hill.tscn",
 		"kind": "track", "segment": "hill", "radius": 1.6, "base_rotation": 0.0,
+		"new": true,
 	},
 	"bomb": {
 		"name": "Bomb",
@@ -247,6 +254,12 @@ static func tag(id: String) -> String:
 	if is_bomb(id):
 		return "ITEM"
 	return ""
+
+
+## Pieces added in the latest update: their draft cards get a NEW! sticker.
+## (Delete "new": true from an entry once everyone's used to it.)
+static func is_new(id: String) -> bool:
+	return PIECES.has(id) and PIECES[id].get("new", false)
 
 
 static func info(id: String) -> Dictionary:

@@ -143,7 +143,10 @@ const MARBLE_SHADER := preload("res://shaders/marble.gdshader")
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	landed.connect(wince)
-	landed.connect(func(strength): squash(clampf(strength / 9.0, 0.0, 0.45)))
+	landed.connect(func(strength):
+		squash(clampf(strength / 9.0, 0.0, 0.45))
+		if strength > 7.5 and not preview:
+			PopText.spawn(self, global_position + Vector3.UP * 0.7, "THUD!", Color(0.95, 0.9, 0.8), 0.8))
 	hopped.connect(func(): squash(-0.28))
 	_last_pos = global_position
 	_apply_look()

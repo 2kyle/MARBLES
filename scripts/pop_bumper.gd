@@ -113,6 +113,7 @@ func _on_body_entered(body: Node) -> void:
 	m.wince(6.0)
 	_cooldown[body] = 0.15
 	_flash = 1.0
+	PopText.spawn(self, global_position + Vector3.UP * 0.9, "POP!", Color(1.0, 0.45, 0.65))
 
 
 func _process(delta: float) -> void:

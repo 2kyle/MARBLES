@@ -8,6 +8,11 @@ extends RefCounted
 ## toys. Lighting is a plain sunny day: a blue sky, puffy white 3D clouds,
 ## light haze in the distance, and no heavy bloom or glare. Effects stay
 ## cheap: no screen-space ambient occlusion, no noise-heavy sky shader.
+##
+## Big Saturday update: a warmer "retro bowling alley" grade on top. The
+## sun hangs a little lower and more golden (see Arena.plain_sun), a little
+## more glow makes lanterns and neon bloom softly, and the colour grade itself
+## is done by the RetroFilter screen shader (Settings > RETRO LOOK).
 
 const SKY_TOP := Color(0.32, 0.56, 0.9)
 const SKY_HORIZON := Color(0.78, 0.86, 0.96)
@@ -39,11 +44,12 @@ static func environment(below: Color) -> Environment:
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.0
-	# Just enough glow for lanterns and neon marbles, no haze over everything.
+	# Soft neon glow for lanterns, party lights and glowing marbles.
 	env.glow_enabled = true
-	env.glow_intensity = 0.35
-	env.glow_bloom = 0.0
-	env.glow_hdr_threshold = 1.5
+	env.glow_intensity = 0.55
+	env.glow_bloom = 0.02
+	env.glow_hdr_threshold = 1.1
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
 	env.fog_enabled = true
 	env.fog_light_color = HAZE
 	env.fog_density = 0.0015

@@ -127,11 +127,12 @@ func light_sun(sun: DirectionalLight3D) -> void:
 	plain_sun(sun)
 
 
-## The plain afternoon sun (the practice island uses it too).
+## The plain late-afternoon sun (the practice island uses it too): a bit
+## lower and more golden than midday, for longer shadows and warm light.
 static func plain_sun(sun: DirectionalLight3D) -> void:
-	sun.rotation = Vector3(-0.55, 0.9, 0)
-	sun.light_color = Color(1, 0.86, 0.7)
-	sun.light_energy = 0.95
+	sun.rotation = Vector3(-0.5, 0.9, 0)
+	sun.light_color = Color(1, 0.82, 0.62)
+	sun.light_energy = 1.0
 
 
 ## A burst where a marble falls off the track and hits the ground.

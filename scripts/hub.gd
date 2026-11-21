@@ -483,6 +483,10 @@ func _customize_plate() -> void:
 	mm.metallic = 1.0
 	mm.roughness = 0.05
 	LowPoly.box(self, Vector3(1.4, 2.0, 0.05), PLATE_POS + Vector3(0, 1.3, -1.44), frame_col, 0.0)
+	# The arch's posts and the mirror are solid.
+	for x in [-1.8, 1.8]:
+		LowPoly.solid_box(self, Vector3(0.25, 3.0, 0.25), PLATE_POS + Vector3(x, 1.5, -0.6))
+	LowPoly.solid_box(self, Vector3(1.4, 2.3, 0.12), PLATE_POS + Vector3(0, 1.15, -1.42))
 	LowPoly.label(self, PLATE_POS + Vector3(0, 3.1, -0.42), "CUSTOMIZE", 64, Color(0.4, 0.1, 0.45))
 
 
@@ -558,6 +562,8 @@ func _play_portal() -> void:
 	var gold := Color(1.0, 0.8, 0.25)
 	LowPoly.box(self, Vector3(0.5, 4.2, 0.5), PORTAL_POS + Vector3(-2.3, 2.1, 0), Color(0.95, 0.93, 0.88), 0.0)
 	LowPoly.box(self, Vector3(0.5, 4.2, 0.5), PORTAL_POS + Vector3(2.3, 2.1, 0), Color(0.95, 0.93, 0.88), 0.0)
+	for x in [-2.3, 2.3]:
+		LowPoly.solid_box(self, Vector3(0.5, 4.2, 0.5), PORTAL_POS + Vector3(x, 2.1, 0))
 	LowPoly.box(self, Vector3(5.6, 0.9, 0.55), PORTAL_POS + Vector3(0, 4.3, 0), gold, 0.0)
 	LowPoly.label(self, PORTAL_POS + Vector3(0, 4.3, -0.3), "PLAY", 110, Color(0.45, 0.25, 0.05), PI)
 	var glow := MeshInstance3D.new()
@@ -622,6 +628,7 @@ func _playground() -> void:
 
 func _windmill(at: Vector3) -> void:
 	LowPoly.cyl(self, 1.0, 1.5, 5.0, at + Vector3.UP * 2.5, Color(0.95, 0.9, 0.82), 8)
+	LowPoly.solid_cyl(self, 1.35, 5.0, at + Vector3.UP * 2.5)
 	LowPoly.cyl(self, 0.05, 1.7, 1.5, at + Vector3.UP * 5.75, Color(0.8, 0.3, 0.25), 8)
 	LowPoly.box(self, Vector3(0.6, 1.0, 0.1), at + Vector3(0, 0.5, 1.4), Color(0.45, 0.3, 0.2), 0.0)
 	var hub := Node3D.new()
@@ -911,10 +918,13 @@ func _lookout() -> void:
 	LowPoly.cyl(self, 0.08, 0.08, 1.0, scope_at + Vector3.UP * 0.8, Color(0.3, 0.3, 0.32), 6)
 	var scope := LowPoly.cyl(self, 0.09, 0.14, 0.9, scope_at + Vector3(0, 1.35, -0.2), Color(0.8, 0.65, 0.3), 10)
 	scope.rotation.x = -1.2
+	LowPoly.solid_cyl(self, 1.15, 1.3, scope_at + Vector3.UP * 0.65)
 	LowPoly.box(self, Vector3(1.0, 0.6, 0.7), islet + Vector3(3.8, 0.3, 2.4), Color(0.55, 0.35, 0.18), -0.5)
 	LowPoly.box(self, Vector3(1.05, 0.12, 0.75), islet + Vector3(3.8, 0.66, 2.4), Color(0.95, 0.75, 0.25), -0.5)
+	LowPoly.solid_box(self, Vector3(1.05, 0.72, 0.75), islet + Vector3(3.8, 0.36, 2.4), -0.5)
 	var palm_at := islet + Vector3(4.3, 0, -3.4)
 	LowPoly.cyl(self, 0.12, 0.2, 3.5, palm_at + Vector3.UP * 1.75, Color(0.55, 0.4, 0.25), 6)
+	LowPoly.solid_cyl(self, 0.2, 3.5, palm_at + Vector3.UP * 1.75)
 	for k in 6:
 		var leaf := LowPoly.box(self, Vector3(0.35, 0.05, 1.8), palm_at + Vector3.UP * 3.5, Color(0.3, 0.65, 0.3), TAU * k / 6.0)
 		leaf.rotate_object_local(Vector3.RIGHT, 0.35)
@@ -973,6 +983,7 @@ func _casino_island() -> void:
 	var post := dir * (ISLAND_RADIUS - 5.0) + side * 2.6
 	var yaw := atan2(-dir.x, -dir.z)
 	LowPoly.box(self, Vector3(0.18, 2.6, 0.18), post + Vector3.UP * 1.3, Color(0.5, 0.35, 0.22), yaw)
+	LowPoly.solid_box(self, Vector3(0.18, 2.6, 0.18), post + Vector3.UP * 1.3, yaw)
 	LowPoly.box(self, Vector3(2.6, 0.7, 0.12), post + Vector3.UP * 2.3, Color(0.45, 0.22, 0.5), yaw)
 	var l := LowPoly.label(self, post + Vector3.UP * 2.3 - dir * 0.12, "CASINO", 44, Color(0.2, 0.0, 0.2), yaw)
 	l.modulate = Color(1.0, 0.85, 0.4)
@@ -1048,6 +1059,7 @@ func _cottage(at: Vector3) -> void:
 	var garden := at + Vector3(-1.5, 0, 4.5)
 	for k in 8:
 		LowPoly.box(self, Vector3(0.08, 0.45, 0.08), garden + Vector3(-2.0 + k * 0.57, 0.22, 1.2), Color.WHITE, 0.0)
+	LowPoly.solid_box(self, Vector3(4.1, 0.45, 0.1), garden + Vector3(0.0, 0.22, 1.2))
 	for row in 3:
 		for k in 5:
 			LowPoly.ball(self, garden + Vector3(-1.6 + k * 0.7, 0.15, -0.6 + row * 0.6), 0.16,
@@ -1097,6 +1109,9 @@ func _benches() -> void:
 		LowPoly.box(bench, Vector3(1.8, 0.4, 0.08), Vector3(0, 0.7, -0.24), wood, 0.0)
 		for x in [-0.75, 0.75]:
 			LowPoly.box(bench, Vector3(0.08, 0.45, 0.45), Vector3(x, 0.22, 0), Color(0.25, 0.25, 0.28), 0.0)
+		# Solid seat and back (marbles used to roll straight through).
+		LowPoly.solid_box(bench, Vector3(1.8, 0.49, 0.5), Vector3(0, 0.245, 0))
+		LowPoly.solid_box(bench, Vector3(1.8, 0.9, 0.1), Vector3(0, 0.45, -0.24))
 
 
 ## Hot-air balloons drifting slowly round the island.

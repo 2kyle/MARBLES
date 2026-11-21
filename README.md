@@ -489,6 +489,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_bots.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_sports.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_jungle.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_plane.gd
+godot --headless --fixed-fps 120 --script res://tests/sim_solid.gd
 godot --headless --script res://tests/test_achievements.gd
 godot --headless --script res://tests/test_how_to_play.gd
 godot --headless --script res://tests/test_track_cards.gd
@@ -503,5 +504,7 @@ To hunt for clipping (things poking through each other), run the clipping finder
 godot --headless -d --script res://tests/find_clipping.gd -- hub
 godot --headless -d --script res://tests/find_clipping.gd -- world 3 1
 ```
+
+Add `ghosts` on the end (`-- hub x x ghosts`) to check the physics instead: it lists things you can see but roll straight through, and solid shapes with nothing drawn there.
 
 It prints pairs like `jungle.gd:_walls <-> hub.gd:_lookout` with how deep they overlap and where. Some are on purpose (the waterfall and the cave are built into the cliff), so look at the worst ones in the game before changing anything.

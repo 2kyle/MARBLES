@@ -274,6 +274,7 @@ func _scoreboard() -> void:
 	var at := PITCH + Vector3(0, 0, -PITCH_HALF.y - 2.2)
 	for x in [-2.6, 2.6]:
 		LowPoly.box(self, Vector3(0.25, 3.4, 0.25), at + Vector3(x, 1.7, 0), Color(0.3, 0.3, 0.35))
+		LowPoly.solid_box(self, Vector3(0.25, 3.4, 0.25), at + Vector3(x, 1.7, 0))
 	LowPoly.box(self, Vector3(6.0, 1.5, 0.3), at + Vector3(0, 3.4, 0), Color(0.12, 0.13, 0.18))
 	LowPoly.box(self, Vector3(6.2, 0.18, 0.4), at + Vector3(0, 4.2, 0), Color(1.0, 0.8, 0.25))
 	LowPoly.box(self, Vector3(1.0, 1.5, 0.32), at + Vector3(-2.5, 3.4, 0.01), BLUE.darkened(0.2))
@@ -485,6 +486,7 @@ func _entrance(bridge_from_z: float) -> void:
 	var at := Vector3(0, 0, RADIUS - 1.6)
 	for x in [-1.8, 1.8]:
 		LowPoly.box(self, Vector3(0.35, 3.2, 0.35), at + Vector3(x, 1.6, 0), Color(0.97, 0.95, 0.9))
+		LowPoly.solid_box(self, Vector3(0.35, 3.2, 0.35), at + Vector3(x, 1.6, 0))
 	LowPoly.box(self, Vector3(4.2, 0.8, 0.5), at + Vector3(0, 3.3, 0), BLUE)
 	LowPoly.label(self, at + Vector3(0, 3.3, 0.27), "SPORTS", 72, Color(0.05, 0.15, 0.4), 0.0)
 	LowPoly.label(self, at + Vector3(0, 3.3, -0.27), "SPORTS", 72, Color(0.05, 0.15, 0.4), PI)
@@ -496,6 +498,7 @@ func _entrance(bridge_from_z: float) -> void:
 	# A sign on the practice island side of the bridge, pointing over.
 	var sign_at := Vector3(2.2, 0, bridge_from_z + 2.0)
 	LowPoly.box(self, Vector3(0.15, 1.6, 0.15), sign_at + Vector3(0, 0.8, 0), WOOD.darkened(0.2))
+	LowPoly.solid_box(self, Vector3(0.15, 1.6, 0.15), sign_at + Vector3(0, 0.8, 0))
 	LowPoly.box(self, Vector3(2.4, 0.7, 0.1), sign_at + Vector3(0, 1.5, 0), Color(1.0, 0.85, 0.35))
 	LowPoly.label(self, sign_at + Vector3(0, 1.5, 0.1), "SPORTS  ^", 40, Color(0.35, 0.2, 0.0), 0.0)
 

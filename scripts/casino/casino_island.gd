@@ -250,6 +250,7 @@ func _island() -> void:
 
 
 func _palm(b: MeshBatch, at: Vector3) -> void:
+	LowPoly.solid_cyl(self, 0.22, 2.4, at + Vector3.UP * 1.2)
 	var p := at
 	var lean := Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized()
 	for k in 6:
@@ -375,6 +376,7 @@ func _derby(plate: Callable, on_table: Callable) -> void:
 	b.cyl(1.3, 1.4, 0.12, BET_PLATE + Vector3.UP * 0.06, Color(0.3, 0.22, 0.12), 24)
 	for x in [-1.6, 1.6]:
 		b.box(Vector3(0.18, 2.6, 0.18), BET_PLATE + Vector3(x, 1.3, -1.2), GOLD)
+		LowPoly.solid_box(self, Vector3(0.18, 2.6, 0.18), BET_PLATE + Vector3(x, 1.3, -1.2))
 	for k in 6:
 		b.box(Vector3(3.6 / 6.0, 0.12, 1.4), BET_PLATE + Vector3(-1.5 + k * 0.6, 2.65, -0.7),
 				Color(0.9, 0.25, 0.25) if k % 2 == 0 else Color.WHITE)
@@ -397,6 +399,11 @@ func _blackjack(plate: Callable, on_table: Callable) -> void:
 	b.cyl(0.5, 0.8, 0.9, TABLE_POS + Vector3(0, 0.45, 0.2), BROWN.darkened(0.2), 12)
 	b.box(Vector3(5.6, 1.1, 1.6), TABLE_POS + Vector3(0, 0.5, -1.9), BROWN)
 	b.box(Vector3(5.6, 0.1, 1.6), TABLE_POS + Vector3(0, 1.08, -1.9), FELT.darkened(0.2))
+	# Solid table: the pedestal, the top (you can't hop onto it) and the
+	# dealer's counter. The seats' plates reach just under the rim.
+	LowPoly.solid_cyl(self, 0.8, 0.9, TABLE_POS + Vector3(0, 0.45, 0.2))
+	LowPoly.solid_cyl(self, 2.75, 0.3, TABLE_POS + Vector3(0, 0.95, 0.2))
+	LowPoly.solid_box(self, Vector3(5.6, 1.13, 1.6), TABLE_POS + Vector3(0, 0.565, -1.9))
 	# Chip racks in front of the dealer.
 	for k in 6:
 		b.cyl(0.12, 0.12, 0.18, TABLE_POS + Vector3(-0.9 + k * 0.36, 1.18, -1.4), NEON[k % 4], 10)
@@ -423,6 +430,7 @@ func _bar(plate: Callable, on_table: Callable) -> void:
 	# Counter with a padded front and a shiny top.
 	b.box(Vector3(12.0, 1.15, 1.1), Vector3(BAR_PLATE.x, 0.58, z), BROWN)
 	b.box(Vector3(12.2, 0.12, 1.3), Vector3(BAR_PLATE.x, 1.2, z), Color(0.15, 0.1, 0.1))
+	LowPoly.solid_box(self, Vector3(12.2, 1.26, 1.3), Vector3(BAR_PLATE.x, 0.63, z))
 	for k in 12:
 		b.box(Vector3(0.85, 0.9, 0.08), Vector3(BAR_PLATE.x - 5.5 + k, 0.55, z + 0.58), ORANGE if k % 2 == 0 else MUSTARD)
 	b.glow_box(Vector3(12.2, 0.05, 0.05), Vector3(BAR_PLATE.x, 1.13, z + 0.66), NEON[1])
@@ -433,6 +441,8 @@ func _bar(plate: Callable, on_table: Callable) -> void:
 			continue
 		b.cyl(0.08, 0.1, 0.8, at + Vector3(0, 0.4, 0), Color(0.8, 0.8, 0.85), 8)
 		b.cyl(0.38, 0.35, 0.16, at + Vector3(0, 0.85, 0), Color(0.85, 0.2, 0.25), 12)
+		LowPoly.solid_cyl(self, 0.12, 0.93, at + Vector3(0, 0.465, 0))
+		LowPoly.solid_cyl(self, 0.38, 0.16, at + Vector3(0, 0.85, 0))
 	# Shelves of glowing bottles on the back wall.
 	var back := -HALF.y + 0.6
 	for row in 3:
@@ -488,6 +498,7 @@ func _roulette() -> void:
 	var b := MeshBatch.new()
 	var at := ROULETTE_POS
 	b.box(Vector3(5.0, 1.0, 2.6), at + Vector3(0, 0.5, 0), BROWN)
+	LowPoly.solid_box(self, Vector3(5.0, 1.2, 2.6), at + Vector3(0, 0.6, 0))
 	b.box(Vector3(4.8, 0.06, 2.4), at + Vector3(0, 1.03, 0), FELT)
 	for k in 12:
 		for r in 3:
@@ -559,6 +570,7 @@ func _slots() -> void:
 		var col: Color = [Color(0.85, 0.2, 0.25), Color(0.2, 0.45, 0.85), Color(0.95, 0.65, 0.2)][k % 3]
 		b.box(Vector3(1.2, 1.9, 0.9), at + Vector3(0, 0.95, 0), col)
 		b.box(Vector3(1.25, 0.5, 1.0), at + Vector3(0, 2.15, 0), col.darkened(0.3))
+		LowPoly.solid_box(self, Vector3(1.25, 2.4, 1.0), at + Vector3(0, 1.2, 0))
 		b.box(Vector3(1.0, 0.2, 0.4), at + Vector3(0, 0.9, -0.55), Color(0.15, 0.15, 0.18))
 		b.beam(at + Vector3(0.68, 1.2, 0), at + Vector3(0.68, 1.9, 0), 0.06, Color(0.8, 0.8, 0.85))
 		b.ball(at + Vector3(0.68, 1.95, 0), 0.1, Color(0.9, 0.15, 0.2), 6)
@@ -570,6 +582,8 @@ func _slots() -> void:
 		# A little stool in front of each.
 		b.cyl(0.3, 0.3, 0.12, at + Vector3(0, 0.7, -1.3), Color(0.85, 0.2, 0.25), 10)
 		b.cyl(0.06, 0.08, 0.65, at + Vector3(0, 0.33, -1.3), Color(0.8, 0.8, 0.85), 6)
+		LowPoly.solid_cyl(self, 0.08, 0.76, at + Vector3(0, 0.38, -1.3))
+		LowPoly.solid_cyl(self, 0.3, 0.12, at + Vector3(0, 0.7, -1.3))
 	add_child(b.make(2.0))
 	_movers.append(func(t: float, _d: float):
 		for i in screens.size():
@@ -583,6 +597,8 @@ func _lounge() -> void:
 	var lamps: Array = []
 	for at in [Vector3(15, 0, 0.0), Vector3(-3, 0, -13.5), Vector3(-19.5, 0, -13.5), Vector3(19.5, 0, 14.0)]:
 		b.cyl(1.6, 1.6, 0.6, at + Vector3(0, 0.3, 0), ORANGE.darkened(0.1), 16)
+		LowPoly.solid_cyl(self, 1.6, 0.6, at + Vector3(0, 0.3, 0))
+		LowPoly.solid_cyl(self, 0.8, 0.88, at + Vector3(0, 0.44, 0))
 		b.cyl(0.7, 0.7, 0.8, at + Vector3(0, 0.4, 0), BROWN, 12)
 		b.cyl(0.8, 0.8, 0.06, at + Vector3(0, 0.82, 0), Color(0.95, 0.9, 0.8), 12)
 		var lamp: Vector3 = at + Vector3(0, 0.85, 0)
@@ -592,6 +608,7 @@ func _lounge() -> void:
 		lamps.append(lamp)
 	for at in [Vector3(HALF.x - 1.2, 0, DOOR_HALF + 1.2), Vector3(HALF.x - 1.2, 0, -DOOR_HALF - 1.2), Vector3(-HALF.x + 1.2, 0, HALF.y - 1.2)]:
 		b.cyl(0.4, 0.3, 0.7, at + Vector3(0, 0.35, 0), TEAL, 10)
+		LowPoly.solid_cyl(self, 0.4, 0.7, at + Vector3(0, 0.35, 0))
 		for k in 6:
 			var a := TAU * k / 6.0
 			b.ball(at + Vector3(cos(a) * 0.35, 1.2 + k * 0.05, sin(a) * 0.35), 0.4, Color(0.25, 0.6, 0.3), 6)
@@ -691,11 +708,13 @@ func _front() -> void:
 		for k in 4:
 			var at := Vector3(x0 + 1.5 + k * 1.8, 0, side * (DOOR_HALF - 0.1))
 			b.cyl(0.06, 0.1, 1.0, at + Vector3(0, 0.5, 0), GOLD, 8)
+			LowPoly.solid_cyl(self, 0.1, 1.1, at + Vector3(0, 0.55, 0))
 			b.ball(at + Vector3(0, 1.05, 0), 0.1, GOLD, 6)
 			if k < 3:
 				b.beam(at + Vector3(0, 0.85, 0), at + Vector3(1.8, 0.85, 0), 0.07, Color(0.7, 0.1, 0.2))
 		# Pillars either side of the door.
 		b.cyl(0.45, 0.5, DOOR_H + 0.6, Vector3(x0 + 0.5, (DOOR_H + 0.6) / 2.0, side * (DOOR_HALF + 0.5)), GOLD, 12)
+		LowPoly.solid_cyl(self, 0.5, DOOR_H + 0.6, Vector3(x0 + 0.5, (DOOR_H + 0.6) / 2.0, side * (DOOR_HALF + 0.5)))
 	# Awning over the door.
 	b.box(Vector3(3.0, 0.3, DOOR_HALF * 2 + 2.0), Vector3(x0 + 1.5, DOOR_H + 0.4, 0), Color(0.7, 0.1, 0.25))
 	# Sign board on the roof facing the bridge, hung on the front of the

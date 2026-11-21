@@ -263,6 +263,8 @@ func _build() -> void:
 		LowPoly.box(self, Vector3(0.1, 0.1, LENGTH + 3.0), Vector3(x, 0.75, -LENGTH / 2.0), white)
 		for k in 9:
 			LowPoly.box(self, Vector3(0.12, 0.8, 0.12), Vector3(x, 0.4, 1.4 - k * (LENGTH + 2.8) / 8.0), white)
+		# The rail is solid, so marbles can't roll onto the race track.
+		LowPoly.solid_box(self, Vector3(0.14, 0.85, LENGTH + 3.0), Vector3(x, 0.425, -LENGTH / 2.0))
 	# Finish line (checkered) and a banner over it.
 	for k in 16:
 		for row in 2:
@@ -271,6 +273,7 @@ func _build() -> void:
 					Color.BLACK if (k + row) % 2 == 0 else Color.WHITE)
 	for side in [-1, 1]:
 		LowPoly.box(self, Vector3(0.18, 3.0, 0.18), Vector3(side * (LANE_W * 2 + 0.6), 1.5, -LENGTH), white)
+		LowPoly.solid_box(self, Vector3(0.18, 3.0, 0.18), Vector3(side * (LANE_W * 2 + 0.6), 1.5, -LENGTH))
 	LowPoly.box(self, Vector3(LANE_W * 4 + 1.4, 0.6, 0.12), Vector3(0, 3.0, -LENGTH), Color(0.85, 0.2, 0.25))
 	LowPoly.label(self, Vector3(0, 3.0, -LENGTH + 0.08), "FINISH", 70, Color(0.4, 0.05, 0.1))
 
@@ -280,6 +283,7 @@ func _build() -> void:
 	LowPoly.box(_gate, Vector3(LANE_W * 4, 0.12, 0.12), Vector3(0, 0.5, -0.6), Color(1.0, 0.8, 0.25))
 	for side in [-1, 1]:
 		LowPoly.box(self, Vector3(0.2, 2.2, 0.2), Vector3(side * (LANE_W * 2 + 0.6), 1.1, -0.6), white)
+		LowPoly.solid_box(self, Vector3(0.2, 2.2, 0.2), Vector3(side * (LANE_W * 2 + 0.6), 1.1, -0.6))
 
 	# The horses: marbles with ears, a mane and a number.
 	for i in 4:
@@ -325,6 +329,8 @@ func _build() -> void:
 	LowPoly.box(self, Vector3(0.2, 4.6, 0.2), Vector3(bx - 1.6, 2.3, -1.5), Color(0.45, 0.3, 0.2))
 	LowPoly.box(self, Vector3(0.2, 4.6, 0.2), Vector3(bx + 1.6, 2.3, -1.5), Color(0.45, 0.3, 0.2))
 	LowPoly.box(self, Vector3(3.6, 2.2, 0.15), Vector3(bx, 3.5, -1.5), Color(0.12, 0.3, 0.2))
+	for x in [bx - 1.6, bx + 1.6]:
+		LowPoly.solid_box(self, Vector3(0.2, 4.6, 0.2), Vector3(x, 2.3, -1.5))
 	_board = LowPoly.label(self, Vector3(bx, 3.5, -1.4), "", 30, Color(0.05, 0.15, 0.1))
 	_board.pixel_size = 0.007
 	LowPoly.label(self, Vector3(bx, 5.05, -1.4), "BALL DERBY", 64, Color(0.5, 0.25, 0.05))
@@ -335,6 +341,8 @@ func _build() -> void:
 	for row in 3:
 		LowPoly.box(self, Vector3(0.9, 0.3 + row * 0.35, LENGTH * 0.7),
 				Vector3(-LANE_W * 2 - 1.3 - row * 0.9, (0.3 + row * 0.35) / 2.0, -LENGTH / 2.0), Color(0.6, 0.45, 0.3).lightened(row * 0.08))
+		LowPoly.solid_box(self, Vector3(0.9, 0.3 + row * 0.35, LENGTH * 0.7),
+				Vector3(-LANE_W * 2 - 1.3 - row * 0.9, (0.3 + row * 0.35) / 2.0, -LENGTH / 2.0))
 		for k in 10:
 			var fan := MeshInstance3D.new()
 			var fs := SphereMesh.new()

@@ -61,6 +61,9 @@ func _process(_d: float) -> bool:
 	var hits := _find()
 	if mode != "hub":
 		hits.append_array(_against_lane())
+	if OS.get_cmdline_user_args().has("ghosts"):
+		_ghosts()
+		return true
 	# Drifting clouds: move them right round their circle and check again.
 	var layers := root.find_children("*", "CloudLayer", true, false)
 	var cloud_paths := layers.map(func(l): return str(l.get_path()) + "/")
@@ -220,6 +223,73 @@ func _find() -> Array:
 				if best > MIN_DEPTH:
 					hits.append({d = best, at = at, a = A, b = B})
 	return hits
+
+
+## Physics check: things at marble height you can SEE but roll straight
+## through (no solid shape there), and solid shapes with nothing to see.
+func _ghosts() -> void:
+	var space: PhysicsDirectSpaceState3D = game.get_world_3d().direct_space_state
+	var hub: Node3D = game.hub
+	var ghosts := {}
+	for sh in shapes:
+		var bb: AABB = sh.aabb
+		var lo: Vector3 = hub.to_local(bb.position)
+		var hi: Vector3 = hub.to_local(bb.end)
+		# Marble height: from the grass up to about a hop.
+		if minf(lo.y, hi.y) > 1.0 or maxf(lo.y, hi.y) < 0.15:
+			continue
+		if bb.size.x < 0.2 and bb.size.z < 0.2:
+			continue   # thin as a flower stalk
+		if bb.size.x > 30.0 or bb.size.z > 30.0:
+			continue   # ground discs
+		var q := PhysicsShapeQueryParameters3D.new()
+		var sphere := SphereShape3D.new()
+		sphere.radius = 0.08
+		q.shape = sphere
+		q.collide_with_areas = false
+		# Probe a few points inside the shape at marble height.
+		var solid := false
+		var probes := 0
+		for v in sh.verts:
+			var c: Vector3 = (sh.xf as Transform3D).origin
+			var p: Vector3 = c.lerp(v, 0.6)
+			var ly := hub.to_local(p).y
+			if ly < 0.12 or ly > 1.0:
+				continue
+			probes += 1
+			q.transform = Transform3D(Basis.IDENTITY, p)
+			if not space.intersect_shape(q, 1).is_empty():
+				solid = true
+				break
+		if probes == 0 or solid:
+			continue
+		var key: String = sh.src
+		if not ghosts.has(key):
+			ghosts[key] = []
+		ghosts[key].append(hub.to_local((sh.xf as Transform3D).origin))
+	# The other way round: solid shapes with nothing drawn there.
+	print("\nINVISIBLE WALLS (solid, but nothing to see):")
+	for cs in hub.find_children("*", "CollisionShape3D", true, false):
+		if not (cs.get_parent() is StaticBody3D) or cs.shape == null:
+			continue
+		var c: Vector3 = cs.global_position
+		var lc := hub.to_local(c)
+		if lc.y < -0.6 or lc.y > 6.0:
+			continue
+		var seen := false
+		for sh in shapes:
+			if (sh.aabb as AABB).grow(0.05).has_point(c) and _depth(sh, c) > -0.05:
+				seen = true
+				break
+		if not seen:
+			# The ground or a big floor: fine if it's under everything.
+			print("  %-60s at (%.1f, %.1f, %.1f)  %s" % [str(cs.get_parent().get_path()).trim_prefix("/root/Main/"), lc.x, lc.y, lc.z, cs.shape.get_class()])
+	print("\nSEE-THROUGH-SOLID (you can roll through these):")
+	var keys := ghosts.keys()
+	keys.sort_custom(func(a, b): return ghosts[a].size() > ghosts[b].size())
+	for k in keys:
+		var at: Array = ghosts[k]
+		print("  %-45s %3d   e.g. %s" % [k, at.size(), ", ".join(at.slice(0, 4).map(func(v): return "(%.1f, %.1f, %.1f)" % [v.x, v.y, v.z]))])
 
 
 ## Scenery poking into the lane itself (the track's floor and walls, and

@@ -46,9 +46,9 @@ static func environment(below: Color) -> Environment:
 	env.tonemap_exposure = 1.0
 	# Soft neon glow for lanterns, party lights and glowing marbles.
 	env.glow_enabled = true
-	env.glow_intensity = 0.55
+	env.glow_intensity = 0.45
 	env.glow_bloom = 0.02
-	env.glow_hdr_threshold = 1.1
+	env.glow_hdr_threshold = 1.25
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
 	env.fog_enabled = true
 	env.fog_light_color = HAZE

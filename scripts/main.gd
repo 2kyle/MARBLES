@@ -384,6 +384,7 @@ func _ensure_hub() -> void:
 		hub._build()
 	hub.sports.goal_scored.connect(_on_goal_scored)
 	hub.sports.basket_made.connect(_on_basket_made)
+	hub.sports.skee.game_over.connect(_on_skee_game_over)
 
 
 ## The island's world, state and camera, once its marbles are placed.
@@ -539,6 +540,15 @@ func _on_secret_found(p: int, id: int, at: Vector3) -> void:
 func _on_goal_scored(team: String) -> void:
 	Achievements.unlock("BACK_OF_THE_NET")
 	net.send_event("fx", {"kind": "goal", "team": team, "score": hub.sports.score})
+
+
+## A game of SKEE-JUMP finished: a coin for every 10 points.
+func _on_skee_game_over(p: int, score: int) -> void:
+	var prof := profile_of(p)
+	var coins := score / 10
+	if prof >= 0 and coins > 0:
+		profiles.add_coins(prof, coins)
+		profiles.save_to_disk()
 
 
 func _on_basket_made(p: int) -> void:

@@ -4,6 +4,8 @@ extends SceneTree
 ##       the Pop Bumper, Bounce Pad, Magnet and Pendulum placed on the lane
 ##   godot --script res://tests/shot_pieces.gd -- <out.png> draft
 ##       a draft with the newest cards on offer (they wear NEW! stickers)
+##   godot --script res://tests/shot_pieces.gd -- <out.png> skee
+##       the SKEE-JUMP arcade lane on the sports island
 var game: Node
 var _t := 0
 var out := "user://shot_pieces.png"
@@ -21,7 +23,21 @@ func _initialize() -> void:
 
 func _process(_d: float) -> bool:
 	_t += 1
-	if _t == 3:
+	if mode == "skee":
+		if _t == 3:
+			game.settings.player_count = 1
+			game._enter_hub()
+		if _t >= 6:
+			var skee: SkeeJump = game.hub.sports.skee
+			var m: Marble = game.hub.marbles[0]
+			if _t == 6:
+				m.global_position = skee.to_global(Vector3(-5.9, 1.1, 0.2))
+				m.linear_velocity = -skee.global_basis.x * 2.0
+			game.camera.set_process(false)
+			game.camera.set_physics_process(false)
+			game.camera.global_position = skee.to_global(Vector3(5.5, 3.4, 4.2))
+			game.camera.look_at(skee.to_global(Vector3(-4.0, 0.3, 0)))
+	elif _t == 3:
 		game.force_theme = "beach"
 		game.settings.player_count = 1
 		game.settings.bot_count = 1
@@ -45,6 +61,8 @@ func _process(_d: float) -> bool:
 			b.place("bounce_pad", Vector2(0.0, -13.5), 0.0, 0)
 			b.place("magnet", Vector2(-0.6, -18.0), 0.0, 0)
 			b.place("pendulum", Vector2(0.0, -23.0), 0.0, 0)
+		if _t == 5:
+			game.hud.visible = false
 		if _t >= 5:
 			game.camera.set_process(false)
 			game.camera.set_physics_process(false)
@@ -52,7 +70,7 @@ func _process(_d: float) -> bool:
 			var f := tr.world_frame_at(4.0)
 			game.camera.global_position = f.origin + f.basis.y * 4.2 + f.basis.z * 1.5
 			game.camera.look_at(tr.world_frame_at(17.0).origin)
-	if _t == 80:
+	if _t == (30 if mode == "skee" else 80):
 		var img := root.get_viewport().get_texture().get_image()
 		img.save_png(out)
 		print("saved ", out)

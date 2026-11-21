@@ -9,6 +9,9 @@ extends RigidBody3D
 ## (most look normal, some are sleepy, googly, happy or grumpy). They blink,
 ## squeeze their eyes shut when something hits them, and stay knocked out
 ## once they fall over.
+##
+## Your own model: save a Blender export as res://assets/models/pin/pin.glb
+## and every pin uses it instead of the built-in shape (see docs/BLENDER.md).
 
 signal fell(pin: Pin)
 
@@ -41,6 +44,11 @@ const HEAD_Y := 0.36
 const HEAD_R := 0.098
 ## Faces, and how often each turns up (most pins look classic).
 const FACES := ["classic", "classic", "classic", "dots", "dots", "googly", "sleepy", "happy", "angry"]
+## The id your own pin model is saved under (assets/models/pin/pin.glb).
+const MODEL_ID := "pin"
+## Keep the cartoon eyes and smile on your own pin model. Set to false if
+## your model has its own face painted or modelled on.
+const FACE_ON_CUSTOM_MODEL := true
 
 static var _mesh: ArrayMesh
 
@@ -60,10 +68,17 @@ func _process(delta: float) -> void:
 
 
 func _build_looks() -> void:
-	var body := MeshInstance3D.new()
-	body.name = "Body"
-	body.mesh = pin_mesh()
-	add_child(body)
+	var custom := CustomModels.make(MODEL_ID)
+	if custom != null:
+		custom.name = "Body"
+		add_child(custom)
+		if not FACE_ON_CUSTOM_MODEL:
+			return
+	else:
+		var body := MeshInstance3D.new()
+		body.name = "Body"
+		body.mesh = pin_mesh()
+		add_child(body)
 	# The face looks back up the lane (+Z), toward the marbles coming in.
 	_face = EyeRig.new()
 	_face.name = "Face"

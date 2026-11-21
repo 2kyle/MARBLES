@@ -21,7 +21,7 @@ const THEMES := ["beach", "city", "caves", "snow", "clouds"]
 ## The ground (or water) is this high. Marbles below `out_of_bounds_y`
 ## (in main.gd, just above this) are out for the frame.
 const GROUND_Y := -4.0
-const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 
 ## This arena's id (see THEMES).
 var id := "beach"

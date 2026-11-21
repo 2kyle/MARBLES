@@ -64,7 +64,7 @@ const BENCHES := [[Vector3(-5, 0, 18.8), 0.0], [Vector3(5, 0, 18.8), 0.0], [Vect
 ## Spots hub things stand on ([centre, radius]), so trees, ferns and rocks
 ## don't grow through them (see is_reserved()).
 var reserved: Array = []
-const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 ## How high a player's name tag floats over their marble.
 const TAG_HEIGHT := 0.85
 const FLOWER_COLORS := [Color(1, 0.45, 0.6), Color(1, 0.85, 0.3), Color(0.7, 0.5, 1),

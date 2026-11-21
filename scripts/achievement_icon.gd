@@ -6,7 +6,7 @@ extends Control
 
 const INK := Color(0.12, 0.1, 0.16)
 const CREAM := Color(1.0, 0.98, 0.92)
-const FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const FONT := preload("res://fonts/Righteous-Regular.ttf")
 
 var emblem := "star"
 var color := Color(1, 0.7, 0.2)

@@ -31,7 +31,7 @@ signal quit_to_menu_requested
 signal quit_requested
 signal settings_changed
 
-const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
 ## The game's name on the title screen (and on signs round the world).
@@ -536,7 +536,7 @@ func _build_achievements_page() -> void:
 
 func _build_credits_page() -> void:
 	var page := _page("credits", "CREDITS")
-	_note(page, "Made with Godot 4 (godotengine.org).\n\nFont: Chakra Petch by the Chakra Petch Project Authors,\nunder the SIL Open Font License.\n\nSteam support: GodotSteam (MIT License) and the Steamworks SDK.\n\nEverything else is built in code for this prototype.")
+	_note(page, "Made with Godot 4 (godotengine.org).\n\nFonts: Righteous by Astigmatic, and Chakra Petch by the\nChakra Petch Project Authors, both under the SIL Open Font License.\n\nSteam support: GodotSteam (MIT License) and the Steamworks SDK.\n\nEverything else is built in code for this prototype.")
 	_button(page, "BACK", back)
 
 

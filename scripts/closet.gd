@@ -9,7 +9,7 @@ extends CanvasLayer
 ## Like everything else, the closet never reads the keyboard. main.gd calls
 ## request_move / request_confirm with each player's input.
 
-const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 const MARBLE_SCENE := preload("res://scenes/marble.tscn")
 const COLUMNS := 4
 const CARD_SIZE := Vector2(150, 178)

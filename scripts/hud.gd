@@ -10,7 +10,7 @@ extends CanvasLayer
 
 ## Seconds the podium shows on its own before the coins screen comes up.
 const PODIUM_TIME := 6.5
-const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
 

@@ -17,7 +17,7 @@ extends Node3D
 ## Changes which random scenery you get (main.gd sets it each match).
 var seed := 1
 
-const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 const FLAG_COLORS := [Color(0.95, 0.3, 0.25), Color(1.0, 0.8, 0.2),
 		Color(0.25, 0.65, 0.95), Color(0.4, 0.85, 0.45), Color(0.9, 0.45, 0.85)]
 

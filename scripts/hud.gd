@@ -55,6 +55,16 @@ var _cards: Array = []       # one Dictionary per crate slot
 var _crate_shown: Array = []
 var _pointers: Array = []    # one DraftPointer per player
 var _last_countdown := -1
+## Strike replay: black cinema bars top and bottom, a red REPLAY tag and a
+## line along the bottom bar showing how far through it is.
+const BAR_HEIGHT := 78.0
+const REPLAY_RED := Color(0.95, 0.22, 0.2)
+var _bar_top: ColorRect
+var _bar_bottom: ColorRect
+var _replay_line: ColorRect
+var _replay_tag: Label
+var _replay_skip: Label
+var _bars := 0.0   # 0 = hidden, 1 = fully in
 
 
 ## A player's draft pointer: a chunky arrow in their colour with a name tag.
@@ -82,6 +92,7 @@ class DraftPointer extends Control:
 
 func _ready() -> void:
 	_build_draft_area()  # first, so its dimmer sits behind everything else
+	_build_replay_bars()
 
 	_scores = HBoxContainer.new()
 	_scores.add_theme_constant_override("separation", 8)
@@ -157,6 +168,7 @@ func refresh(game) -> void:
 	_update_chips(game)
 	_update_ready(game)
 	_update_hub(game)
+	_update_replay(game)
 
 	var show_board: bool = game.state in [game.State.RESULTS, game.State.MATCH_OVER] \
 			or (Input.is_action_pressed("scoreboard") and not game.state in [game.State.WAITING, game.State.HUB])
@@ -231,7 +243,7 @@ func _update_top(game) -> void:
 	if game.state == game.State.ROLLING:
 		text += "      %ds" % ceili(game.time_left())
 	_badge.text = text
-	_badge.visible = not game.state in [game.State.WAITING, game.State.HUB, game.State.MATCH_OVER]
+	_badge.visible = not game.state in [game.State.WAITING, game.State.HUB, game.State.MATCH_OVER, game.State.REPLAY]
 	if game.state == game.State.HUB and game.hub.derby.status() != "":
 		_badge.text = game.hub.derby.status()
 		_badge.visible = true
@@ -1224,6 +1236,66 @@ func _winner_text(game) -> String:
 	return "%s WINS!" % winners[0]
 
 
+# ------------------------------------------------------------ Strike replay
+
+func _build_replay_bars() -> void:
+	_bar_top = ColorRect.new()
+	_bar_top.color = Color.BLACK
+	_bar_top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_bar_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_bar_top)
+	_bar_bottom = ColorRect.new()
+	_bar_bottom.color = Color.BLACK
+	_bar_bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_bar_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_bar_bottom)
+	_replay_line = ColorRect.new()
+	_replay_line.color = REPLAY_RED
+	_replay_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar_bottom.add_child(_replay_line)
+	_replay_tag = Label.new()
+	_replay_tag.text = "●  REPLAY"
+	_replay_tag.add_theme_font_override("font", TITLE_FONT)
+	_replay_tag.add_theme_font_size_override("font_size", 34)
+	_replay_tag.add_theme_color_override("font_color", REPLAY_RED)
+	_replay_tag.position = Vector2(28, 18)
+	_bar_top.add_child(_replay_tag)
+	_replay_skip = Label.new()
+	_replay_skip.text = "Press any key to skip"
+	_replay_skip.add_theme_font_size_override("font_size", 16)
+	_replay_skip.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
+	_replay_skip.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+	_replay_skip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_replay_skip.offset_right = -28
+	_bar_bottom.add_child(_replay_skip)
+	_set_bars(0.0)
+
+
+## Slide the cinema bars in for the replay and out again afterwards.
+func _update_replay(game) -> void:
+	var on: bool = game.state == game.State.REPLAY
+	var delta := get_process_delta_time()
+	_bars = move_toward(_bars, 1.0 if on else 0.0, delta * 4.0)
+	_set_bars(_bars)
+	if on:
+		# The tag blinks like a camera's record light.
+		_replay_tag.modulate.a = 1.0 if fmod(Time.get_ticks_msec() / 1000.0, 1.0) < 0.6 else 0.35
+		_replay_line.size = Vector2(_bar_bottom.size.x * game.replay.progress(), 4)
+	# The score chips sit where the top bar goes, so they make way.
+	_scores.modulate.a = 1.0 - _bars
+
+
+func _set_bars(amount: float) -> void:
+	var h := BAR_HEIGHT * ease(amount, 0.5)
+	_bar_top.visible = amount > 0.0
+	_bar_bottom.visible = amount > 0.0
+	_bar_top.offset_bottom = h
+	_bar_bottom.offset_top = -h
+	_replay_tag.visible = amount >= 1.0
+	_replay_skip.visible = amount >= 1.0
+	_replay_line.visible = amount >= 1.0
+
+
 # ------------------------------------------------------------ Key hints
 
 func _update_hints(game) -> void:
@@ -1260,6 +1332,8 @@ func _update_hints(game) -> void:
 				if turn != "":
 					items += [[k.rotate, turn]]
 				items += [[k.confirm, "Drop"], "|"]
+		game.State.REPLAY:
+			pass   # "Press any key to skip" is on the replay bar instead
 		game.State.COUNTDOWN, game.State.ROLLING:
 			for p in game.local_seats():
 				var k := _key_names(game.seat_keys[p])

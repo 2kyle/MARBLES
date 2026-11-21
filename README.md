@@ -19,7 +19,7 @@ The game opens on the **BOWLING WIP** title screen (a working title; it's `TITLE
 - **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** hosts or joins a game over the internet or your home network (see below).
-- **Settings** has fullscreen, vsync, volume, camera shake and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
+- **Settings** has fullscreen, vsync, volume, camera shake, strike replay on/off and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
 - **How to play** is a short picture guide to a frame: draft a piece, build it into the lane, then roll and smash the pins (see below).
 - **Controls**, **Credits** and **Quit**.
 
@@ -198,6 +198,16 @@ When the match ends, the game cuts to a **FINAL STANDINGS** stage of its own: a 
 ### STRIKE!
 
 If a single player knocks down every pin in a frame on their own, a big **STRIKE!** in their colour bursts onto the middle of the screen before the scores come in. If the pins were shared between players, there's no banner.
+
+### Strike replay
+
+![The slow-motion strike replay](docs/strike_replay.png)
+
+Before the STRIKE! banner, the game shows the strike again in **slow motion** from a low camera beside the pins. Black cinema bars slide in with a blinking red **REPLAY** tag, and a red line along the bottom shows how far through it is. It starts just before the first pin is hit, slows right down for the crash, and ends just after the last pin falls (about 5 seconds). **Press any key or button to skip it.** Then the STRIKE! banner and the scores carry on as usual.
+
+How it works: while the marbles roll, `scripts/strike_replay.gd` notes where every marble and pin is, 60 times a second, keeping the last 8 seconds. For the replay it freezes everything and moves each piece back through those spots, blending smoothly between them, then puts everything exactly where the roll ended. Nothing is re-simulated, so the replay always matches what really happened.
+
+Switch it off in **Settings > STRIKE REPLAY**. It doesn't play in online games yet (everyone would have to watch it at the same time).
 
 The scoreboard then pops in and counts each player's new points up into their total one row at a time, with a "+N" flying off and the leader marked with a star.
 
@@ -403,6 +413,7 @@ scripts/
   achievement_icon.gd  draws the achievement badges
   hub.gd             the hub (practice run, closet plate, trophies, PLAY arch, name tags)
   ball_return.gd     the bowling end: lane, gutters, pit and ball return
+  strike_replay.gd   records each roll and plays a strike back in slow motion
   arena/             the five match worlds, one file each, plus shared helpers
   casino/            the casino island and blackjack
   sports_island.gd   the sports island: soccer pitch and scoreboard, trampoline and hoop
@@ -438,6 +449,8 @@ tests/
   sim_items.gd       tries the teleporter, wind fan, Wall Breaker, Narrow Bridge and S-Bend
   test_track_cards.gd  drops every TA card on a track and checks its preview and what it changed
   shot_ta.gd         screenshot of a TA card being placed (see the top of the file)
+  test_strike_replay.gd  a strike plays the replay, any key skips it, everything ends up back in place
+  shot_replay.gd     screenshot part way through a strike replay (not a test)
   sim_gap.gd         rolls over a gap, with or without well-timed hops
   sim_hub.gd         checks the hub's teleports, closet, a loot crate, derby bet and PLAY arch
   test_crates.gd     opens 100,000 crates and checks the odds (1% trophy and so on)
@@ -468,6 +481,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_plane.gd
 godot --headless --script res://tests/test_achievements.gd
 godot --headless --script res://tests/test_how_to_play.gd
 godot --headless --script res://tests/test_track_cards.gd
+godot --headless --fixed-fps 120 --script res://tests/test_strike_replay.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam
 ```

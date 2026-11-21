@@ -447,6 +447,10 @@ func _build_settings_page() -> void:
 	shake.value_changed.connect(func(i):
 		settings.camera_shake = [0.0, 0.5, 1.0, 1.6][i]
 		_save())
+	var replay := _stepper(page, "STRIKE REPLAY", ["OFF", "ON"])
+	replay.value_changed.connect(func(i):
+		settings.strike_replay = i == 1
+		_save())
 	var fps := _stepper(page, "SHOW FPS", ["OFF", "ON"])
 	fps.value_changed.connect(func(i):
 		settings.show_fps = i == 1
@@ -456,6 +460,7 @@ func _build_settings_page() -> void:
 		vsync.index = 1 if settings.vsync else 0
 		volume.index = roundi(settings.master_volume * 10.0)
 		shake.index = maxi([0.0, 0.5, 1.0, 1.6].find(settings.camera_shake), 0)
+		replay.index = 1 if settings.strike_replay else 0
 		fps.index = 1 if settings.show_fps else 0)
 	_button(page, "BACK", back)
 

@@ -3,7 +3,7 @@ extends Node3D
 ## A little model of a track card's shape, for the draft card pictures:
 ## a short bit of track with the new part (bend, drop or hairpin) in yellow.
 
-@export_enum("bend", "drop", "hairpin", "gap", "open", "sbend", "narrow") var shape := "bend":
+@export_enum("bend", "drop", "hairpin", "gap", "open", "sbend", "narrow", "zigzag", "hill", "oil") var shape := "bend":
 	set(v):
 		shape = v
 		if is_inside_tree():
@@ -29,6 +29,18 @@ func _build() -> void:
 			seg.len = pair[0].len + pair[1].len
 			seg.turn = 0.0
 			seg["wiggle"] = pair
+		"zigzag":
+			var three := TrackGen.zigzag(1.0)
+			seg = three[0].duplicate()
+			seg.len = three[0].len + three[1].len + three[2].len
+			seg.turn = 0.0
+			seg["wiggle"] = three
+		"hill":
+			var two := TrackGen.hill()
+			seg = two[0].duplicate()
+			seg.len = two[0].len + two[1].len
+			seg["wiggle"] = two
+		"oil": seg = TrackGen.oil()
 		"narrow": seg = TrackGen.narrow()
 		"drop": seg = TrackGen.drop()
 		"hairpin": seg = TrackGen.hairpin(1.0)
@@ -38,7 +50,7 @@ func _build() -> void:
 	var lead := {"len": 6.0, "turn": 0.0, "grade": 0.12}
 	var layout := [lead, seg, lead.duplicate()]
 	if seg.has("wiggle"):
-		layout = [lead, seg.wiggle[0], seg.wiggle[1], lead.duplicate()]
+		layout = [lead] + seg.wiggle + [lead.duplicate()]
 	var pts := TrackGen.points(layout)
 	# Centre it.
 	var lo := pts[0]
@@ -52,6 +64,8 @@ func _build() -> void:
 	_add_strip(pts, 0, a, mid, Color(0.72, 0.55, 0.36))
 	if seg.get("open", false):
 		_add_strip(pts, a, b, mid, Color(1.0, 0.35, 0.25), false)
+	elif seg.get("oil", false):
+		_add_strip(pts, a, b, mid, Color(0.25, 0.85, 0.95))
 	elif seg.get("narrow", false):
 		_add_strip(pts, a, b, mid, Color(1.0, 0.82, 0.2), false, Track.NARROW_WIDTH)
 	elif not seg.get("gap", false):

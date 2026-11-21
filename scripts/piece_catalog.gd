@@ -178,6 +178,25 @@ const PIECES := {
 		"scene": "res://scenes/pieces/track_narrow.tscn",
 		"kind": "track", "segment": "narrow", "radius": 1.6, "base_rotation": 0.0,
 	},
+	"track_oil": {
+		"name": "Oil Slick",
+		"about": "Fresh lane oil, no grip",
+		"scene": "res://scenes/pieces/track_oil.tscn",
+		"kind": "track", "segment": "oil", "radius": 1.6, "base_rotation": 0.0,
+	},
+	"track_zigzag": {
+		"name": "Zig-Zag",
+		"about": "Left, right, left!",
+		"turns": true,
+		"scene": "res://scenes/pieces/track_zigzag.tscn",
+		"kind": "track", "segment": "zigzag", "radius": 1.6, "base_rotation": 0.0,
+	},
+	"track_hill": {
+		"name": "Rollercoaster Hill",
+		"about": "Up and over, keep speed",
+		"scene": "res://scenes/pieces/track_hill.tscn",
+		"kind": "track", "segment": "hill", "radius": 1.6, "base_rotation": 0.0,
+	},
 	"bomb": {
 		"name": "Bomb",
 		"about": "Blows up pieces",
@@ -264,6 +283,12 @@ static func track_segment(id: String, turn_left: bool) -> Variant:
 	match PIECES[id].segment:
 		"sbend":
 			return TrackGen.s_bend(sign)
+		"zigzag":
+			return TrackGen.zigzag(sign)
+		"hill":
+			return TrackGen.hill()
+		"oil":
+			return TrackGen.oil()
 		"narrow":
 			return TrackGen.narrow()
 		"drop":

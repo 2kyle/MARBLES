@@ -12,6 +12,8 @@ extends RefCounted
 ##   open:  (optional) true = no side walls here (a Wall Breaker TA)
 ##   narrow: (optional) true = the floor squeezes down to a thin plank with
 ##          no walls (a Narrow Bridge TA)
+##   oil:   (optional) true = a freshly oiled, slippery stretch: almost no
+##          grip, so steering barely works and marbles slide (Oil Slick TA)
 ## The first segment is where marbles start; the last one is the straight
 ## run into the funnel and pins, and is never changed.
 ##
@@ -115,6 +117,27 @@ static func narrow() -> Dictionary:
 	return {"len": 9.0, "turn": 0.0, "grade": 0.18, "narrow": true}
 
 
+## A freshly oiled stretch (Oil Slick TA): straight, a little steeper,
+## and slippery, so marbles keep whatever line they came in on.
+static func oil() -> Dictionary:
+	return {"len": 10.0, "turn": 0.0, "grade": 0.22, "oil": true}
+
+
+## Three quick bends, left-right-left (Zig-Zag TA). `sign` +1 starts left.
+## It ends turned the way it started, like a lightning bolt.
+static func zigzag(sign: float) -> Array:
+	return [{"len": 6.0, "turn": 42.0 * sign, "grade": 0.22},
+		{"len": 11.0, "turn": -84.0 * sign, "grade": 0.22},
+		{"len": 6.0, "turn": 42.0 * sign, "grade": 0.22}]
+
+
+## Up and over a hump (Rollercoaster Hill TA): a climb, then a steep drop.
+## Marbles need speed to get over; slow ones roll back and try again.
+## (The track's smoothing rounds it off into about a half-metre rise.)
+static func hill() -> Array:
+	return [{"len": 7.0, "turn": 0.0, "grade": -0.35}, {"len": 6.0, "turn": 0.0, "grade": 0.6}]
+
+
 ## A short hole in the track. Fast marbles fly over; a hop makes it safe.
 static func gap() -> Dictionary:
 	return {"len": 2.2, "turn": 0.0, "grade": 0.4, "gap": true}
@@ -136,6 +159,11 @@ static func gap_ranges(layout: Array) -> Array:
 ## Where the side walls are missing, as [start, end] metres from the start.
 static func open_ranges(layout: Array) -> Array:
 	return flag_ranges(layout, "open")
+
+
+## Where the oiled stretches are, as [start, end] metres.
+static func oil_ranges(layout: Array) -> Array:
+	return flag_ranges(layout, "oil")
 
 
 ## Where the track squeezes down to a Narrow Bridge, as [start, end] metres.

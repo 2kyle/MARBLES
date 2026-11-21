@@ -108,6 +108,8 @@ var gaps: Array = []
 var open_edges: Array = []
 ## Narrow Bridge stretches (thin plank, no walls), as [start, end] distances.
 var narrows: Array = []
+## Oil Slick stretches (slippery floor), as [start, end] distances.
+var oils: Array = []
 ## Track distance at each whole layout metre (see ground_to_distance).
 var _ground_along := PackedFloat32Array()
 
@@ -131,6 +133,9 @@ func apply_layout(new_layout: Array, new_start_xz: Vector2) -> void:
 	narrows = []
 	for g in TrackGen.narrow_ranges(layout):
 		narrows.append([along[clampi(int(g[0]), 0, pts.size() - 1)], along[clampi(int(g[1]), 0, pts.size() - 1)]])
+	oils = []
+	for g in TrackGen.oil_ranges(layout):
+		oils.append([along[clampi(int(g[0]), 0, pts.size() - 1)], along[clampi(int(g[1]), 0, pts.size() - 1)]])
 	_ground_along = along
 	var curve := curve_through(pts)
 	if _path == null:
@@ -243,6 +248,14 @@ func half_width_at(distance: float) -> float:
 			var t := clampf(minf(distance - g[0], g[1] - distance) / NARROW_TAPER, 0.0, 1.0)
 			return lerpf(hw, NARROW_WIDTH / 2.0, smoothstep(0.0, 1.0, t))
 	return hw
+
+
+## True if `distance` is on an Oil Slick.
+func in_oil(distance: float) -> bool:
+	for g in oils:
+		if distance > g[0] and distance < g[1]:
+			return true
+	return false
 
 
 ## True if `distance` is inside a gap (or within `margin` metres of one).
@@ -389,6 +402,7 @@ func rebuild() -> void:
 	var wall_st := SurfaceTool.new()
 	wall_st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var collision: Array = []  # regular Array so _quad can append to it
+	var oil_faces: Array = []  # the floor on Oil Slicks: its own slippery body
 
 	var prev := {}
 	var prev_d := 0.0
@@ -422,15 +436,16 @@ func rebuild() -> void:
 			var cap: Dictionary = prev if open_now else s
 			_quad(wall_st, collision, cap.wlb, cap.fl, cap.wli, cap.wlo)
 			_quad(wall_st, collision, cap.fr, cap.wrb, cap.wro, cap.wri)
+		var floor_faces: Array = oil_faces if in_oil((d + prev_d) / 2.0) else collision
 		if open_now and not prev.is_empty():
 			# No walls here: just the floor and its edges.
-			_lane_quad(floor_st, collision, prev, s)
+			_lane_quad(floor_st, floor_faces, prev, s)
 			_quad(wall_st, null, prev.br, prev.bl, s.bl, s.br)
 			_quad(wall_st, null, prev.bl, prev.fl, s.fl, s.bl)
 			_quad(wall_st, null, prev.fr, prev.br, s.br, s.fr)
 		elif not prev.is_empty():
 			# Rolling surface and underside.
-			_lane_quad(floor_st, collision, prev, s)
+			_lane_quad(floor_st, floor_faces, prev, s)
 			_quad(wall_st, null, prev.br, prev.bl, s.bl, s.br)
 			# Inner wall faces, tops, outsides.
 			_quad(wall_st, collision, prev.wli, prev.fl, s.fl, s.wli)
@@ -473,12 +488,38 @@ func rebuild() -> void:
 	shape.backface_collision = true
 	shape.set_faces(PackedVector3Array(collision))
 	(_body.get_child(0) as CollisionShape3D).shape = shape
+	_build_oil_body(oil_faces)
 
 	_build_supports(len)
 
 	var funnel := get_node_or_null("Funnel") as Node3D
 	if funnel:
 		funnel.transform = frame_at(len - funnel_from_end)
+
+
+## The floor of any Oil Slicks: same shape, almost no grip.
+var _oil_body: StaticBody3D
+
+
+func _build_oil_body(faces: Array) -> void:
+	if faces.is_empty():
+		if _oil_body:
+			_oil_body.queue_free()
+			_oil_body = null
+		return
+	if _oil_body == null:
+		_oil_body = StaticBody3D.new()
+		_oil_body.name = "OilBody"
+		var mat := PhysicsMaterial.new()
+		mat.friction = 0.02
+		mat.bounce = 0.05
+		_oil_body.physics_material_override = mat
+		_oil_body.add_child(CollisionShape3D.new())
+		add_child(_oil_body)
+	var shape := ConcavePolygonShape3D.new()
+	shape.backface_collision = true
+	shape.set_faces(PackedVector3Array(faces))
+	(_oil_body.get_child(0) as CollisionShape3D).shape = shape
 
 
 func _build_supports(len: float) -> void:
@@ -542,6 +583,13 @@ func _lane_material(len: float) -> ShaderMaterial:
 	m.shader = LANE_SHADER
 	m.set_shader_parameter("lane_width", lane_width)
 	m.set_shader_parameter("lane_length", len)
+	var oil_from := PackedFloat32Array([-1.0, -1.0, -1.0, -1.0])
+	var oil_to := PackedFloat32Array([-1.0, -1.0, -1.0, -1.0])
+	for k in mini(oils.size(), 4):
+		oil_from[k] = oils[k][0]
+		oil_to[k] = oils[k][1]
+	m.set_shader_parameter("oil_from", oil_from)
+	m.set_shader_parameter("oil_to", oil_to)
 	return m
 
 

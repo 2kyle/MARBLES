@@ -23,6 +23,9 @@ uniform float approach_dots_at = 0.7;
 uniform float foul_line_at = 3.1;
 uniform float guide_dots_at = 5.0;
 uniform float arrows_at = 7.0;
+// Oil Slick stretches (Track.oils): start and end distances, -1 = unused.
+uniform float oil_from[4];
+uniform float oil_to[4];
 
 const float BOARDS = 39.0;
 
@@ -97,10 +100,27 @@ void fragment() {
 
 	vec3 col = mix(wood, ink, marks * 0.9);
 	col = mix(col, arrow_color, arrows * 0.95);
+
+	// Oil Slick: darker, wet-looking wood with a rainbow film swirling on it,
+	// fading in and out at the ends.
+	float oil = 0.0;
+	for (int k = 0; k < 4; k++) {
+		if (oil_to[k] > oil_from[k]) {
+			float edge = min(p.y - oil_from[k], oil_to[k] - p.y);
+			oil = max(oil, smoothstep(0.0, 1.2, edge));
+		}
+	}
+	if (oil > 0.0) {
+		float swirl = sin(p.x * 3.1 + sin(p.y * 1.7 + TIME * 0.6) * 2.0 + p.y * 0.9);
+		swirl += sin(p.y * 2.3 - p.x * 1.4 + TIME * 0.4) * 0.6;
+		vec3 film = 0.5 + 0.5 * cos(6.2831 * (swirl * 0.35 + vec3(0.0, 0.33, 0.67)));
+		vec3 wet = col * 0.62;
+		col = mix(col, mix(wet, film, 0.28), oil);
+	}
 	ALBEDO = col;
-	// Polished and oiled: shiny, with a clear-coat sheen.
-	ROUGHNESS = 0.3;
-	SPECULAR = 0.6;
-	CLEARCOAT = 0.4;
-	CLEARCOAT_ROUGHNESS = 0.2;
+	// Polished and oiled: shiny, with a clear-coat sheen. Glassy on a slick.
+	ROUGHNESS = mix(0.3, 0.05, oil);
+	SPECULAR = mix(0.6, 0.9, oil);
+	CLEARCOAT = mix(0.4, 1.0, oil);
+	CLEARCOAT_ROUGHNESS = mix(0.2, 0.02, oil);
 }

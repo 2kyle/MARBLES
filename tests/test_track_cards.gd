@@ -63,6 +63,11 @@ func _process(_d: float) -> bool:
 						_fail("%s: plank is %.2f m wide" % [id, track.half_width_at(mid) * 2.0])
 					if b.can_place("bumper_post", Vector2(0, -mid), 0.0):
 						_fail("%s: pieces can sit on the plank" % id)
+				"oil":
+					if track.oils.is_empty() or grew < 5.0:
+						_fail("%s: no oil stretch (grew %.1f m)" % [id, grew])
+					elif track.get_node_or_null("OilBody") == null:
+						_fail("%s: no slippery floor body" % id)
 				"gap":
 					if track.gaps.size() <= TrackGen.gap_ranges(start_layout).size():
 						_fail("%s: no new gap" % id)

@@ -17,6 +17,12 @@ extends RefCounted
 const MATTE := preload("res://shaders/batch_matte.gdshader")
 const GLOW := preload("res://shaders/batch_glow.gdshader")
 
+## Only for tests/find_clipping.gd: when true, every batch remembers each
+## shape it glues in (and which bit of the game built it), so the clipping
+## finder can check them. Off in the game, so it costs nothing.
+static var record := false
+var parts: Array = []
+
 var _st := SurfaceTool.new()
 var _glow := SurfaceTool.new()
 var _has := [false, false]
@@ -30,6 +36,8 @@ func _init() -> void:
 ## Add any primitive mesh with a full transform.
 func add(mesh: PrimitiveMesh, xf: Transform3D, color: Color, glow := false) -> void:
 	var st := _glow if glow else _st
+	if record:
+		parts.append([mesh, xf, feature()])
 	_has[1 if glow else 0] = true
 	var arrays := mesh.get_mesh_arrays()
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -114,9 +122,22 @@ func make(glow_energy := 2.5, shadows := true, matte: Material = null) -> MeshIn
 		g.set_shader_parameter("energy", glow_energy)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, g)
 	mi.mesh = mesh
+	if record:
+		mi.set_meta("clip_parts", parts)
 	if not shadows:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi
+
+
+## Which bit of the game is building right now, like "jungle.gd:_temple":
+## the function called by the nearest build()/_build() on the call stack.
+static func feature() -> String:
+	var st := get_stack()
+	for i in range(1, st.size()):
+		if st[i].function in ["build", "_build", "_build_scene", "rebuild", "_ready", "start", "_enter_hub", "_initialize"]:
+			var f: Dictionary = st[i - 1]
+			return "%s:%s" % [f.source.get_file(), f.function]
+	return "?"
 
 
 static var _matte: ShaderMaterial

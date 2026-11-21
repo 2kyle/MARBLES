@@ -817,15 +817,18 @@ func _sky_life() -> void:
 	flutter.position = Vector3(0, 1.4, 0)
 	add_child(flutter)
 
-	# Puffy clouds slowly circling the island, some below it.
+	# Puffy clouds slowly circling the island, some below it. They circle
+	# out past the casino and sports islands (the far side of the casino is
+	# about 105 metres out) and inside the far mountains, so they never
+	# drift through a building or a hill.
 	var clouds := CloudLayer.new()
-	clouds.count = 12
-	clouds.radius_min = 46.0
-	clouds.radius_max = 70.0
+	clouds.count = 16
+	clouds.radius_min = 111.0
+	clouds.radius_max = 118.0
 	clouds.height_min = -18.0
 	clouds.height_max = 12.0
-	clouds.size_min = 1.0
-	clouds.size_max = 1.6
+	clouds.size_min = 1.2
+	clouds.size_max = 1.8
 	clouds.speed = 0.018
 	add_child(clouds)
 

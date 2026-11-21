@@ -36,25 +36,27 @@ func _build_scene() -> void:
 	var reach := _reach()
 	# Sandy islands near the track, each with something on it.
 	for i in 6:
-		var p = _spot(reach * 0.4, reach + 30.0, 16.0)
+		var p = _spot(reach * 0.4, reach + 30.0, 16.0, 10.0)
 		if p != null:
 			_island(p, _rng.randf_range(5.0, 9.0), i)
 	for i in 14:
-		var p = _spot(8.0, reach + 40.0, 6.0)
+		var p = _spot(8.0, reach + 40.0, 6.0, 2.4)
 		if p != null:
 			_rock(p, _rng.randf_range(0.7, 2.2))
 	for i in 10:
-		var p = _spot(6.0, reach + 10.0, 5.0)
+		var p = _spot(6.0, reach + 10.0, 5.0, 0.8)
 		if p != null:
 			_buoy(p, i)
-	var lp = _spot(reach + 15.0, reach + 35.0, 20.0)
+	var lp = _spot(reach + 15.0, reach + 35.0, 20.0, 5.0)
 	if lp != null:
 		_lighthouse(lp)
 	for i in 5:
 		_sailboat(i)
 	_far_islands(reach)
 	_gulls()
-	_clouds(26, 110, 230, 22, 50)
+	# High enough to pass over the volcano (about 40 metres up), so they
+	# never drift through it.
+	_clouds(26, 110, 230, 55, 80)
 
 
 ## A round sandy island with palms, and maybe a hut, umbrella or pier.

@@ -698,10 +698,12 @@ func _front() -> void:
 		b.cyl(0.45, 0.5, DOOR_H + 0.6, Vector3(x0 + 0.5, (DOOR_H + 0.6) / 2.0, side * (DOOR_HALF + 0.5)), GOLD, 12)
 	# Awning over the door.
 	b.box(Vector3(3.0, 0.3, DOOR_HALF * 2 + 2.0), Vector3(x0 + 1.5, DOOR_H + 0.4, 0), Color(0.7, 0.1, 0.25))
-	# Sign board on the roof facing the bridge.
-	b.box(Vector3(0.4, 3.4, 15.0), Vector3(x0 + 0.4, HEIGHT + 2.0, 0), Color(0.15, 0.08, 0.2))
-	b.box(Vector3(0.5, 0.25, 15.4), Vector3(x0 + 0.4, HEIGHT + 3.75, 0), GOLD)
-	b.box(Vector3(0.5, 0.25, 15.4), Vector3(x0 + 0.4, HEIGHT + 0.25, 0), GOLD)
+	# Sign board on the roof facing the bridge, hung on the front of the
+	# roof's edge (which sticks out 0.8 past the wall) so the roof doesn't
+	# hide the bottom of the words.
+	b.box(Vector3(0.4, 3.4, 15.0), Vector3(x0 + 1.0, HEIGHT + 2.0, 0), Color(0.15, 0.08, 0.2))
+	b.box(Vector3(0.5, 0.25, 15.4), Vector3(x0 + 1.0, HEIGHT + 3.75, 0), GOLD)
+	b.box(Vector3(0.5, 0.25, 15.4), Vector3(x0 + 1.0, HEIGHT + 0.25, 0), GOLD)
 	add_child(b.make())
 	var sign := Label3D.new()
 	sign.text = "THE GROOVY\nGUTTER"
@@ -713,7 +715,7 @@ func _front() -> void:
 	sign.modulate = Color(1.9, 1.3, 0.6)
 	sign.outline_modulate = Color(0.6, 0.1, 0.4)
 	sign.shaded = false
-	sign.position = Vector3(x0 + 0.62, HEIGHT + 2.0, 0)
+	sign.position = Vector3(x0 + 1.22, HEIGHT + 2.0, 0)
 	sign.rotation.y = PI / 2
 	add_child(sign)
 	var casino := LowPoly.label(self, Vector3(x0 + 3.05, DOOR_H + 0.4, 0), "CASINO", 64, Color(0.3, 0.0, 0.1), PI / 2)
@@ -736,7 +738,7 @@ func _front() -> void:
 			var mi := MeshInstance3D.new()
 			mi.mesh = bulb
 			mi.material_override = mats[k % 2]
-			mi.position = Vector3(x0 + 0.65, y, z)
+			mi.position = Vector3(x0 + 1.25, y, z)
 			add_child(mi)
 			k += 1
 

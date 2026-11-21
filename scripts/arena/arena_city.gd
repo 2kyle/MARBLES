@@ -82,7 +82,9 @@ func _build_scene() -> void:
 				_block(mid, room, dist, reach)
 	_put(lights, Vector3.ZERO, 0.0, 3.0)
 	_traffic(off, reach + 60.0)
-	_clouds(12, 140, 260, 45, 80, 4.0, 7.0)
+	# Out past the last buildings (the tallest are over 100 metres), so the
+	# clouds never drift through a skyscraper or a billboard.
+	_clouds(12, reach + 200.0, reach + 300.0, 45, 80, 4.0, 7.0)
 
 
 ## One city block: one tall building, or two to four smaller ones.
@@ -93,6 +95,11 @@ func _block(mid: Vector2, room: float, dist: float, reach: float) -> void:
 	var tall := lerpf(8.0, 70.0, t * t) * _rng.randf_range(0.6, 1.4)
 	var parts := 1 if _rng.randf() < 0.45 or t > 0.6 else (2 if _rng.randf() < 0.5 else 4)
 	var size := room / (1 if parts == 1 else 2)
+	# A billboard goes on single tall buildings only, with nothing else on
+	# that roof, standing on the real top (it used to sink into roofs that
+	# came out taller than planned, and stand inside water towers).
+	var has_sign := parts == 1 and tall > 12.0 and _rng.randf() < 0.35
+	var roof := 0.0
 	for k in parts:
 		var o := Vector3.ZERO
 		if parts == 2:
@@ -101,15 +108,15 @@ func _block(mid: Vector2, room: float, dist: float, reach: float) -> void:
 			o = Vector3(((k % 2) - 0.5) * size, 0, (floori(k / 2.0) - 0.5) * size)
 		var w := size * _rng.randf_range(0.75, 0.95)
 		var d := (room if parts == 2 else size) * _rng.randf_range(0.75, 0.95)
-		_building(b, o, w, d, maxf(tall * _rng.randf_range(0.6, 1.1), 6.0))
+		roof = maxf(roof, _building(b, o, w, d, maxf(tall * _rng.randf_range(0.6, 1.1), 6.0), not has_sign))
 	_put(b, v3(mid, GROUND_Y), 0.0, 2.5, room * 0.75, _bmat)
-	if _rng.randf() < 0.35 and tall > 12.0:
-		_billboard(mid, tall)
+	if has_sign:
+		_billboard(mid, roof)
 
 
 ## A building: a box (sometimes set back in tiers), a roof trim and things
-## on the roof.
-func _building(b: MeshBatch, at: Vector3, w: float, d: float, h: float) -> void:
+## on the roof (unless `clutter` is false). Gives back how high its roof is.
+func _building(b: MeshBatch, at: Vector3, w: float, d: float, h: float, clutter := true) -> float:
 	var col: Color = WALLS[_rng.randi() % WALLS.size()]
 	var tiers := 1 if h < 25.0 else _rng.randi_range(1, 3)
 	var y := 0.0
@@ -129,6 +136,8 @@ func _building(b: MeshBatch, at: Vector3, w: float, d: float, h: float) -> void:
 		b.glow_box(Vector3(w * 0.7, 1.4, 0.05), at + Vector3(0, 1.4, d / 2.0 + 0.02), Color(1.0, 0.85, 0.6))
 	# Roof stuff.
 	var top := at + Vector3(0, y + 0.4, 0)
+	if not clutter:
+		return top.y
 	match _rng.randi() % 4:
 		0:
 			# Water tower on legs.
@@ -150,16 +159,17 @@ func _building(b: MeshBatch, at: Vector3, w: float, d: float, h: float) -> void:
 			# A rooftop garden.
 			b.box(Vector3(tw * 1.2, 0.5, td * 1.2), top + Vector3(0, 0.25, 0), Color(0.35, 0.55, 0.3, 0.0))
 			b.ball(top + Vector3(0.8, 1.2, 0.5), 0.9, TREE, 6)
+	return top.y
 
 
-## A lit billboard on a roof, with a neon slogan.
-func _billboard(mid: Vector2, h: float) -> void:
+## A lit billboard on a roof `roof` metres up, with a neon slogan.
+func _billboard(mid: Vector2, roof: float) -> void:
 	var col: Color = NEON[_rng.randi() % NEON.size()]
 	var yaw := atan2(_center.x - mid.x, _center.y - mid.y)
-	var at := v3(mid, GROUND_Y + h * 1.0 + 0.5)
+	var at := v3(mid, GROUND_Y + roof)
 	var b := MeshBatch.new()
-	b.beam(Vector3(-3, 0, 0), Vector3(-3, 3, 0), 0.2, Color(0.25, 0.25, 0.28, 0.0))
-	b.beam(Vector3(3, 0, 0), Vector3(3, 3, 0), 0.2, Color(0.25, 0.25, 0.28, 0.0))
+	b.beam(Vector3(-2.4, 0, 0), Vector3(-2.4, 3, 0), 0.2, Color(0.25, 0.25, 0.28, 0.0))
+	b.beam(Vector3(2.4, 0, 0), Vector3(2.4, 3, 0), 0.2, Color(0.25, 0.25, 0.28, 0.0))
 	b.box(Vector3(9.0, 3.6, 0.3), Vector3(0, 4.6, 0), Color(0.1, 0.1, 0.14, 0.0))
 	b.glow_box(Vector3(9.2, 0.15, 0.35), Vector3(0, 6.45, 0), col)
 	b.glow_box(Vector3(9.2, 0.15, 0.35), Vector3(0, 2.75, 0), col)
@@ -182,7 +192,10 @@ func _street_lights(b: MeshBatch, mid: Vector2, dist: float) -> void:
 	var half := (BLOCK - ROAD) / 2.0 - 0.8
 	for c in [Vector2(-1, -1), Vector2(1, 1)]:
 		var p: Vector2 = mid + c * half
-		if not _clear_of_path(p, 2.0):
+		# Clear of the whole lane (up to about 3.5 m either side of its
+		# middle, walls and all), not just its middle line, or a lamp can
+		# stand in the lane where it runs low.
+		if not _clear_of_path(p, 5.0):
 			continue
 		var base := v3(p, GROUND_Y)
 		b.beam(base, base + Vector3(0, 4.5, 0), 0.14, Color(0.2, 0.22, 0.26))

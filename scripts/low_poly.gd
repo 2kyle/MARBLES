@@ -39,6 +39,8 @@ static func _shape(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color) -> Me
 	mi.mesh = mesh
 	mi.material_override = mat(color)
 	mi.position = pos
+	if MeshBatch.record:
+		mi.set_meta("clip_src", MeshBatch.feature())
 	parent.add_child(mi)
 	return mi
 

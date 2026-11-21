@@ -459,6 +459,7 @@ tests/
   sim_sports.gd      checks people-only island, name tags, a trampoline basket and a soccer goal
   sim_jungle.gd      checks the jungle: mushroom bounces, the hollow log, the cliff climb, secret gems and coins
   hub_view.gd        takes screenshots of the hub from any camera spot (not a test)
+  find_clipping.gd   lists scenery poking into other scenery (or into the lane), worst first (not a test)
   net_host.gd, net_client.gd, run_net_test.sh   plays an online match between two copies of the game
 ```
 
@@ -484,3 +485,12 @@ godot --headless --fixed-fps 120 --script res://tests/test_strike_replay.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam
 ```
+
+To hunt for clipping (things poking through each other), run the clipping finder on the hub or on a match world (0 beach, 1 city, 2 caves, 3 snow, 4 clouds) with a track seed. The `-d` matters: it lets the finder see which bit of code built each shape.
+
+```
+godot --headless -d --script res://tests/find_clipping.gd -- hub
+godot --headless -d --script res://tests/find_clipping.gd -- world 3 1
+```
+
+It prints pairs like `jungle.gd:_walls <-> hub.gd:_lookout` with how deep they overlap and where. Some are on purpose (the waterfall and the cave are built into the cliff), so look at the worst ones in the game before changing anything.

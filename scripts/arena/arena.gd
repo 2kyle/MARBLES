@@ -47,6 +47,12 @@ var _env: Environment
 var _path: Array = []
 var _center := Vector2.ZERO
 var _rng := RandomNumberGenerator.new()
+## Ground already used by scenery from _spot(): [xz, radius]. Keeps a
+## cottage from being built inside a clump of pines, and so on.
+var _taken: Array = []
+## Rings round the middle that scenery from _spot() keeps off (a mine
+## railway, a road): [radius, half width].
+var _keep_off_rings: Array = []
 
 
 static func create(theme: String) -> Arena:
@@ -74,6 +80,8 @@ func build(track: Track, deck: Node3D, seed: int) -> void:
 		c.queue_free()
 	_props.clear()
 	_movers.clear()
+	_taken.clear()
+	_keep_off_rings.clear()
 	_rng.seed = seed
 	_sample_path(track, deck)
 	_build_scene()
@@ -180,14 +188,32 @@ func _put(batch: MeshBatch, at := Vector3.ZERO, yaw := 0.0, glow := 2.5, radius 
 
 ## Somewhere at least `clear` metres from the track (and the pin deck),
 ## between `near` and `far` metres from the middle. null if none found.
-func _spot(near: float, far: float, clear: float) -> Variant:
+## `room` is how wide the thing going there is (its radius): when given, the
+## spot also keeps clear of everything else placed with a room, so props
+## don't grow into each other.
+func _spot(near: float, far: float, clear: float, room := 0.0) -> Variant:
 	for attempt in 30:
 		var a := _rng.randf() * TAU
 		var r := sqrt(_rng.randf_range(near * near, far * far))
 		var p := _center + Vector2(cos(a), sin(a)) * r
-		if _clear_of_path(p, clear):
+		if _clear_of_path(p, clear) and _room_free(p, room):
+			if room > 0.0:
+				_taken.append([p, room])
 			return p
 	return null
+
+
+func _room_free(p: Vector2, room: float) -> bool:
+	if room <= 0.0:
+		return true
+	for t in _taken:
+		if p.distance_to(t[0]) < room + t[1]:
+			return false
+	var from_middle := p.distance_to(_center)
+	for ring in _keep_off_rings:
+		if absf(from_middle - ring[0]) < ring[1] + room:
+			return false
+	return true
 
 
 ## A point on a ring round the middle (for far-off background things).

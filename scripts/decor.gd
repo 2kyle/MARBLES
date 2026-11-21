@@ -43,7 +43,7 @@ func _start_arch(track: Track, color: Color) -> void:
 	var f := _local(track.world_frame_at(2.2))
 	_arch(f, track.lane_width, "START", color)
 	_checker_strip(f, track.lane_width, 0.8)
-	_bunting(f, track.lane_width)
+	_bunting(f, track.lane_width, _local(track.world_frame_at(2.2 + 4.2)))
 
 
 func _finish_arch(deck: Node3D, color: Color) -> void:
@@ -118,7 +118,8 @@ func _checker_strip(f: Transform3D, width: float, depth: float) -> void:
 
 
 ## Little coloured flags strung from the arch, sagging a bit.
-func _bunting(f: Transform3D, width: float) -> void:
+## `pole_f` is the track's frame where the two poles stand.
+func _bunting(f: Transform3D, width: float, pole_f: Transform3D) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var half := width / 2.0 + 0.45
@@ -142,14 +143,15 @@ func _bunting(f: Transform3D, width: float) -> void:
 	mi.material_override = mat
 	mi.transform = f
 	add_child(mi)
-	# Strings from the arch posts to two poles behind it.
+	# Two poles further down, beside the walls. They stand on the track's
+	# own frame there and straight up, so where the track drops or bends
+	# away after the start they don't lean through the lane (they used to
+	# be tilted like the arch and could stab through a wall).
 	var pole := BoxMesh.new()
 	pole.size = Vector3(0.12, arch_height + 0.4, 0.12)
-	var holder := Node3D.new()
-	holder.transform = f
-	add_child(holder)
 	for side in [-1.0, 1.0]:
-		_box(holder, pole, Vector3(side * half, arch_height / 2.0, -4.2), _mat(Color(0.95, 0.93, 0.88)))
+		var foot := pole_f * Vector3(side * half, 0, 0)
+		_box(self, pole, foot + Vector3.UP * (arch_height / 2.0), _mat(Color(0.95, 0.93, 0.88)))
 
 
 # ------------------------------------------------------------ Lanterns

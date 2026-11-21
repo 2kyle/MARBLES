@@ -52,19 +52,22 @@ func fall_burst(parent: Node, at: Vector3, color: Color) -> void:
 func _build_scene() -> void:
 	_ground(GROUND)
 	var reach := _reach()
+	# Nothing on the mine railway (see _mine), or the carts drive through it.
+	_keep_off_rings.append([reach + 22.0, 2.2])
+	# The cavern wall first, so the things below keep out of its boulders.
+	_walls(reach)
 	for i in 14:
-		var p = _spot(8.0, reach + 25.0, 7.0)
+		var p = _spot(8.0, reach + 25.0, 7.0, 2.6)
 		if p != null:
 			_gem_cluster(p, _rng.randf_range(0.8, 2.2), i < 6)
 	for i in 18:
-		var p = _spot(10.0, reach + 50.0, 6.0)
+		var p = _spot(10.0, reach + 50.0, 6.0, 3.5)
 		if p != null:
 			_stalagmite(p)
 	for i in 10:
-		var p = _spot(6.0, reach + 20.0, 4.0)
+		var p = _spot(6.0, reach + 20.0, 4.0, 1.6)
 		if p != null:
 			_mushrooms(p)
-	_walls(reach)
 	_giant_gems(reach)
 	_mine(reach)
 	_drift(Color(0.6, 0.9, 1.0, 0.8), 260, 0.12, 0.4, 2.0, reach + 30.0, 30.0)
@@ -126,21 +129,37 @@ func _mushrooms(p: Vector2) -> void:
 	_put(b, v3(p, GROUND_Y), 0.0, 1.8, 2.0)
 
 
+## The big boulders of the cavern wall: [middle, size, how tall (y scale)],
+## and the pillars: [xz, radius]. The giant crystals keep out of them.
+var _boulders: Array = []
+var _pillars: Array = []
+
+
 ## The cavern walls far out, and stalactites hanging from the dark above.
 func _walls(reach: float) -> void:
 	var b := MeshBatch.new()
+	_boulders.clear()
+	_pillars.clear()
 	var n := 26
 	for k in n:
 		var a := TAU * k / n + _rng.randf_range(-0.08, 0.08)
 		var r := reach + _rng.randf_range(80.0, 110.0)
 		var at := v3(_ring(r, a), GROUND_Y)
 		var size := _rng.randf_range(28.0, 45.0)
+		var tall := _rng.randf_range(1.4, 2.6)
 		b.ball(at + Vector3(0, size * 0.6, 0), size, ROCK.lightened(_rng.randf_range(-0.05, 0.1)), 8,
-				Vector3(1.0, _rng.randf_range(1.4, 2.6), 1.0))
+				Vector3(1.0, tall, 1.0))
+		_boulders.append([at + Vector3(0, size * 0.6, 0), size, tall])
+		# Where it meets the floor, so nothing is put down inside it.
+		_taken.append([_ring(r, a), size * sqrt(1.0 - pow(0.6 / tall, 2.0))])
 		# Pillars from floor to "ceiling" between the boulders.
 		if k % 3 == 0:
 			var pr := _ring(r - 30.0, a + 0.1)
-			b.cyl(_rng.randf_range(3, 5), _rng.randf_range(6, 9), 90.0, v3(pr, GROUND_Y + 45.0), ROCK_LIGHT, 9)
+			var top_r := _rng.randf_range(3, 5)
+			var bottom_r := _rng.randf_range(6, 9)
+			b.cyl(top_r, bottom_r, 90.0, v3(pr, GROUND_Y + 45.0), ROCK_LIGHT, 9)
+			_pillars.append([pr, bottom_r])
+			_taken.append([pr, bottom_r])
 	for k in 70:
 		var a := _rng.randf() * TAU
 		var r := _rng.randf_range(reach * 0.6, reach + 100.0)
@@ -155,15 +174,63 @@ func _giant_gems(reach: float) -> void:
 	var b := MeshBatch.new()
 	for k in 8:
 		var a := TAU * k / 8.0 + _rng.randf_range(-0.2, 0.2)
-		var at := v3(_ring(reach + _rng.randf_range(40.0, 70.0), a), GROUND_Y)
+		var dist := reach + _rng.randf_range(40.0, 70.0)
 		var col: Color = GEMS[k % GEMS.size()]
+		var crystals := []   # [tilt, offset, height, radius, colour]
 		for c in _rng.randi_range(3, 5):
 			var tilt := Basis(Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized(), _rng.randf_range(0.0, 0.5))
-			_crystal(b, tilt, Vector3(_rng.randf_range(-6, 6), 0, _rng.randf_range(-6, 6)) + at,
-					_rng.randf_range(14.0, 34.0), _rng.randf_range(2.0, 4.0), col.lightened(_rng.randf_range(-0.1, 0.2)))
-		if k % 2 == 0:
+			crystals.append([tilt, Vector3(_rng.randf_range(-6, 6), 0, _rng.randf_range(-6, 6)),
+					_rng.randf_range(14.0, 34.0), _rng.randf_range(2.0, 4.0), col.lightened(_rng.randf_range(-0.1, 0.2))])
+		# Slide the clump in or out (and round a little) to where the fewest
+		# bits of crystal are buried in the wall's boulders and pillars or in
+		# other things on the floor.
+		var at := v3(_ring(dist, a), GROUND_Y)
+		var best := 1000
+		for turn in [0.0, -0.12, 0.12]:
+			for step in [0.0, -4.0, 4.0, -8.0, 8.0, -12.0, 12.0, -16.0, -20.0]:
+				var d: float = clampf(dist + step, reach + 28.0, reach + 75.0)
+				var spot_at := v3(_ring(d, a + turn), GROUND_Y)
+				var buried := 0
+				for c in crystals:
+					buried += _buried(spot_at + c[1], c[0] * Vector3.UP, c[2], c[3])
+				if buried < best:
+					best = buried
+					at = spot_at
+			if best == 0:
+				break
+		# Any crystal still stuck in the rock is left out.
+		var shown := 0
+		for c in crystals:
+			if _buried(at + c[1], c[0] * Vector3.UP, c[2], c[3]) == 0:
+				_crystal(b, c[0], at + c[1], c[2], c[3], c[4])
+				shown += 1
+		if shown > 0 and k % 2 == 0:
 			_light(at + Vector3(0, 18.0, 0), col, 6.0, 55.0)
 	_put(b, Vector3.ZERO, 0.0, 2.2)
+
+
+## How many points up a crystal (from `base` going `up` for `h` metres,
+## radius `r`) are inside the wall's boulders and pillars, or on something
+## else on the floor. 0 means it stands clear.
+func _buried(base: Vector3, up: Vector3, h: float, r: float) -> int:
+	var count := 0
+	for k in 6:
+		var p := base + up * (h + r * 1.8) * k / 5.0
+		var hit := false
+		for bo in _boulders:
+			var d: Vector3 = p - bo[0]
+			var size: float = bo[1]
+			if Vector3(d.x, d.y / bo[2], d.z).length() < size + r:
+				hit = true
+		for pi in _pillars:
+			if Vector2(p.x, p.z).distance_to(pi[0]) < pi[1] + r:
+				hit = true
+		if k == 0:
+			for t in _taken:
+				if Vector2(p.x, p.z).distance_to(t[0]) < t[1] + r:
+					hit = true
+		count += 1 if hit else 0
+	return count
 
 
 ## Mine rails in a big loop round the track, timber shaft entrances, and

@@ -48,31 +48,33 @@ func _build_scene() -> void:
 	_ground(GROUND)
 	var reach := _reach()
 	for i in 9:
-		var p = _spot(10.0, reach + 25.0, 9.0)
+		var p = _spot(10.0, reach + 25.0, 9.0, 4.5)
 		if p != null:
 			_cottage(p, i)
-	var cp = _spot(reach * 0.5, reach + 30.0, 14.0)
+	var cp = _spot(reach * 0.5, reach + 30.0, 14.0, 8.0)
 	if cp != null:
 		_church(cp)
-	var pp = _spot(reach * 0.3, reach + 30.0, 16.0)
+	var pp = _spot(reach * 0.3, reach + 30.0, 16.0, 10.0)
 	if pp != null:
 		_pond(pp)
 	for i in 6:
-		var p = _spot(5.0, reach + 15.0, 4.0)
+		var p = _spot(5.0, reach + 15.0, 4.0, 1.0)
 		if p != null:
 			_snowman(p)
 	for i in 16:
-		var p = _spot(5.0, reach + 30.0, 5.0)
+		var p = _spot(5.0, reach + 30.0, 5.0, 0.8)
 		if p != null:
 			_lamp(p)
 	for i in 22:
-		var p = _spot(8.0, reach + 40.0, 7.0)
+		var p = _spot(8.0, reach + 40.0, 7.0, 4.5)
 		if p != null:
 			_pine_clump(p)
-	_forest(reach)
 	_mountains(reach)
+	_forest(reach)
 	_drift(Color(1, 1, 1, 0.9), 1600, 0.16, 1.6, 0.0, reach + 30.0, 35.0)
-	_clouds(14, 150, 260, 50, 80, 5.0, 8.0)
+	# Inside the ring of mountains (and over the forest), so the clouds
+	# never drift through a mountainside.
+	_clouds(14, reach + 30.0, reach + 80.0, 48, 70, 4.0, 6.0)
 
 
 ## A pine: tiers of cones, each with a snowy top.
@@ -253,19 +255,29 @@ func _forest(reach: float) -> void:
 	for k in 260:
 		var a := _rng.randf() * TAU
 		var r := _rng.randf_range(reach + 45.0, reach + 130.0)
-		_pine(b, v3(_ring(r, a), GROUND_Y), _rng.randf_range(6.0, 14.0))
+		var h := _rng.randf_range(6.0, 14.0)
+		var at := _ring(r, a)
+		# Not on a mountain's slopes (the trees poked out of the sides).
+		if _peaks.any(func(m): return at.distance_to(m[0]) < m[1] + 3.0):
+			continue
+		_pine(b, v3(at, GROUND_Y), h)
 	_put(b, Vector3.ZERO, 0.0, 2.0)
 
+
+## The mountains' feet: [xz, radius]. The forest keeps off them.
+var _peaks: Array = []
 
 ## Snow-capped mountains on the horizon.
 func _mountains(reach: float) -> void:
 	var b := MeshBatch.new()
+	_peaks.clear()
 	var n := 16
 	for k in n:
 		var a := TAU * k / n + _rng.randf_range(-0.1, 0.1)
 		var at := v3(_ring(reach + _rng.randf_range(170.0, 240.0), a), GROUND_Y)
 		var h := _rng.randf_range(60.0, 120.0)
 		var r := h * _rng.randf_range(0.7, 1.0)
+		_peaks.append([Vector2(at.x, at.z), r])
 		b.cyl(0.0, r, h, at + Vector3(0, h / 2.0, 0), Color(0.52, 0.56, 0.66), 7)
 		b.cyl(0.0, r * 0.42, h * 0.42, at + Vector3(0, h * 0.79 + 0.3, 0), SNOW, 7)
 		b.cyl(r * 0.42, r * 0.5, h * 0.06, at + Vector3(0, h * 0.58 + 0.3, 0), SNOW.darkened(0.05), 7)

@@ -185,6 +185,14 @@ func _in_gap(angle: float, extra := 0.0) -> bool:
 	return false
 
 
+## How many degrees `angle` is from the edge of the nearest gap in the wall.
+func _gap_room(angle: float) -> float:
+	var room := 360.0
+	for g in GAPS:
+		room = minf(room, rad_to_deg(absf(angle_difference(deg_to_rad(angle), deg_to_rad(g[0])))) - g[1])
+	return maxf(room, 0.0)
+
+
 ## A solid box (in the hub's space), turned `yaw` round up.
 func _solid_box(size: Vector3, pos: Vector3, yaw := 0.0) -> void:
 	var shape := CollisionShape3D.new()
@@ -279,8 +287,13 @@ func _walls() -> void:
 				+ at.normalized() * _rng.randf_range(-0.6, 1.4)
 		var ch := h * _rng.randf_range(0.45, 0.8)
 		_rock(_batch, crag + Vector3.UP * (ch - 3.0) / 2.0, r * 0.75, ch + 3.0, _rock_color().darkened(0.06))
-		# A wide rocky foot, so it reads as a mountain and not a post.
-		_rock(_batch, at + at.normalized() * 1.2 + Vector3.UP * 0.6, r * 1.7, 3.2, _rock_color().darkened(0.08))
+		# A wide rocky foot, so it reads as a mountain and not a post. Next
+		# to a gap it's kept small enough not to spill into the gorge (it
+		# used to cover the end of the lookout bridge, and fill the hollow
+		# behind the waterfall).
+		var foot_at := at + at.normalized() * 1.2
+		var foot_r := minf(r * 1.7, deg_to_rad(_gap_room(angle)) * foot_at.length() + 0.5)
+		_rock(_batch, foot_at + Vector3.UP * 0.6, maxf(foot_r, 1.0), 3.2, _rock_color().darkened(0.08))
 		# Darker bands of rock part-way up.
 		for k in _rng.randi_range(0, 2):
 			var y := _rng.randf_range(2.0, h - 1.5)

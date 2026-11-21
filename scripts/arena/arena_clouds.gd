@@ -45,35 +45,40 @@ func fall_burst(parent: Node, at: Vector3, color: Color) -> void:
 func _build_scene() -> void:
 	_ground(GROUND)
 	var reach := _reach()
+	# The palace first, so the cloud banks and columns keep out of it.
+	_palace(reach)
 	_cloud_bumps(reach)
 	for i in 5:
-		var p = _spot(reach * 0.5, reach + 35.0, 14.0)
+		var p = _spot(reach * 0.5, reach + 35.0, 14.0, 9.0)
 		if p != null:
 			_floating_island(p, _rng.randf_range(5.0, 8.0), _rng.randf_range(4.0, 14.0), false)
 	for i in 12:
-		var p = _spot(7.0, reach + 30.0, 6.0)
+		var p = _spot(7.0, reach + 30.0, 6.0, 1.6)
 		if p != null:
 			_column(p)
 	for i in 10:
-		var p = _spot(6.0, reach + 20.0, 5.0)
+		var p = _spot(6.0, reach + 20.0, 5.0, 1.3)
 		if p != null:
 			_orb(p)
-	_palace(reach)
 	_rainbows(reach)
 	for i in 5:
 		_balloon(i, reach)
 	_drift(Color(1.0, 0.9, 0.55, 0.9), 220, 0.14, -0.6, 2.0, reach + 30.0, 25.0)
-	_clouds(30, reach + 30.0, reach + 200.0, 0.0, 60.0, 4.0, 8.0)
+	# Out past the palace islands and the balloons, so the clouds never
+	# drift through them.
+	_clouds(30, reach + 185.0, reach + 300.0, 0.0, 60.0, 4.0, 8.0)
 
 
 ## Big lumpy cloud banks poking up out of the cloud sea.
 func _cloud_bumps(reach: float) -> void:
 	var b := MeshBatch.new()
 	for k in 90:
-		var p = _spot(14.0, reach + 160.0, 10.0)
+		var s := _rng.randf_range(3.0, 9.0)
+		# Each bank is three puffs up to `s` from its middle, so it needs
+		# about 2.5 s of room (and as much clear of the lane).
+		var p = _spot(14.0, reach + 160.0, maxf(10.0, s * 2.5), s * 2.5)
 		if p == null:
 			continue
-		var s := _rng.randf_range(3.0, 9.0)
 		for j in 3:
 			b.ball(v3(p, GROUND_Y + s * 0.1) + Vector3(_rng.randf_range(-s, s), 0, _rng.randf_range(-s, s)),
 					s * _rng.randf_range(0.6, 1.0), Color(1.0, 0.99, 0.98), 10, Vector3(1.0, 0.55, 1.0))
@@ -88,6 +93,10 @@ func _floating_island(p: Vector2, r: float, lift: float, big: bool) -> void:
 	b.cyl(r * 0.5, 0.0, r * 0.7, Vector3(r * 0.2, -r * 1.4, 0.3), Color(0.55, 0.46, 0.4), 7)
 	_castle(b, Vector3(0, 0.5, 0), r * (0.9 if big else 0.6))
 	var node := _put(b, v3(p, GROUND_Y + lift), _rng.randf() * TAU, 2.5, r + 1.0)
+	if big:
+		# The palace islands: keep the cloud banks and columns from poking
+		# up through them (the ones from _spot() are counted already).
+		_taken.append([p, r + 2.0])
 	var phase := _rng.randf() * TAU
 	var y := node.position.y
 	_movers.append(func(t: float, _d: float): node.position.y = y + sin(t * 0.4 + phase) * 0.5)
@@ -208,9 +217,11 @@ func _balloon(i: int, reach: float) -> void:
 			b.beam(Vector3(x, 0.6, z), Vector3(x * 1.4, 2.8, z * 1.4), 0.05, Color(0.4, 0.3, 0.2))
 	b.box(Vector3(1.2, 0.9, 1.2), Vector3(0, 0.45, 0), Color(0.6, 0.42, 0.25))
 	var node := _put(b)
-	var radius := reach + _rng.randf_range(30.0, 90.0)
+	# Between the golden arch and the palace (so they never float through
+	# the castle), and higher than the arch's top.
+	var radius := reach + _rng.randf_range(32.0, 44.0)
 	var a0 := _rng.randf() * TAU
-	var y := _rng.randf_range(10.0, 35.0)
+	var y := _rng.randf_range(18.0, 35.0)
 	var c := _center
 	_movers.append(func(t: float, _d: float):
 		var a := a0 + t * 0.008

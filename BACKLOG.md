@@ -49,10 +49,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **Strike replay** *(suggested by Claude)* · branch `nightly/strike-replay`
-  After a strike, the roll plays again in slow motion from a low camera by the pins, with cinema bars and a REPLAY tag, then carries on to the STRIKE! banner and the scoreboard. Press any key to skip. Can be switched off in Settings. Not in online games yet.
+*(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Strike replay** *(suggested by Claude)*
+  After a strike, the roll plays again in slow motion from a low camera by the pins, with cinema bars and a REPLAY tag, then carries on to the STRIKE! banner and the scoreboard. Press any key to skip. Can be switched off in Settings. Not in online games yet.
 
 - **Done** · **Jungle hub island**
   The hub island becomes an explorable jungle: rock mountain walls all round, the casino and sports islands pulled in close and facing the island, temple ruins, a cliff climb, bouncy mushrooms, a hollow log, a crystal cave, a waterfall, six secret gems that pay coins, and parrots, frogs and a monkey.

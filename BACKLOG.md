@@ -45,6 +45,7 @@ This is the to-do list for the game, **most important at the top**. Every night 
 ## Needs you (Claude can't do these alone)
 
 - **Steam setup:** install the GodotSteam plugin, try online play with a friend, then get your own Steam App ID. Step-by-step guide: [docs/STEAM.md](docs/STEAM.md).
+- **Your first Blender model:** make a bowling pin in Blender and export it to `assets/models/pin/pin.glb`. Beginner guide: [docs/BLENDER.md](docs/BLENDER.md). Once it works, tell Claude what you'd like to model next (marble, hats, track pieces, hub trees and rocks) and it'll hook that up the same way.
 - **Sound and music:** you're adding these yourself, so Claude leaves audio out.
 
 ## In review

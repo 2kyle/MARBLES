@@ -294,6 +294,10 @@ Player 1's hop / place / grab key is **Space** (E still works too). Everything w
 
 The look is **toy diorama**: soft, matte, low-poly shapes like painted wooden toys. The hub floats in a sunny sky with puffy 3D clouds (`scripts/art_style.gd`).
 
+### Your own models (Blender)
+
+You can swap the game's built-in shapes for models you make in Blender. Export a `.glb` to `assets/models/pin/pin.glb` and every bowling pin uses it (delete the file to get the built-in pin back). Step-by-step beginner guide, sizes, and where to find human-made textures you're allowed to use: [docs/BLENDER.md](docs/BLENDER.md). Credits for outside assets go in [assets/CREDITS.md](assets/CREDITS.md).
+
 ### Match worlds
 
 Every match also gets a random track width (between 4.2 and 6.6 m, see `TRACK_WIDTHS` in `scripts/main.gd`), so no two starts feel the same. Every match picks one of five worlds at random for the scenery round the track: its own sky, ground, lighting, track colours and moving details. Online, the host picks and everyone sees the same one.
@@ -382,8 +386,14 @@ scenes/
   marble.tscn        a player's marble
   pin.tscn           one bowling pin
   pieces/            every lane piece, one scene each
+art/                 your Blender (.blend) files and full-size textures (Godot ignores this folder)
+assets/
+  models/            exported .glb models the game loads (e.g. models/pin/pin.glb)
+  CREDITS.md         who made every outside asset, and its licence
+tools/blender/       helper scripts to run inside Blender
 scripts/
   main.gd            runs frames and the match (the "referee")
+  custom_models.gd   loads your own Blender models in place of the built-in ones
   marble.gd          lean steering and bumper kicks
   pin.gd             knocked-down check, who gets credit, and the pin's shape and face
   label_facing.gd    turns 3D words round so you never read them backwards

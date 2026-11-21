@@ -132,6 +132,14 @@ func seen_velocity() -> Vector3:
 	return _seen_velocity
 
 
+## Rub out the trail behind the ball (when it jumps somewhere, like at the
+## start and end of a strike replay, so no streak is drawn across the lane).
+func clear_trail() -> void:
+	if _trail:
+		_trail.clear()
+	_last_pos = global_position
+
+
 ## Squeeze the eyes shut after a knock. `strength` is the impact speed.
 func wince(strength: float) -> void:
 	if _eyes:

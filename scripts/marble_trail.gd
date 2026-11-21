@@ -19,6 +19,13 @@ var _particles: CPUParticles3D
 var _time := 0.0
 
 
+## Forget the ribbon so far (the ball jumped; don't join the dots).
+func clear() -> void:
+	_points.clear()
+	if _particles:
+		_particles.restart()
+
+
 func setup(p_kind: String, p_color: Color) -> void:
 	kind = p_kind
 	color = p_color

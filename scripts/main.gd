@@ -143,6 +143,8 @@ var arena: Arena
 ## The victory podium, shown when a match ends.
 var podium: Podium
 var _hub_env: Environment
+## The retro screen filter (warm film colours, optional scanlines).
+var retro_filter: RetroFilter
 var _menu_time := 0.0
 ## Coins, owned looks and equipped looks for each seat (saved to disk).
 var profiles := Profiles.new()
@@ -223,7 +225,13 @@ func _ready() -> void:
 	menu.restart_frame_requested.connect(_on_restart_frame_requested)
 	menu.quit_to_menu_requested.connect(_on_quit_to_menu)
 	menu.quit_requested.connect(func(): get_tree().quit())
-	menu.settings_changed.connect(func(): camera_shake = settings.camera_shake)
+	retro_filter = RetroFilter.new()
+	retro_filter.name = "RetroFilter"
+	add_child(retro_filter)
+	retro_filter.set_look(settings.retro_look)
+	menu.settings_changed.connect(func():
+		camera_shake = settings.camera_shake
+		retro_filter.set_look(settings.retro_look))
 	menu.practice_requested.connect(_enter_hub)
 	closet = Closet.new()
 	add_child(closet)

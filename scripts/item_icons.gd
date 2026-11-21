@@ -189,7 +189,7 @@ static func trophy_model(plaque_color: Color, name: String) -> Node3D:
 		root.add_child(plate)
 		var l := Label3D.new()
 		l.text = name
-		l.font = preload("res://fonts/ChakraPetch-Bold.ttf")
+		l.font = preload("res://fonts/Righteous-Regular.ttf")
 		l.font_size = 40
 		l.pixel_size = 0.004
 		l.outline_size = 8

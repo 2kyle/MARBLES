@@ -12,7 +12,7 @@ extends CanvasLayer
 ## Like the closet, it never reads the keyboard: main.gd calls
 ## request_confirm() with the player's input.
 
-const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 const GOLD := Color(1.0, 0.82, 0.3)
 ## How long the strip spins, how many prizes are on it, and which one it
 ## stops on.

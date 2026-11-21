@@ -297,7 +297,7 @@ func _hood() -> void:
 	node.add_child(strip)
 	var label := Label3D.new()
 	label.text = MainMenu.TITLE
-	label.font = preload("res://fonts/ChakraPetch-Bold.ttf")
+	label.font = preload("res://fonts/Righteous-Regular.ttf")
 	label.pixel_size = 0.0075
 	# Shrink long names so they fit between the starbursts (4.6 m) and
 	# never run into them.

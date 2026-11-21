@@ -359,8 +359,9 @@ Tight corners send marbles over the wall, which is half the fun, but a corner sh
 
 ### Fonts
 
-Text uses one free font, under the SIL Open Font License (the licence files are in `fonts/`):
-- **Chakra Petch** by the Chakra Petch Project Authors: Bold for titles and big numbers, SemiBold for everything else (set for the whole game in `ui/theme.tres`). Its cut, faceted corners suit the low-poly look.
+Text uses two free fonts, both under the SIL Open Font License (the licence files are in `fonts/`):
+- **Righteous** by Astigmatic: the title, buttons, headings, big numbers and every sign in the 3D world. Its rounded retro letters look like an old bowling alley sign. To try another title font, change the one path shared by the `TITLE_FONT` lines (search the scripts for `Righteous-Regular.ttf`).
+- **Chakra Petch** SemiBold by the Chakra Petch Project Authors: smaller body text, set for the whole game in `ui/theme.tres`.
 
 ## How the project is laid out
 

@@ -10,7 +10,7 @@ extends RefCounted
 ## afterwards (make it glow, shine and so on), call own_mat() first so the
 ## change only affects that shape.
 
-const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 const CONFETTI_COLORS := [Color(1, 0.4, 0.55), Color(1, 0.85, 0.3), Color(0.45, 0.8, 1),
 		Color(0.6, 0.95, 0.5), Color(0.8, 0.55, 1)]
 

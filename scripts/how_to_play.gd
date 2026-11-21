@@ -7,7 +7,7 @@ extends Control
 ## main_menu.gd puts this on its "howto" page with the words and the
 ## NEXT / SKIP buttons; this only draws the picture for `step`.
 
-const TITLE_FONT := preload("res://fonts/ChakraPetch-Bold.ttf")
+const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 const PLAYER_COLORS := [Color(1.0, 0.45, 0.65), Color(1.0, 0.8, 0.25), Color(0.7, 0.5, 1.0), Color(0.5, 0.9, 0.45)]
 const GOLD := Color(1.0, 0.82, 0.25)
 const INK := Color(0.08, 0.08, 0.14)

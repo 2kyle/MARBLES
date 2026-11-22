@@ -357,11 +357,34 @@ func _enter_hub() -> void:
 	hub.refresh_trophies(profiles, settings.player_count)
 	_arrive_on_hub()
 	_refresh_gems()
+	_refresh_run_board()
 
 
 ## Show which secret gems everyone here has already found (they come back
 ## as faint ghosts), and hand out the gem crown to anyone who has all six
 ## (for saves from before it existed).
+## TIME TRIAL: a run down the practice run finished. Save it if it's the
+## player's best and update the RUN RECORDS board.
+func _on_run_finished(p: int, seconds: float) -> void:
+	var prof := profile_of(p)
+	var text := "%s: %s" % [seat_name(p), TimeTrial.format(seconds)]
+	if prof >= 0 and profiles.record_run(prof, seconds):
+		profiles.save_to_disk()
+		text = "%s: NEW BEST RUN!  %s" % [seat_name(p), TimeTrial.format(seconds)]
+		LowPoly.confetti(hub, hub.to_local(hub.marbles[p].global_position), 50)
+	menu.toast(text)
+	_refresh_run_board()
+
+
+func _refresh_run_board() -> void:
+	var rows := []
+	for prof in profiles.seats.size():
+		var best := profiles.best_run(prof)
+		if best > 0.0:
+			rows.append(["P%d" % (prof + 1), best, Color.WHITE])
+	hub.trial.show_records(rows)
+
+
 func _refresh_gems() -> void:
 	var found_by_all := range(Jungle.GEM_COUNT)
 	for p in player_count:
@@ -402,6 +425,7 @@ func _ensure_hub() -> void:
 	hub.sports.goal_scored.connect(_on_goal_scored)
 	hub.sports.basket_made.connect(_on_basket_made)
 	hub.sports.skee.game_over.connect(_on_skee_game_over)
+	hub.trial.finished.connect(_on_run_finished)
 
 
 ## The island's world, state and camera, once its marbles are placed.

@@ -28,6 +28,8 @@ func _init() -> void:
 			"equipped": {"hat": "none", "eyes": "classic", "color": DEFAULT_COLORS[i], "style": "gloss", "trail": "ribbon"},
 			# Ids of the hub's secret gems this seat has found (jungle.gd).
 			"secrets": [],
+			# Fastest TIME TRIAL down the hub's practice run, seconds (0 = none).
+			"best_run": 0.0,
 		})
 
 
@@ -46,6 +48,7 @@ func load_from_disk() -> void:
 				owned.append(item)
 		seats[i].owned = owned
 		seats[i].secrets = cfg.get_value(sec, "secrets", [])
+		seats[i].best_run = float(cfg.get_value(sec, "best_run", 0.0))
 		var eq: Dictionary = cfg.get_value(sec, "equipped", {})
 		for slot in Cosmetics.SLOTS:
 			if eq.has(slot) and owns(i, slot, eq[slot]):
@@ -60,7 +63,21 @@ func save_to_disk() -> void:
 		cfg.set_value(sec, "owned", seats[i].owned)
 		cfg.set_value(sec, "equipped", seats[i].equipped)
 		cfg.set_value(sec, "secrets", seats[i].secrets)
+		cfg.set_value(sec, "best_run", seats[i].best_run)
 	cfg.save(PATH)
+
+
+## A seat's fastest practice run (seconds), or 0 if they haven't done one.
+func best_run(seat: int) -> float:
+	return seats[seat].best_run
+
+
+## Record a practice run. Returns true if it's the seat's new best.
+func record_run(seat: int, seconds: float) -> bool:
+	if seats[seat].best_run > 0.0 and seconds >= seats[seat].best_run:
+		return false
+	seats[seat].best_run = seconds
+	return true
 
 
 func coins(seat: int) -> int:

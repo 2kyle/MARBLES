@@ -79,6 +79,8 @@ var mirror := false
 var on_plate: Array = [false, false, false, false]
 ## The casino island (west), and its horse race.
 var casino: CasinoIsland
+## The practice run's TIME TRIAL clock and RUN RECORDS board.
+var trial: TimeTrial
 var derby: HorseRace
 ## The sports island off the east edge (soccer and basketball).
 var sports: SportsIsland
@@ -259,6 +261,7 @@ func spawn_point(p: int) -> Vector3:
 ## Called every physics tick while the hub is open.
 func physics_update(delta: float) -> void:
 	plane.update(delta)
+	trial.update(delta, marbles)
 	casino.update(delta, marbles)
 	sports.update(delta)
 	for m in marbles:
@@ -428,6 +431,14 @@ func _practice_run() -> void:
 	lift.position = LIFT_POS + Vector3.UP * 0.01
 	lift.scale = Vector3.ONE * 1.6
 	add_child(lift)
+
+	# TIME TRIAL: a clock for runs from the top pad to the bottom.
+	trial = TimeTrial.new()
+	trial.name = "TimeTrial"
+	add_child(trial)
+	trial.setup(_course, func(at: Vector3) -> bool:
+		return not is_reserved(at, 1.4) and Vector2(at.x - SPAWN.x, at.z - SPAWN.z).length() > 4.5)
+	reserved.append([trial.board_pos, 1.6])   # keep trees and plants off the board
 
 
 ## A little stone tower with a flag behind the top of the run.

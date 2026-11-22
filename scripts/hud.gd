@@ -28,6 +28,7 @@ var _badge: Label            # "FRAME 3/10" top centre
 var _banner: Label           # "DRAFT 12" under the badge
 var _center: Label           # countdown number
 var _wild_tag: Label         # "WILD FRAME: LOW GRAVITY" under the badge
+var _run_clock: Label        # hub TIME TRIAL clock, top middle
 var _wild_splash: VBoxContainer  # the big announcement when a wild frame's draft starts
 var _wild_shown := ""        # "frame|id" the splash last played for
 var _board: PanelContainer
@@ -142,6 +143,10 @@ func _ready() -> void:
 
 	_wild_tag = _title_label(20, Control.PRESET_CENTER_TOP)
 	_wild_tag.offset_top = 118
+
+	_run_clock = _title_label(26, Control.PRESET_CENTER_TOP)
+	_run_clock.offset_top = 64
+	_run_clock.add_theme_stylebox_override("normal", _pill(PANEL_BG, 16, 4))
 
 	_center = _title_label(150, Control.PRESET_CENTER)
 	_center.pivot_offset = Vector2(60, 90)
@@ -633,6 +638,22 @@ func _update_chips(game) -> void:
 	_chips.offset_bottom = -(_hints.size.y + 22.0)
 
 
+## TIME TRIAL clocks for anyone on a run (or who just finished one).
+func _update_run_clock(game, show: bool) -> void:
+	var parts := []
+	if show and game.hub and game.hub.trial:
+		for p in game.player_count:
+			var t: float = game.hub.trial.time_of(p)
+			var done: float = game.hub.trial.just_finished(p)
+			if t >= 0.0:
+				parts.append("%s  %.1fs" % [game.seat_name(p), t])
+			elif done >= 0.0:
+				parts.append("%s  FINISH  %s" % [game.seat_name(p), TimeTrial.format(done)])
+	_run_clock.visible = not parts.is_empty()
+	if _run_clock.visible:
+		_run_clock.text = "TIME TRIAL   " + "     ".join(parts)
+
+
 # ------------------------------------------------------------ Ready screen
 
 func _update_ready(game) -> void:
@@ -665,6 +686,7 @@ func _update_hub(game) -> void:
 	_hub_coins.visible = in_hub and not screen
 	_hints.visible = not screen
 	_tables.visible = in_hub and game.table_open.any(func(t): return t != "")
+	_update_run_clock(game, in_hub and not screen)
 	if not in_hub:
 		return
 	# Coins, top right.

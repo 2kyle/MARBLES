@@ -309,6 +309,7 @@ func _build() -> void:
 	_casino_island()
 	_sports_island()
 	_play_portal()
+	_alley_entrance()
 	_hurdles()
 	_playground()
 	_windmill(Vector3(-17, 0, -23))
@@ -606,6 +607,63 @@ func _play_portal() -> void:
 	area.body_entered.connect(func(body):
 		if body is Marble and marbles.has(body):
 			play_requested.emit(body.player_id))
+
+
+## Dress the PLAY arch like the front of a bowling alley: chase lights
+## round its sign, a giant pin statue (with a face) on each side and a
+## ball rack. The statues are solid, so marbles bounce off them.
+func _alley_entrance() -> void:
+	var beam := PORTAL_POS + Vector3(0, 4.3, 0)
+	var bulbs := ShaderMaterial.new()
+	bulbs.shader = preload("res://shaders/marquee_lights.gdshader")
+	bulbs.set_shader_parameter("spacing", 0.045)
+	for y in [-0.5, 0.5]:
+		var strip := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(5.6, 0.12)
+		strip.mesh = q
+		strip.material_override = bulbs
+		strip.position = beam + Vector3(0, y * 0.9, -0.285)
+		strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(strip)
+	var plinth := Color(0.35, 0.18, 0.42)
+	for side in [-1.0, 1.0]:
+		var at := PORTAL_POS + Vector3(side * 4.5, 0, 0.4)
+		reserved.append([at, 1.2])
+		LowPoly.cyl(self, 0.85, 0.95, 0.5, at + Vector3(0, 0.25, 0), plinth, 10)
+		LowPoly.cyl(self, 0.9, 0.9, 0.08, at + Vector3(0, 0.52, 0), Color(1.0, 0.8, 0.25), 10)
+		LowPoly.solid_cyl(self, 0.95, 0.56, at + Vector3(0, 0.28, 0))
+		# The pin: the real pin shape, blown up, leaning a little outward.
+		var s := 3.4
+		var pin := MeshInstance3D.new()
+		pin.mesh = Pin.pin_mesh()
+		pin.scale = Vector3.ONE * s
+		pin.position = at + Vector3(0, 0.56 + 0.5175 * s, 0)
+		pin.rotation = Vector3(0, -side * 0.35, side * -0.06)
+		add_child(pin)
+		LowPoly.solid_cyl(self, 0.13 * s, 1.0 * s, at + Vector3(0, 0.56 + 0.5 * s, 0))
+		# A cheeky face, looking out over the plaza.
+		var head := pin.position + Vector3(0, 0.33 * s, 0)
+		var fwd := Basis(Vector3.UP, -side * 0.35) * Vector3(0, 0, -1)
+		var across := fwd.cross(Vector3.UP).normalized()
+		for e in [-1.0, 1.0]:
+			var eye: Vector3 = head + fwd * 0.085 * s + across * e * 0.04 * s
+			LowPoly.ball(self, eye, 0.032 * s, Color.WHITE, 8)
+			LowPoly.ball(self, eye + fwd * 0.022 * s, 0.016 * s, Color(0.05, 0.03, 0.08), 6)
+	# A ball rack beside the right-hand statue, with spare balls.
+	var rack := PORTAL_POS + Vector3(6.6, 0, -0.6)
+	reserved.append([rack, 1.3])
+	var wood := Color(0.5, 0.3, 0.16)
+	for x in [-0.9, 0.9]:
+		LowPoly.box(self, Vector3(0.12, 0.9, 0.5), rack + Vector3(x, 0.45, 0), wood, 0.0)
+	LowPoly.box(self, Vector3(1.92, 0.1, 0.5), rack + Vector3(0, 0.45, 0), wood, 0.0)
+	LowPoly.box(self, Vector3(1.92, 0.1, 0.5), rack + Vector3(0, 0.88, 0), wood, 0.0)
+	LowPoly.solid_box(self, Vector3(1.95, 0.95, 0.55), rack + Vector3(0, 0.47, 0))
+	var colors := [Color(0.85, 0.2, 0.3), Color(0.2, 0.45, 0.9), Color(0.25, 0.75, 0.4),
+			Color(0.95, 0.7, 0.2), Color(0.6, 0.3, 0.85), Color(0.15, 0.15, 0.2)]
+	for k in 6:
+		var shelf := 0.5 if k < 3 else 0.93
+		LowPoly.ball(self, rack + Vector3(-0.58 + (k % 3) * 0.58, shelf + 0.2, 0), 0.2, colors[k], 12)
 
 
 func _hurdles() -> void:

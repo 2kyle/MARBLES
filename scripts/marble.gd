@@ -39,6 +39,15 @@ extends RigidBody3D
 @export var hop_speed := 4.0
 ## Seconds before the marble can hop again.
 @export var hop_cooldown := 0.8
+## Forgiving hops: a hop pressed this many seconds after rolling off an
+## edge still works ("coyote time"), and one pressed this long before
+## landing happens the moment it lands (a "buffered" hop). Both make
+## gap jumps feel fair instead of frame-perfect.
+@export var coyote_time := 0.14
+@export var hop_buffer_time := 0.16
+## How much the ball squashes and stretches (0 = rigid). Only the picture
+## changes, never the physics.
+@export var squash_amount := 1.0
 
 ## Fired when the marble hops (for the puff effect and sound later).
 signal hopped
@@ -73,6 +82,17 @@ var no_steer_time := 0.0
 var _lean_now := Vector2.ZERO
 var _air_time := 0.0
 var _fall_speed := 0.0
+## Last floor the marble touched (for coyote-time hops) and a hop waiting
+## to happen on landing (seconds left).
+var _last_floor := Vector3.UP
+var _hop_buffered := 0.0
+## Squash spring: 0 = round, + = squashed flat, - = stretched tall.
+var _squash := 0.0
+var _squash_vel := 0.0
+## A soft round shadow straight under the ball while it's in the air, so
+## you can see where it will land.
+var _blob: MeshInstance3D
+static var _blob_mat: StandardMaterial3D
 
 var color := Color.WHITE:
 	set(value):
@@ -123,6 +143,11 @@ const MARBLE_SHADER := preload("res://shaders/marble.gdshader")
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 	landed.connect(wince)
+	landed.connect(func(strength):
+		squash(clampf(strength / 9.0, 0.0, 0.45))
+		if strength > 7.5 and not preview:
+			PopText.spawn(self, global_position + Vector3.UP * 0.7, "THUD!", Color(0.95, 0.9, 0.8), 0.8))
+	hopped.connect(func(): squash(-0.28))
 	_last_pos = global_position
 	_apply_look()
 
@@ -153,6 +178,92 @@ func _process(delta: float) -> void:
 			mesh.rotate_y(delta * 1.2)
 			mesh.rotate_x(delta * 0.5)
 	_place_hat(delta)
+	_update_squash(delta)
+	_update_blob()
+
+
+## Give the ball a squash (+, flatten) or stretch (-, tall) that springs
+## back. Landings squash it, hops stretch it.
+func squash(amount: float) -> void:
+	_squash_vel += amount * 22.0 * squash_amount
+
+
+func _update_squash(delta: float) -> void:
+	var mesh := get_node_or_null("Mesh") as Node3D
+	if mesh == null or delta <= 0.0:
+		return
+	# A springy wobble: stiff, so it settles in about a third of a second.
+	_squash_vel += (-_squash * 260.0 - _squash_vel * 14.0) * delta
+	_squash = clampf(_squash + _squash_vel * delta, -0.35, 0.45)
+	if absf(_squash) < 0.002 and absf(_squash_vel) < 0.01:
+		_squash = 0.0
+		_squash_vel = 0.0
+		if mesh.basis != Basis.IDENTITY and not preview:
+			mesh.basis = Basis.IDENTITY
+		return
+	# Squash along the world's up, whichever way the ball has rolled: turn
+	# the world-space squash into the ball's own (rolling) space.
+	var f := 1.0 - _squash
+	var g := 1.0 + _squash * 0.5
+	var up := Vector3.UP
+	var s := Basis(Vector3(g, 0, 0), Vector3(0, g, 0), Vector3(0, 0, g))
+	s.x += up * up.x * (f - g)
+	s.y += up * up.y * (f - g)
+	s.z += up * up.z * (f - g)
+	var b := global_basis.orthonormalized()
+	mesh.basis = b.inverse() * s * b
+
+
+func _update_blob() -> void:
+	if preview or face_camera or not is_inside_tree() or not visible or out:
+		if _blob:
+			_blob.visible = false
+		return
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(global_position, global_position + Vector3.DOWN * 8.0, 1)
+	q.exclude = [get_rid()]
+	var hit := space.intersect_ray(q)
+	var h: float = global_position.y - hit.position.y if not hit.is_empty() else 99.0
+	# Only while airborne (on the ground the sun's shadow does the job),
+	# and fading out when very high.
+	var a := clampf((h - 0.45) / 0.35, 0.0, 1.0) * clampf((7.0 - h) / 3.0, 0.0, 1.0)
+	if a <= 0.01:
+		if _blob:
+			_blob.visible = false
+		return
+	if _blob == null:
+		_blob = MeshInstance3D.new()
+		_blob.top_level = true
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.75, 0.75)
+		quad.orientation = PlaneMesh.FACE_Y
+		_blob.mesh = quad
+		_blob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if _blob_mat == null:
+			var grad := Gradient.new()
+			grad.set_color(0, Color(0, 0, 0, 0.6))
+			grad.set_color(1, Color(0, 0, 0, 0))
+			var tex := GradientTexture2D.new()
+			tex.gradient = grad
+			tex.fill = GradientTexture2D.FILL_RADIAL
+			tex.fill_from = Vector2(0.5, 0.5)
+			tex.fill_to = Vector2(1.0, 0.5)
+			_blob_mat = StandardMaterial3D.new()
+			_blob_mat.albedo_texture = tex
+			_blob_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			_blob_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			_blob_mat.vertex_color_use_as_albedo = false
+		_blob.material_override = _blob_mat
+		add_child(_blob)
+	_blob.visible = true
+	var n: Vector3 = hit.normal
+	var x := n.cross(Vector3.FORWARD)
+	if x.length() < 0.1:
+		x = n.cross(Vector3.RIGHT)
+	x = x.normalized()
+	# Shrinks a little the higher the ball is.
+	var size := lerpf(1.0, 0.6, clampf(h / 6.0, 0.0, 1.0)) * a
+	_blob.global_transform = Transform3D(Basis(x, n, x.cross(n)).scaled(Vector3.ONE * maxf(size, 0.05)), hit.position + n * 0.03)
 
 
 ## Keep the hat and eyes on the ball. They don't roll with it: they turn to
@@ -208,6 +319,11 @@ func _physics_process(delta: float) -> void:
 	if freeze or out:
 		return
 	_hop_wait = maxf(_hop_wait - delta, 0.0)
+	if _hop_buffered > 0.0:
+		_hop_buffered -= delta
+		if _hop_wait <= 0.0 and floor_normal() != Vector3.ZERO:
+			_hop_buffered = 0.0
+			request_hop()
 	if no_steer_time > 0.0:
 		no_steer_time -= delta
 		_track_landing(delta)
@@ -254,6 +370,7 @@ func _track_landing(delta: float) -> void:
 	if _air_time > 0.25 and _fall_speed > 2.0:
 		landed.emit(_fall_speed)
 		_hop_puff()
+	_last_floor = floor_normal()
 	_air_time = 0.0
 	_fall_speed = 0.0
 
@@ -262,11 +379,22 @@ func _track_landing(delta: float) -> void:
 ## after the last hop, so there's no flying. Returns true if it hopped.
 ## Like `lean`, the game calls this when the player presses the hop key.
 func request_hop() -> bool:
-	if freeze or out or arrived or _hop_wait > 0.0:
+	if freeze or out or arrived:
+		return false
+	if _hop_wait > 0.0:
+		# Pressed a little early (still cooling down from the last hop):
+		# keep it and hop as soon as it's allowed.
+		_hop_buffered = hop_buffer_time
 		return false
 	var normal := floor_normal()
 	if normal == Vector3.ZERO:
-		return false
+		if _air_time < coyote_time and linear_velocity.dot(_last_floor) < 1.0:
+			# Just rolled off an edge: still allowed (coyote time).
+			normal = _last_floor
+		else:
+			# In the air: hop the moment it lands, if that's soon.
+			_hop_buffered = hop_buffer_time
+			return false
 	# Cancel any speed into the floor, then push off it.
 	var into := linear_velocity.dot(normal)
 	if into < 0.0:

@@ -15,8 +15,10 @@ signal basket_made(player: int)
 ##     BLUE scores in the orange goal and ORANGE in the blue goal.
 ##   - a trampoline set into the ground. Roll onto it and it throws your
 ##     marble at the basketball hoop. Sink it for a shower of confetti.
+##   - SKEE-JUMP (skee_jump.gd), a retro arcade lane: hit the kicker and
+##     land on the highest band you can. Pays a coin per 10 points.
 ##
-## Everything here is just for fun: no coins, nothing is saved.
+## Soccer and hoops are just for fun: no coins, nothing is saved.
 
 const RADIUS := 19.0
 
@@ -29,6 +31,8 @@ const BALL_RADIUS := 0.55
 const TRAMPOLINE := Vector3(9, 0, 11)
 const RIM := Vector3(9, 3.2, 5.9)
 const RIM_RADIUS := 0.62
+## Where the SKEE-JUMP lane sits (its start pad is at +X, it rolls to -X).
+const SKEE_AT := Vector3(1.5, 0, 5.5)
 ## How long a throw takes from the trampoline to the hoop, in seconds.
 const FLIGHT_TIME := 1.1
 
@@ -38,6 +42,7 @@ const ORANGE := Color(1.0, 0.55, 0.2)
 const WOOD := Color(0.62, 0.45, 0.3)
 
 var score := {"blue": 0, "orange": 0}
+var skee: SkeeJump
 var baskets := 0
 
 var _ball: RigidBody3D
@@ -65,6 +70,11 @@ func build(bridge_from_z: float) -> void:
 	_make_ball()
 	_trampoline()
 	_hoop()
+	skee = SkeeJump.new()
+	skee.name = "SkeeJump"
+	skee.position = SKEE_AT
+	add_child(skee)
+	skee.build()
 	_scenery()
 	_entrance(bridge_from_z)
 

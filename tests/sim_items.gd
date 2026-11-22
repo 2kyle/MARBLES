@@ -3,6 +3,8 @@ extends SceneTree
 ## fan blowing across the track, a Wall Breaker TA, and the Narrow Bridge
 ## and S-Bend TAs.
 ##   godot --headless --fixed-fps 120 --script res://tests/sim_items.gd -- [tele|fan|open|narrow|sbend]
+## Newer pieces and TAs (prints each marble's speed and line as it passes):
+##   ... -- [pop_bumper|pendulum|magnet|bounce_pad|track_hill|track_oil|track_zigzag]
 
 var game: Node
 var _ticks := 0
@@ -46,6 +48,8 @@ func _process(_delta: float) -> bool:
 				print("placed narrow: ", b.place("track_narrow", Vector2(0.0, -12.0), 0.0, 0), " ", game.track.narrows)
 			"sbend":
 				print("placed s-bend: ", b.place("track_sbend", Vector2(0.0, -12.0), 0.0, 0))
+			_:
+				print("placed %s: " % _mode, b.place(_mode, Vector2(0.0, -12.0), 0.0, 0))
 		print("placed: ", b.placed.map(func(p): return p.id), " gaps: ", game.track.gaps)
 		game._start_countdown()
 	if game.state == game.State.ROLLING:
@@ -59,6 +63,12 @@ func _process(_delta: float) -> bool:
 				var f: Transform3D = game.track.world_frame_at(d)
 				print("  P%d at %.1f m: %.2f m from centre, sideways speed %.2f" % [m.player_id + 1, d,
 						f.basis.x.dot(m.global_position - f.origin), f.basis.x.dot(m.linear_velocity)])
+			if _mode.begins_with("track_") or _mode in ["pop_bumper", "pendulum", "magnet", "bounce_pad"]:
+				if d > 8.0 and d < 40.0 and _ticks % 15 == 0:
+					var f2: Transform3D = game.track.world_frame_at(d)
+					print("  P%d at %5.1f m  speed %4.1f  across %+.2f  height above floor %.2f" % [m.player_id + 1, d,
+							m.linear_velocity.length(), f2.basis.x.dot(m.global_position - f2.origin),
+							f2.basis.y.dot(m.global_position - f2.origin)])
 			if m.out and not _teleported.has(-1 - m.player_id):
 				_teleported[-1 - m.player_id] = true
 				print("  P%d fell off near %.1f m" % [m.player_id + 1, d])

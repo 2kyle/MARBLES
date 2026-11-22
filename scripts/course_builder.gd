@@ -194,6 +194,8 @@ const TA_NEW_EDGE := Color(1.0, 0.92, 0.45, 0.85)
 const TA_DANGER := Color(1.0, 0.22, 0.15, 0.5)
 const TA_BAD := Color(1.0, 0.15, 0.12, 0.45)
 const TA_DOT := Color(1.0, 1.0, 1.0, 0.75)
+## An Oil Slick's floor: slick cyan instead of gold.
+const TA_OIL := Color(0.2, 0.85, 1.0, 0.55)
 
 
 ## For a track card's ghost: what the track would look like with the card
@@ -231,7 +233,7 @@ func reshape_preview(id: String, pos: Vector2, angle: float) -> ArrayMesh:
 	var hw := track.lane_width / 2.0
 	var wall_h := track.wall_height
 	var bad: bool = not plan.fits
-	var new_col := TA_BAD if bad else TA_NEW
+	var new_col := TA_BAD if bad else (TA_OIL if kind == "oil" else TA_NEW)
 	var edge_col := TA_BAD if bad else TA_NEW_EDGE
 
 	var st := SurfaceTool.new()

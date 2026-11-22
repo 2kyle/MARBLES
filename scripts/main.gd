@@ -151,6 +151,8 @@ var arena: Arena
 ## The victory podium, shown when a match ends.
 var podium: Podium
 var _hub_env: Environment
+## The retro screen filter (warm film colours, optional scanlines).
+var retro_filter: RetroFilter
 var _menu_time := 0.0
 ## Coins, owned looks and equipped looks for each seat (saved to disk).
 var profiles := Profiles.new()
@@ -231,7 +233,13 @@ func _ready() -> void:
 	menu.restart_frame_requested.connect(_on_restart_frame_requested)
 	menu.quit_to_menu_requested.connect(_on_quit_to_menu)
 	menu.quit_requested.connect(func(): get_tree().quit())
-	menu.settings_changed.connect(func(): camera_shake = settings.camera_shake)
+	retro_filter = RetroFilter.new()
+	retro_filter.name = "RetroFilter"
+	add_child(retro_filter)
+	retro_filter.set_look(settings.retro_look)
+	menu.settings_changed.connect(func():
+		camera_shake = settings.camera_shake
+		retro_filter.set_look(settings.retro_look))
 	menu.practice_requested.connect(_enter_hub)
 	closet = Closet.new()
 	add_child(closet)
@@ -385,6 +393,7 @@ func _ensure_hub() -> void:
 		hub._build()
 	hub.sports.goal_scored.connect(_on_goal_scored)
 	hub.sports.basket_made.connect(_on_basket_made)
+	hub.sports.skee.game_over.connect(_on_skee_game_over)
 
 
 ## The island's world, state and camera, once its marbles are placed.
@@ -540,6 +549,15 @@ func _on_secret_found(p: int, id: int, at: Vector3) -> void:
 func _on_goal_scored(team: String) -> void:
 	Achievements.unlock("BACK_OF_THE_NET")
 	net.send_event("fx", {"kind": "goal", "team": team, "score": hub.sports.score})
+
+
+## A game of SKEE-JUMP finished: a coin for every 10 points.
+func _on_skee_game_over(p: int, score: int) -> void:
+	var prof := profile_of(p)
+	var coins := score / 10
+	if prof >= 0 and coins > 0:
+		profiles.add_coins(prof, coins)
+		profiles.save_to_disk()
 
 
 func _on_basket_made(p: int) -> void:

@@ -19,6 +19,8 @@ extends Node3D
 
 ## A track card changed the shape of the track (the pin deck must move).
 signal track_reshaped
+## A bomb went off and blew up `count` placed pieces (for the match awards).
+signal blasted(by_player: int, count: int)
 
 ## One entry per placed piece: {id, pos, angle, by, node}.
 var placed: Array = []
@@ -93,7 +95,7 @@ var last_placed: Node3D = null
 func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 	pos = clamp_pos(pos)
 	if PieceCatalog.is_bomb(id):
-		explode(pos, PieceCatalog.info(id).radius)
+		blasted.emit(by_player, explode(pos, PieceCatalog.info(id).radius))
 		return true
 	if PieceCatalog.is_track(id):
 		return _reshape(id, pos, angle)

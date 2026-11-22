@@ -7,9 +7,11 @@ extends RefCounted
 ##     placed pieces near where it lands; "track" is a TA (track-altering
 ##     card): it reshapes the track itself where it's dropped (the scene is
 ##     only its picture). TAs and pieces share the same draft pool.
-## radius: rough footprint in metres. Pieces can't be placed with their
-##     centres closer than about their two radii, and the bomb clears
-##     anything within its radius.
+## spins: true if the whole piece turns round (its footprint is a circle).
+## sweep: how far a moving part reaches from the centre (before scaling).
+## radius: rough size in metres (bots and the bomb's blast use it). The
+##     real footprint that stops pieces overlapping each other or the walls
+##     is measured from the scene itself (CourseBuilder.footprint()).
 ## base_rotation: degrees the piece starts turned before the player rotates
 ##     it (the angled rail starts diagonal).
 
@@ -50,6 +52,7 @@ const PIECES := {
 		"about": "Swats balls",
 		"scene": "res://scenes/pieces/spinner.tscn",
 		"kind": "piece", "radius": 1.68, "base_rotation": 0.0,
+		"spins": true,
 	},
 	"gutter_cut": {
 		"name": "Gutter cut",
@@ -100,6 +103,8 @@ const PIECES := {
 		"scene": "res://scenes/pieces/pendulum.tscn",
 		"kind": "piece", "radius": 1.6, "base_rotation": 0.0,
 		"new": true,
+		# The ball swings (rod + ball) * sin(58 degrees) either side.
+		"sweep": Vector2(1.63, 0.0),
 	},
 	"magnet": {
 		"name": "Magnet",

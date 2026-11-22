@@ -94,6 +94,9 @@ func _process(_d: float) -> bool:
 			key(KEY_DOWN)
 		8:
 			key(KEY_DOWN, false)
+			# RETRO LOOK sits between VSYNC and VOLUME: step past it.
+			if focused().begins_with("RETRO"):
+				root.gui_get_focus_owner().find_valid_focus_neighbor(SIDE_BOTTOM).grab_focus()
 			var before: float = game.settings.master_volume
 			set_meta("vol", before)
 			pad_button(0, JOY_BUTTON_DPAD_LEFT)

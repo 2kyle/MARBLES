@@ -48,35 +48,202 @@ func clamp_pos(pos: Vector2) -> Vector2:
 	return Vector2(clampf(pos.x, -half_width, half_width), clampf(pos.y, bottom_z(), top_z))
 
 
-## True if a piece `id` could go at `pos` without sitting on another piece.
+## True if a piece `id` could go at `pos` without poking through the walls,
+## hanging over a gap or sitting on another piece.
 func can_place(id: String, pos: Vector2, angle := 0.0) -> bool:
+	return why_blocked(id, pos, angle) == ""
+
+
+## Why a piece can't go at `pos`, in a couple of words for the HUD
+## ("WALL", "ON A PIECE", "OVER A GAP", "TOO STEEP"), or "" if it fits.
+## `skip` is a placed entry to ignore (a piece checking its own new spot).
+func why_blocked(id: String, pos: Vector2, angle := 0.0, skip = null) -> String:
 	if PieceCatalog.is_bomb(id):
-		return true
+		return ""
 	if PieceCatalog.is_track(id):
-		return _reshaped_layout(id, pos, angle) != null
+		return "" if _reshaped_layout(id, pos, angle) != null else "WON'T FIT"
 	if track.in_gap(-pos.y, 1.2) or track.in_narrow(-pos.y, 1.0):
-		return false
-	var r: float = PieceCatalog.info(id).radius
+		return "OVER A GAP" if track.in_gap(-pos.y, 1.2) else "TOO NARROW"
+	var wall := _wall_problem(id, pos, angle)
+	if wall != "":
+		return wall
+	var mine := floor_outline(id, pos, angle)
 	for p in placed:
-		var min_gap: float = (r + PieceCatalog.info(p.id).radius) * (1.0 - overlap_allowed)
-		if pos.distance_to(p.pos) < min_gap:
-			return false
-	return true
+		if skip != null and p == skip:
+			continue
+		if not p.has("poly"):
+			p.poly = floor_outline(p.id, p.pos, p.angle)
+		if _overlap_area(mine, p.poly) > OVERLAP_SLACK:
+			return "ON A PIECE"
+	return ""
+
+
+## Two pieces may touch, but not overlap by more than this (square metres).
+const OVERLAP_SLACK := 0.004
+## How close a piece may come to the inside of a wall, in metres.
+const WALL_MARGIN := 0.04
 
 
 ## The closest spot to `pos` where `id` fits, searching outward. Returns
 ## `pos` itself if it already fits, or null if nothing nearby fits.
-func nearest_free(id: String, pos: Vector2, angle := 0.0) -> Variant:
-	if can_place(id, pos, angle):
+func nearest_free(id: String, pos: Vector2, angle := 0.0, skip = null, max_rings := 15) -> Variant:
+	if why_blocked(id, pos, angle, skip) == "":
 		return pos
-	for ring in range(1, 16):
+	for ring in range(1, max_rings + 1):
 		var dist := ring * 0.5
 		for step in 12:
 			var a := TAU * step / 12.0
-			var p := clamp_pos(pos + Vector2(cos(a), sin(a)) * dist)
-			if can_place(id, p, angle):
+			var p := clamp_piece(id, pos + Vector2(cos(a), sin(a)) * dist, angle)
+			if why_blocked(id, p, angle, skip) == "":
 				return p
 	return null
+
+
+# ------------------------------------------------------------ Footprints
+# Every piece knows its real outline on the floor (measured once from its
+# scene, so a new model from Blender gets the right size by itself). The
+# outline turns with the piece, keeps it inside the walls and stops it
+# sitting on top of another piece.
+
+static var _footprints := {}
+
+
+## A piece's footprint in its own (turned, scaled) space:
+##   c: centre offset (x across, y = z along), h: half size, r: radius if
+##   it spins (then the outline is a circle).
+func footprint(id: String) -> Dictionary:
+	if _footprints.has(id):
+		return _footprints[id]
+	var info: Dictionary = PieceCatalog.info(id)
+	var fp := {"c": Vector2.ZERO, "h": Vector2.ONE * float(info.get("radius", 1.0)) * 0.7, "r": 0.0}
+	if info.get("kind", "") == "piece" and info.has("scene"):
+		var node: Node3D = load(info.scene).instantiate()
+		PieceStyle.dress(node, id)
+		node.process_mode = Node.PROCESS_MODE_DISABLED
+		_make_inert(node)
+		add_child(node)   # some pieces build themselves in _ready
+		var box := AABB()
+		var first := true
+		for mi in node.find_children("*", "MeshInstance3D", true, false):
+			var m: MeshInstance3D = mi
+			if m.mesh == null or m.has_meta("no_footprint"):
+				continue
+			var a: AABB = _local_xf(m, node) * m.mesh.get_aabb()
+			box = a if first else box.merge(a)
+			first = false
+		remove_child(node)
+		node.free()
+		if not first:
+			var s := PieceCatalog.scale_of(id)
+			var lo := Vector2(box.position.x, box.position.z) * s
+			var hi := Vector2(box.end.x, box.end.z) * s
+			fp.c = (lo + hi) / 2.0
+			fp.h = (hi - lo) / 2.0
+			# Moving parts reach further than they rest.
+			var sweep: Vector2 = info.get("sweep", Vector2.ZERO) * s
+			fp.h = Vector2(maxf(fp.h.x, sweep.x), maxf(fp.h.y, sweep.y))
+			if info.get("spins", false):
+				fp.r = fp.h.length()
+	_footprints[id] = fp
+	return fp
+
+
+func _local_xf(n: Node, top: Node) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	var cur: Node = n
+	while cur != null and cur != top:
+		if cur is Node3D:
+			t = (cur as Node3D).transform * t
+		cur = cur.get_parent()
+	return t
+
+
+## The corners of a piece's footprint offsets (lane metres, relative to its
+## centre), turned by `angle` plus the piece's own starting turn.
+func outline_offsets(id: String, angle: float) -> PackedVector2Array:
+	var fp := footprint(id)
+	var out := PackedVector2Array()
+	var t := deg_to_rad(PieceCatalog.info(id).get("base_rotation", 0.0) + angle)
+	var pts := []
+	if fp.r > 0.0:
+		for k in 12:
+			var a := TAU * k / 12.0
+			pts.append(fp.c + Vector2(cos(a), sin(a)) * fp.r)
+	else:
+		var h: Vector2 = fp.h
+		pts = [fp.c + Vector2(-h.x, -h.y), fp.c + Vector2(h.x, -h.y), fp.c + Vector2(h.x, h.y), fp.c + Vector2(-h.x, h.y)]
+	for v in pts:
+		# Same turn as Basis(Vector3.UP, t) on (x, 0, z).
+		out.append(Vector2(v.x * cos(t) + v.y * sin(t), -v.x * sin(t) + v.y * cos(t)))
+	return out
+
+
+## A piece's footprint where it really sits on the (bendy) track, seen
+## from above: track-local x and z. Two pieces on a bend are turned a
+## little differently, so this is what tells if they overlap.
+func floor_outline(id: String, pos: Vector2, angle: float) -> PackedVector2Array:
+	var base := lane_xform(pos)
+	var out := PackedVector2Array()
+	for v in outline_offsets(id, angle):
+		var p := base.origin + base.basis.x * v.x + base.basis.z * v.y
+		out.append(Vector2(p.x, p.z))
+	return out
+
+
+func _overlap_area(a: PackedVector2Array, b: PackedVector2Array) -> float:
+	var area := 0.0
+	for poly in Geometry2D.intersect_polygons(a, b):
+		var p: PackedVector2Array = poly
+		var s := 0.0
+		for i in p.size():
+			s += p[i].cross(p[(i + 1) % p.size()])
+		area += absf(s) / 2.0
+	return area
+
+
+## Checks the footprint against the real (bendy, banked) track: every
+## corner and edge middle must be over the floor, inside the walls, and
+## not floating above or sunk into a hill.
+func _wall_problem(id: String, pos: Vector2, angle: float) -> String:
+	var base := lane_xform(pos)
+	var offs := outline_offsets(id, angle)
+	var probes := PackedVector2Array()
+	for i in offs.size():
+		probes.append(offs[i])
+		probes.append((offs[i] + offs[(i + 1) % offs.size()]) / 2.0)
+	for v in probes:
+		var p := base.origin + base.basis.x * v.x + base.basis.z * v.y
+		var d := track.distance_of(track.to_global(p))
+		if d <= 0.05 or d >= track.length() - 0.05:
+			return "WALL"
+		if track.in_gap(d, 0.2):
+			return "OVER A GAP"
+		var f := track.frame_at(d)
+		var rel := p - f.origin
+		if absf(rel.dot(f.basis.x)) > track.half_width_at(d) - WALL_MARGIN:
+			return "WALL"
+		if absf(rel.dot(f.basis.y)) > 0.22:
+			return "TOO STEEP"
+	return ""
+
+
+## Like clamp_pos(), but also keeps the piece's whole footprint inside the
+## walls on a straight stretch, so build cursors slide along the wall
+## instead of pushing the piece through it.
+func clamp_piece(id: String, pos: Vector2, angle: float) -> Vector2:
+	pos = clamp_pos(pos)
+	if PieceCatalog.is_track(id) or PieceCatalog.is_bomb(id) or id == "":
+		return pos
+	var lo := INF
+	var hi := -INF
+	for v in outline_offsets(id, angle):
+		lo = minf(lo, v.x)
+		hi = maxf(hi, v.x)
+	var hw := track.half_width_at(-pos.y) - WALL_MARGIN - 0.02
+	var x_min := -hw - lo
+	var x_max := hw - hi
+	pos.x = (x_min + x_max) / 2.0 if x_min > x_max else clampf(pos.x, x_min, x_max)
+	return pos
 
 
 ## Where a placed piece goes: on the track at `pos`, turned, and scaled up
@@ -99,7 +266,7 @@ func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 		return true
 	if PieceCatalog.is_track(id):
 		return _reshape(id, pos, angle)
-	if not can_place(id, pos):
+	if not can_place(id, pos, angle):
 		return false
 	var node: Node3D = load(PieceCatalog.info(id).scene).instantiate()
 	PieceStyle.dress(node, id)
@@ -167,9 +334,11 @@ func _reshape(id: String, pos: Vector2, angle: float) -> bool:
 	for p in placed:
 		if -p.pos.y > at:
 			p.pos.y -= added
+		p.erase("poly")   # the track moved under it
 		if is_instance_valid(p.node):
 			p.node.transform = piece_xform(p.id, p.pos, p.angle)
 	_fit_cache.clear()
+	_settle_pieces()
 	if _zone:
 		_zone.queue_free()
 		_zone = null
@@ -177,6 +346,27 @@ func _reshape(id: String, pos: Vector2, angle: float) -> bool:
 	_reshape_flash(id, track.ground_to_distance(plan.from), track.ground_to_distance(plan.to))
 	track_reshaped.emit()
 	return true
+
+
+## After a track card changes the track, a piece may now poke through a
+## new bend's wall or hang over a new gap. Nudge each one to the nearest
+## spot where it fits, or pop it off the track if there's no room.
+func _settle_pieces() -> void:
+	for i in range(placed.size() - 1, -1, -1):
+		var p: Dictionary = placed[i]
+		if why_blocked(p.id, p.pos, p.angle, p) == "":
+			continue
+		var spot = nearest_free(p.id, clamp_piece(p.id, p.pos, p.angle), p.angle, p, 6)
+		if spot != null:
+			p.pos = spot
+			p.erase("poly")
+			if is_instance_valid(p.node):
+				p.node.transform = piece_xform(p.id, p.pos, p.angle)
+		else:
+			if is_instance_valid(p.node):
+				_boom_effect(lane_xform(p.pos).origin, 1.0)
+				p.node.queue_free()
+			placed.remove_at(i)
 
 
 ## Where a track card's start line goes for a cursor at `pos`: across the

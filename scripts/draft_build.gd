@@ -168,7 +168,9 @@ func request_cursor_move(player: int, delta: Vector2) -> void:
 		return
 	if PieceCatalog.is_track(picks[player]):
 		delta.x = 0.0  # track cards only slide up and down the track
-	cursor_pos[player] = builder.clamp_pos(cursor_pos[player] + delta)
+	# The piece's whole outline stays inside the walls: the cursor slides
+	# along a wall instead of pushing the piece through it.
+	cursor_pos[player] = builder.clamp_piece(current_id(player), cursor_pos[player] + delta, cursor_angle[player])
 	message[player] = ""
 	_update_visuals()
 
@@ -185,6 +187,8 @@ func request_rotate(player: int, degrees: float) -> void:
 		cursor_angle[player] = 180.0 if PieceCatalog.turns_left(cursor_angle[player]) else 0.0
 	else:
 		cursor_angle[player] = fposmod(cursor_angle[player] + degrees, 360.0)
+		# A long piece turned sideways may need to step in from the wall.
+		cursor_pos[player] = builder.clamp_piece(id, cursor_pos[player], cursor_angle[player])
 	message[player] = ""
 	_update_visuals()
 
@@ -215,6 +219,12 @@ func request_place(player: int) -> bool:
 	if has_placed[player]:
 		return false
 	var id: String = current_id(player)
+	if not builder.can_place(id, cursor_pos[player], cursor_angle[player]) and not PieceCatalog.is_track(id):
+		# Nearly fits? Snap to the closest free spot within a couple of metres,
+		# so a press right next to another piece still works.
+		var spot = builder.nearest_free(id, cursor_pos[player], cursor_angle[player], null, 4)
+		if spot != null:
+			cursor_pos[player] = spot
 	if not builder.place(id, cursor_pos[player], cursor_angle[player], player):
 		message[player] = "Blocked"
 		return false
@@ -280,6 +290,14 @@ func cursor_blocked(player: int) -> bool:
 	return not has_placed[player] and not builder.can_place(current_id(player), cursor_pos[player], cursor_angle[player])
 
 
+## Why a player's piece won't go down where their cursor is ("WALL",
+## "ON A PIECE", ...), or "" if it fits.
+func blocked_reason(player: int) -> String:
+	if has_placed[player]:
+		return ""
+	return builder.why_blocked(current_id(player), cursor_pos[player], cursor_angle[player])
+
+
 # ---------------------------------------------------------------- Visuals
 
 var _pulse := 0.0
@@ -320,8 +338,17 @@ func _update_visuals() -> void:
 			gate_mat.albedo_color = Color(0.9, 0.1, 0.1) if blocked else colors[p]
 		else:
 			var marker: MeshInstance3D = _markers[p]
-			marker.transform = floor_xf * Transform3D(Basis.from_scale(Vector3(1, 0.15, 1)), Vector3.ZERO)
-			var mat: StandardMaterial3D = marker.mesh.material
+			var id := current_id(p)
+			if PieceCatalog.is_bomb(id):
+				marker.transform = floor_xf * Transform3D(Basis.from_scale(Vector3(1, 0.15, 1)), Vector3.ZERO)
+			else:
+				# The piece's real footprint, turned with it.
+				var key := "%s|%d" % [id, roundi(cursor_angle[p])]
+				if marker.get_meta("key", "") != key:
+					marker.set_meta("key", key)
+					marker.mesh = _outline_mesh(builder.outline_offsets(id, cursor_angle[p]), marker.get_meta("mat"))
+				marker.transform = floor_xf
+			var mat: StandardMaterial3D = marker.get_meta("mat")
 			mat.albedo_color = Color(0.9, 0.1, 0.1) if blocked else colors[p]
 		var tag: Node3D = _tags[p]
 		tag.transform = floor_xf
@@ -332,7 +359,7 @@ func _update_visuals() -> void:
 		label.visible = not has_placed[p]
 		label.text = describe(p)
 		if blocked:
-			label.text = "WON'T FIT HERE" if ghost.has_meta("track_card") else "BLOCKED"
+			label.text = "WON'T FIT HERE" if ghost.has_meta("track_card") else _reason_text(blocked_reason(p))
 		label.modulate = Color(1.0, 0.35, 0.3) if blocked else (colors[p] as Color).lightened(0.35)
 		var below := 0
 		for q in p:
@@ -347,6 +374,43 @@ func _update_visuals() -> void:
 	changed.emit()
 
 
+## What the floating label says when a piece won't fit.
+static func _reason_text(reason: String) -> String:
+	match reason:
+		"WALL":
+			return "HITS THE WALL"
+		"ON A PIECE":
+			return "ON ANOTHER PIECE"
+		"OVER A GAP":
+			return "OVER A GAP"
+		"TOO STEEP":
+			return "TOO STEEP HERE"
+		"TOO NARROW":
+			return "TOO NARROW"
+	return "BLOCKED"
+
+
+## A flat outline of the piece's footprint on the floor (a strip 0.07 m
+## wide just inside the edge), so you can see exactly where it will sit.
+func _outline_mesh(offsets: PackedVector2Array, mat: Material) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := offsets.size()
+	var centre := Vector2.ZERO
+	for v in offsets:
+		centre += v / n
+	for i in n:
+		var a: Vector2 = offsets[i]
+		var b: Vector2 = offsets[(i + 1) % n]
+		var ai := a + (centre - a).normalized() * 0.08
+		var bi := b + (centre - b).normalized() * 0.08
+		for v in [a, b, bi, a, bi, ai]:
+			st.add_vertex(Vector3(v.x, 0.0, v.y))
+	var mesh := st.commit()
+	mesh.surface_set_material(0, mat)
+	return mesh
+
+
 ## A flat ring in the player's colour showing their cursor and the piece's
 ## footprint. It turns red when the piece can't go there.
 func _make_marker(color: Color, radius: float) -> MeshInstance3D:
@@ -356,8 +420,10 @@ func _make_marker(color: Color, radius: float) -> MeshInstance3D:
 	mesh.outer_radius = radius
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.albedo_color = color
 	mesh.material = mat
+	marker.set_meta("mat", mat)
 	marker.mesh = mesh
 	marker.scale = Vector3(1, 0.15, 1)
 	marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

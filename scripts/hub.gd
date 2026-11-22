@@ -1059,10 +1059,21 @@ func _cottage(at: Vector3) -> void:
 	var garden := at + Vector3(-1.5, 0, 4.5)
 	for k in 8:
 		LowPoly.box(self, Vector3(0.08, 0.45, 0.08), garden + Vector3(-2.0 + k * 0.57, 0.22, 1.2), Color.WHITE, 0.0)
+	# Two rails, so the fence looks as solid as it is.
+	for y in [0.14, 0.36]:
+		LowPoly.box(self, Vector3(4.1, 0.06, 0.05), garden + Vector3(0.0, y, 1.23), Color.WHITE, 0.0)
 	LowPoly.solid_box(self, Vector3(4.1, 0.45, 0.1), garden + Vector3(0.0, 0.22, 1.2))
+	# A raised wooden bed the vegetables grow in (solid: marbles used to
+	# roll straight through the cabbages).
+	var bed := Color(0.5, 0.33, 0.2)
+	LowPoly.box(self, Vector3(3.9, 0.12, 2.0), garden + Vector3(0.0, 0.06, -0.0), Color(0.35, 0.24, 0.15), 0.0)
+	for sz in [-1.0, 1.0]:
+		LowPoly.box(self, Vector3(3.9, 0.18, 0.1), garden + Vector3(0.0, 0.09, sz * 0.95), bed, 0.0)
+		LowPoly.box(self, Vector3(0.1, 0.18, 2.0), garden + Vector3(sz * 1.95, 0.09, 0.0), bed, 0.0)
+	LowPoly.solid_box(self, Vector3(3.9, 0.3, 2.0), garden + Vector3(0.0, 0.15, 0.0))
 	for row in 3:
 		for k in 5:
-			LowPoly.ball(self, garden + Vector3(-1.6 + k * 0.7, 0.15, -0.6 + row * 0.6), 0.16,
+			LowPoly.ball(self, garden + Vector3(-1.6 + k * 0.7, 0.24, -0.6 + row * 0.6), 0.16,
 					[Color(0.95, 0.5, 0.15), Color(0.3, 0.6, 0.25), Color(0.85, 0.2, 0.25)][row])
 
 
@@ -1175,6 +1186,8 @@ func _near_run(at: Vector3, r: float) -> bool:
 func _rock(pos: Vector3, r: float) -> void:
 	var b := LowPoly.ball(self, pos + Vector3.UP * r * 0.3, r, Color(0.55, 0.52, 0.5))
 	b.scale = Vector3(1.2, 0.7, 1.0)
+	# Solid, so marbles bump the rock instead of rolling through it.
+	LowPoly.solid_cyl(self, r * 1.05, r, pos + Vector3.UP * r * 0.5)
 
 
 func _sparkles(at: Vector3, extents: Vector3, color: Color, amount: int) -> void:

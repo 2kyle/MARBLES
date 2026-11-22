@@ -533,4 +533,5 @@ func _scenery() -> void:
 			continue
 		var cone := LowPoly.cyl(self, 0.03, 0.22, 0.5, at + Vector3.UP * 0.25, Color(1.0, 0.5, 0.1), 8)
 		LowPoly.cyl(cone, 0.12, 0.16, 0.08, Vector3.ZERO, Color.WHITE, 8)
+		LowPoly.solid_cyl(self, 0.2, 0.5, at + Vector3.UP * 0.25)
 	LowPoly.label(self, TRAMPOLINE + Vector3(-3.2, 2.0, 0), "HOOPS", 56, Color(0.4, 0.15, 0.0), 0.0, true)

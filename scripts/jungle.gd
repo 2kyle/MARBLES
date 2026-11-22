@@ -714,7 +714,10 @@ func _waterfall() -> void:
 		var p := pool + Vector3(cos(ang), 0, sin(ang)) * 3.0
 		if (p - lip).length() < 2.2:
 			continue
-		_batch.ball(p + Vector3.UP * 0.1, _rng.randf_range(0.35, 0.55), STONE.darkened(0.15), 6, Vector3(1.2, 0.6, 1.0))
+		var sr := _rng.randf_range(0.35, 0.55)
+		_batch.ball(p + Vector3.UP * 0.1, sr, STONE.darkened(0.15), 6, Vector3(1.2, 0.6, 1.0))
+		# Solid, so marbles bump the stones instead of rolling through.
+		_solid_cyl(sr * 1.05, sr * 0.7, p + Vector3.UP * sr * 0.35)
 	_gem(5, mid + out * 1.2)
 
 

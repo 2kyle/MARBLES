@@ -7,6 +7,8 @@ var out := "user://shot.png"
 var mode := "match"
 var arg := ""
 var arg2 := ""
+## Frame to take the picture on (later for screens that animate in).
+var shot_at := 90
 
 func _initialize() -> void:
 	Achievements.save_path = "user://test_achievements.cfg"
@@ -15,6 +17,7 @@ func _initialize() -> void:
 	if a.size() > 1: mode = a[1]
 	if a.size() > 2: arg = a[2]
 	if a.size() > 3: arg2 = a[3]
+	if mode == "awards": shot_at = 360
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 
@@ -22,9 +25,9 @@ func _process(_d: float) -> bool:
 	_t += 1
 	if _t == 3:
 		_setup()
-	if _t > 3 and _t < 90:
+	if _t > 3 and _t < shot_at:
 		_tick()
-	if _t == 90:
+	if _t == shot_at:
 		var img := root.get_viewport().get_texture().get_image()
 		img.save_png(out)
 		print("saved ", out)
@@ -38,7 +41,7 @@ func _setup() -> void:
 				game.force_theme = arg
 				game._new_match()
 				game.show_title()
-		"match", "roll", "end", "draft", "return", "build", "podium":
+		"match", "roll", "end", "draft", "return", "build", "podium", "awards":
 			game.force_theme = arg
 			game.settings.player_count = 2
 			game.settings.bot_count = 2
@@ -93,6 +96,20 @@ func _tick() -> void:
 				game.podium.age = 4.0
 			elif arg2 == "coins":
 				game.podium.age = 10.0
+		"awards":
+			# The MATCH AWARDS screen at the end of a match.
+			if _t == 4:
+				game.frame = game.frames_per_match
+				game.totals = [40, 12, 77, 3]
+				var st: MatchAwards = game.match_stats
+				st.record_frame([10, 3, 7, 1], 0, {0: 13.8, 2: 11.2})
+				st.record_frame([10, 2, 9, 0], 0, {0: 12.9})
+				st.record_frame([4, 1, 10, 0], 2, {2: 10.6})
+				st.record_blast(1, 3)
+				game.awards = st.results(game.player_count)
+				game.state = game.State.MATCH_OVER
+				game._start_awards()
+				game.awards_left = 999.0   # hold it for the picture
 		"build":
 			if _t == 4:
 				game._start_draft()

@@ -194,9 +194,24 @@ A look you already own pays coins back instead (25 for Common up to 150 for Lege
 - **Coins:** you get 1 coin per pin you knock down and 1 per bonus point (race, sweep, knock-outs) each frame. At the end of a match you get a prize for where you finished (1st +50, 2nd +30, 3rd +15, 4th +5) and +10 just for finishing. The **COINS EARNED** screen after the podium shows the whole breakdown. The amounts are at the top of `scripts/profiles.gd`. New players start with 150, enough for one crate. The Ball Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on). Bots don't earn coins. Online, your coins and looks are the ones on your own computer (P1's).
 - Looks and rarities live in `scripts/cosmetics.gd`, hat shapes in `scripts/hats.gd`, and coin amounts in `scripts/profiles.gd`.
 
+### Match awards
+
+![The match awards](docs/match_awards.png)
+
+When the last frame is scored, a **MATCH AWARDS** screen comes up before the podium. Gold medals pop in one at a time, each with the winner's name in their colour:
+
+- **STRIKE KING**: most strikes in the match.
+- **PIN CRUSHER**: most pins knocked down in a single roll.
+- **SPEED DEMON**: the fastest marble from the start gate to the pins.
+- **DEMOLITION**: most placed pieces blown up with bombs.
+
+An award only shows if someone earned it (no strikes, no STRIKE KING), and players who tie share it. If nobody earned anything, the game goes straight to the podium. The screen moves on by itself after a few seconds, or **press any key or button to skip it**. Hold Tab to peek at the scores. Online, the host works the awards out and everyone sees the same ones.
+
+The rules are in `scripts/match_awards.gd`. To add a new award, add a line to `AWARDS` at the top, a counter for it, and a few words for its number in `_detail()`.
+
 ### The podium
 
-When the match ends, the game cuts to a **FINAL STANDINGS** stage of its own: a dark room like the back of an old bowling alley, with a velvet curtain, a marquee of light bulbs, spotlights and two giant pins. The balls drop in one at a time, last place first: fourth lands in a trash can and shakes its head, then third, second, and finally the winner, who gets a gold medal hanging low on the front and a burst of confetti. After a few seconds the **COINS EARNED** screen shows what everyone won (hold Tab for the scores). It's built in `scripts/podium.gd`.
+When the match ends (after the match awards), the game cuts to a **FINAL STANDINGS** stage of its own: a dark room like the back of an old bowling alley, with a velvet curtain, a marquee of light bulbs, spotlights and two giant pins. The balls drop in one at a time, last place first: fourth lands in a trash can and shakes its head, then third, second, and finally the winner, who gets a gold medal hanging low on the front and a burst of confetti. After a few seconds the **COINS EARNED** screen shows what everyone won (hold Tab for the scores). It's built in `scripts/podium.gd`.
 
 ### STRIKE!
 
@@ -441,6 +456,7 @@ scripts/
   hub.gd             the hub (practice run, closet plate, trophies, PLAY arch, name tags)
   ball_return.gd     the bowling end: lane, gutters, pit and ball return
   strike_replay.gd   records each roll and plays a strike back in slow motion
+  match_awards.gd    the end-of-match awards (STRIKE KING, SPEED DEMON...)
   arena/             the five match worlds, one file each, plus shared helpers
   casino/            the casino island and blackjack
   sports_island.gd   the sports island: soccer pitch and scoreboard, trampoline and hoop
@@ -480,6 +496,7 @@ tests/
   test_track_cards.gd  drops every TA card on a track and checks its preview and what it changed
   shot_ta.gd         screenshot of a TA card being placed (see the top of the file)
   test_strike_replay.gd  a strike plays the replay, any key skips it, everything ends up back in place
+  test_match_awards.gd   the award rules, and the awards screen before the podium (skippable)
   shot_replay.gd     screenshot part way through a strike replay (not a test)
   sim_gap.gd         rolls over a gap, with or without well-timed hops
   sim_hub.gd         checks the hub's teleports, closet, a loot crate, derby bet and PLAY arch
@@ -514,6 +531,7 @@ godot --headless --script res://tests/test_achievements.gd
 godot --headless --script res://tests/test_how_to_play.gd
 godot --headless --script res://tests/test_track_cards.gd
 godot --headless --fixed-fps 120 --script res://tests/test_strike_replay.gd
+godot --headless --fixed-fps 120 --script res://tests/test_match_awards.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam
 ```

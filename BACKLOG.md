@@ -1,6 +1,6 @@
 # MARBLES 4P Backlog
 
-This is the to-do list for the game, **most important at the top**. Every night at 2 AM (New York time), Claude takes the top item marked **To do**, builds it on its own branch, and opens a pull request for you to playtest. Nothing reaches `main` until you approve it.
+This is the to-do list for the game, **most important at the top**. Every night at 2 AM (New York time), Claude takes the top item marked **To do**, builds it on its own branch, and opens a pull request for you to playtest. Once its tests pass it's merged into `main`, and you can ask for tweaks or a revert any time.
 
 **How to use this list**
 
@@ -18,28 +18,25 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## Up next
 
-1. **To do** · **Match awards** *(suggested by Claude)*
-   At the end of a match, before the podium, show a few fun awards: most strikes, most pins in one roll, fastest marble to the finish, most pieces knocked over.
-
-2. **To do** · **Controller rumble** *(suggested by Claude)*
+1. **To do** · **Controller rumble** *(suggested by Claude)*
    Short controller rumbles when a marble hits a bumper, lands a hop, or gets a strike. Add an on/off switch in Settings.
 
-3. **To do** · **Graphics quality setting** *(suggested by Claude)*
+2. **To do** · **Graphics quality setting** *(suggested by Claude)*
    A Low / Medium / High choice in Settings (shadows, clouds, water detail) so the game runs smoothly on older laptops.
 
-4. **To do** · **Colour-blind friendly marbles** *(suggested by Claude)*
+3. **To do** · **Colour-blind friendly marbles** *(suggested by Claude)*
    A Settings option that gives each player a pattern or symbol as well as a colour on their marble, name tag and scoreboard row.
 
-5. **To do** · **Loop-de-loop piece** *(suggested by Claude)*
+4. **To do** · **Loop-de-loop piece** *(suggested by Claude)*
    A new track piece: a full vertical loop. Fast marbles make it round; slow ones fall back.
 
-6. **To do** · **Biplane rings and online plane** *(suggested by Claude)*
+5. **To do** · **Biplane rings and online plane** *(suggested by Claude)*
    Floating rings round the island to fly the biplane through (a little race against the clock), and show the plane to online guests too (right now only the person flying it sees the plane; guests see the ball flying).
 
-7. **To do** · **Pick the game's real name** *(suggested by Claude)*
+6. **To do** · **Pick the game's real name** *(suggested by Claude)*
    The title is now **BOWLING WIP** as a stand-in. Pick a name and it changes everywhere at once (`TITLE` in `scripts/main_menu.gd`).
 
-8. **To do** · **Strike replay online** *(suggested by Claude)*
+7. **To do** · **Strike replay online** *(suggested by Claude)*
    Show the slow-motion strike replay in online games too, so everyone watches it together (right now it only plays at one computer).
 
 9. **To do** · **Alley decorations for the hub** *(suggested by Claude)*
@@ -69,6 +66,9 @@ This is the to-do list for the game, **most important at the top**. Every night 
   4 new pieces (Pop Bumper, Pendulum, Magnet, Bounce Pad), 3 new TAs (Oil Slick, Zig-Zag, Rollercoaster Hill), the retro alley look (LOUNGE / ARCADE filter, marquee chase lights, warmer light), forgiving hops with squash and stretch and an air shadow, a retro sign title and livelier menus and draft cards, comic pop words, and the SKEE-JUMP minigame. Each part is its own commit, so any one can be left out.
 
 ## Done
+
+- **Done** · **Match awards** *(suggested by Claude)*
+  At the end of a match, before the podium, a MATCH AWARDS screen: STRIKE KING (most strikes), PIN CRUSHER (most pins in one roll), SPEED DEMON (fastest marble to the pins) and DEMOLITION (most pieces blown up with bombs). Skippable with any key.
 
 - **Done** · **Strike replay** *(suggested by Claude)*
   After a strike, the roll plays again in slow motion from a low camera by the pins, with cinema bars and a REPLAY tag, then carries on to the STRIKE! banner and the scoreboard. Press any key to skip. Can be switched off in Settings. Not in online games yet.

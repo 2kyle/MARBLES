@@ -18,9 +18,10 @@ extends Node3D
 
 ## MENU is the title screen (the camera slowly circles the island).
 ## WAITING is the ready screen before a match (press Space / Y to start).
-## REPLAY is the slow-motion strike replay (added last so the numbers
-## sent between online players stay the same).
-enum State { WAITING, DRAFT, BUILD, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER, MENU, HUB, REPLAY }
+## REPLAY is the slow-motion strike replay, and AWARDS the match awards
+## shown before the podium (both added last so the numbers sent between
+## online players stay the same).
+enum State { WAITING, DRAFT, BUILD, COUNTDOWN, ROLLING, RESULTS, MATCH_OVER, MENU, HUB, REPLAY, AWARDS }
 
 const PLAYER_COLORS := [
 	Color(0.95, 0.3, 0.55),  # pink
@@ -118,6 +119,13 @@ var replay := StrikeReplay.new()
 ## Where the game goes once the replay ends (RESULTS or MATCH_OVER), and who struck.
 var _after_replay := State.RESULTS
 var _replay_striker := -1
+## Match awards (most strikes, fastest marble...): the numbers so far, the
+## awards to show at the end of the match, and seconds left on that screen.
+var match_stats := MatchAwards.new()
+var awards: Array = []
+var awards_left := 0.0
+## Seconds each marble took to reach the pins this roll (player id -> s).
+var _finish_times := {}
 ## Online island: who's rolled through the PLAY arch (ready for a match),
 ## seconds left before the match starts once everyone is (-1 = not
 ## counting), and a short wait so rolling through once doesn't flip twice.
@@ -262,6 +270,7 @@ func _ready() -> void:
 	net.left.connect(_on_net_left)
 	draft_build.placed.connect(func(p, pos, angle):
 		net.send_event("place", {"p": p, "pos": pos, "angle": angle}))
+	builder.blasted.connect(match_stats.record_blast)
 	menu.host_requested.connect(_on_host_requested)
 	menu.join_requested.connect(_on_join_requested)
 	menu.lobby_leave_requested.connect(func(): show_title(); menu.back_to_online())
@@ -724,6 +733,8 @@ func _new_match(new_track := true) -> void:
 	frame_points.clear()
 	last_result = {}
 	_strikes = [0, 0, 0, 0]
+	match_stats.reset()
+	awards = []
 	builder.clear()
 	if random_track and (new_track or track.layout.is_empty()):
 		_new_track()
@@ -839,6 +850,7 @@ func _prepare_roll() -> void:
 		m.queue_free()
 	marbles.clear()
 	arrival_order.clear()
+	_finish_times.clear()
 	sweep_player = -1
 	_roll_time = 0.0
 	_settling = false
@@ -905,6 +917,10 @@ func _release_marbles() -> void:
 
 func _process(delta: float) -> void:
 	_state_age += delta
+	if state == State.AWARDS and not hud.strike_showing():
+		awards_left -= delta
+		if awards_left <= 0.0:
+			_end_awards()
 	if net.is_client():
 		_client_process(delta)
 		return
@@ -943,7 +959,7 @@ func _physics_process(delta: float) -> void:
 			replay.record(delta, rack.pins)
 			if state != State.REPLAY:
 				ball_return.update(marbles, delta)
-		State.RESULTS, State.MATCH_OVER:
+		State.RESULTS, State.MATCH_OVER, State.AWARDS:
 			ball_return.update(marbles, delta)
 		State.HUB:
 			hub.physics_update(delta)
@@ -1176,6 +1192,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			replay.finish()
 			_end_replay()
+		return
+	if state == State.AWARDS:
+		# Any key or button (after a moment, so a late hop doesn't) skips
+		# the awards. Each computer skips its own, online too.
+		if (event is InputEventKey or event is InputEventJoypadButton or event is InputEventMouseButton) \
+				and event.is_pressed() and not event.is_echo() and _state_age > 0.8:
+			get_viewport().set_input_as_handled()
+			_end_awards()
 		return
 	if event.is_action_pressed("quit") and closet.is_open():
 		_close_closet()
@@ -1538,6 +1562,8 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 			frame_points.clear()
 			last_result = {}
 			_strikes = [0, 0, 0, 0]
+			match_stats.reset()
+			awards = []
 			_reset_match_coins()
 			builder.clear()
 			($Course/Decor as TrackDecor).seed = data.decor
@@ -1584,7 +1610,8 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 				hud.show_strike(data.striker, player_colors[data.striker])
 			_frame_achievements(data.striker)
 			if state == State.MATCH_OVER:
-				_show_podium()
+				awards = data.get("awards", [])
+				_start_awards()
 
 
 ## Client: each frame, send my input and show the host's newest snapshot.
@@ -1625,7 +1652,7 @@ func _apply_snapshot(snap: Dictionary, delta: float) -> void:
 	for i in mini(ms.size(), marbles.size()):
 		var m: Marble = marbles[i]
 		var d: Array = ms[i]
-		if state in [State.COUNTDOWN, State.ROLLING, State.RESULTS, State.MATCH_OVER]:
+		if state in [State.COUNTDOWN, State.ROLLING, State.RESULTS, State.MATCH_OVER, State.AWARDS]:
 			m.global_position = m.global_position.lerp(d[0], k)
 			m.quaternion = m.quaternion.slerp(d[1], k)
 		if d[3] and not m.out:
@@ -1758,6 +1785,9 @@ func _finish_frame() -> void:
 	state = State.MATCH_OVER if frame >= frames_per_match else State.RESULTS
 	_award_coins()
 	var striker := strike_player()
+	match_stats.record_frame(last_result.pins, striker, _finish_times)
+	if state == State.MATCH_OVER:
+		awards = match_stats.results(player_count)
 	_frame_achievements(striker)
 	if striker >= 0 and _start_replay(striker):
 		return   # the scores come in once the replay is over
@@ -1769,11 +1799,34 @@ func _finish_frame() -> void:
 func _show_frame_result(striker: int) -> void:
 	if striker >= 0:
 		hud.show_strike(striker, player_colors[striker])
-	if state == State.MATCH_OVER:
-		_show_podium()
 	net.send_event("result", {"result": last_result, "totals": totals, "points": frame_points,
 			"coins": coins_earned, "match_coins": match_coins, "breakdown": coin_breakdown,
-			"state": state, "striker": striker})
+			"state": state, "striker": striker, "awards": awards})
+	if state == State.MATCH_OVER:
+		_start_awards()
+
+
+## The match is over: the awards first (if anyone earned one), then the podium.
+func _start_awards() -> void:
+	if awards.is_empty():
+		_show_podium()
+		return
+	state = State.AWARDS
+	awards_left = awards_time(awards.size())
+
+
+## How long the awards screen stays up: a moment for each award to pop in,
+## then a few seconds to read them.
+static func awards_time(count: int) -> float:
+	return 1.0 + count * Hud.AWARD_STEP + 3.0
+
+
+## The awards are over (or skipped): on to the podium.
+func _end_awards() -> void:
+	if state != State.AWARDS:
+		return
+	state = State.MATCH_OVER
+	_show_podium()
 
 
 ## Achievements for the people at this computer, once a frame is scored
@@ -1885,6 +1938,7 @@ func _on_arrival_line_body_entered(body: Node) -> void:
 	if body is Marble and not body.arrived and not body.out:
 		body.arrived = true
 		arrival_order.append(body.player_id)
+		_finish_times[body.player_id] = _roll_time
 		_last_arrival_time = _roll_time
 
 
@@ -2097,7 +2151,7 @@ func _update_camera() -> void:
 		for corner in [Vector3(0, 1.0, 0.4), Vector3(-wide, 0.2, -depth), Vector3(wide, 0.2, -depth)]:
 			camera.frame_points.append(rack.to_global(corner))
 		return
-	var pin_cam := state == State.RESULTS or state == State.MATCH_OVER
+	var pin_cam := state in [State.RESULTS, State.MATCH_OVER, State.AWARDS]
 	if state == State.ROLLING:
 		# Swing to the pins for each impact, then back to anyone still rolling.
 		pin_cam = _no_marbles_rolling() or _roll_time - _last_arrival_time < pin_cam_time

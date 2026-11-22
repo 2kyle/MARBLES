@@ -10,6 +10,8 @@ extends CanvasLayer
 
 ## Seconds the podium shows on its own before the coins screen comes up.
 const PODIUM_TIME := 6.5
+## Seconds between each match award popping in.
+const AWARD_STEP := 0.9
 const TITLE_FONT := preload("res://fonts/Righteous-Regular.ttf")
 const PANEL_BG := Color(0.07, 0.09, 0.16, 0.82)
 const GOLD := Color(1.0, 0.82, 0.25)
@@ -35,6 +37,9 @@ var _board_shown := {}   # total each player's row shows while counting up
 var _coins_screen: Control   # COINS EARNED, after the podium
 var _coins_grid: GridContainer
 var _coins_key := ""
+var _awards_screen: Control  # MATCH AWARDS, before the podium
+var _awards_row: HBoxContainer
+var _awards_key := ""
 var _strike: Label
 var _strike_burst: CPUParticles2D
 ## Seconds left of the STRIKE! banner (the scoreboard waits for it).
@@ -65,6 +70,30 @@ var _replay_line: ColorRect
 var _replay_tag: Label
 var _replay_skip: Label
 var _bars := 0.0   # 0 = hidden, 1 = fully in
+
+
+## A gold medal on a ribbon, drawn in code, for the match awards.
+class AwardMedal extends Control:
+	var ribbon := Color(0.85, 0.2, 0.25)
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(72, 86)
+
+	func _draw() -> void:
+		var c := Vector2(size.x / 2.0, 54)
+		# Ribbon: two tails in a V above the medal.
+		for side in [-1.0, 1.0]:
+			var top := c + Vector2(side * 16, -54)
+			draw_colored_polygon(PackedVector2Array([top, top + Vector2(side * 14, 0),
+					c + Vector2(side * 6, -12), c + Vector2(-side * 8, -18)]), ribbon.darkened(0.15 if side > 0 else 0.0))
+		draw_circle(c + Vector2(3, 4), 28, Color(0, 0, 0, 0.35))
+		draw_circle(c, 28, Hud.GOLD.darkened(0.25))
+		draw_circle(c, 23, Hud.GOLD)
+		var star := PackedVector2Array()
+		for i in 10:
+			var a := -PI / 2.0 + i * PI / 5.0
+			star.append(c + Vector2(cos(a), sin(a)) * (15.0 if i % 2 == 0 else 6.5))
+		draw_colored_polygon(star, Color(1, 0.95, 0.7))
 
 
 ## A player's draft pointer: a chunky arrow in their colour with a name tag.
@@ -158,7 +187,8 @@ func refresh(game) -> void:
 	if not visible:
 		return
 	# The hub has no scores, and the FINAL STANDINGS stage is a screen of its own.
-	var on_stage: bool = game.state == game.State.MATCH_OVER and game.podium != null and game.podium.visible
+	var on_stage: bool = (game.state == game.State.MATCH_OVER and game.podium != null and game.podium.visible) \
+			or game.state == game.State.AWARDS
 	_scores.visible = game.state != game.State.HUB and not on_stage
 	if _scores.visible:
 		_update_scores(game)
@@ -190,6 +220,7 @@ func refresh(game) -> void:
 	if show_board:
 		_fill_board(game)
 	_update_coins_screen(game, show_coins)
+	_update_awards_screen(game, game.state == game.State.AWARDS and not Input.is_action_pressed("scoreboard"))
 	_update_hints(game)
 
 
@@ -243,7 +274,7 @@ func _update_top(game) -> void:
 	if game.state == game.State.ROLLING:
 		text += "      %ds" % ceili(game.time_left())
 	_badge.text = text
-	_badge.visible = not game.state in [game.State.WAITING, game.State.HUB, game.State.MATCH_OVER, game.State.REPLAY]
+	_badge.visible = not game.state in [game.State.WAITING, game.State.HUB, game.State.MATCH_OVER, game.State.REPLAY, game.State.AWARDS]
 	if game.state == game.State.HUB and game.hub.derby.status() != "":
 		_badge.text = game.hub.derby.status()
 		_badge.visible = true
@@ -1072,6 +1103,112 @@ func _coin_cell(text: String, size: int, color: Color, font: Font = null,
 	return l
 
 
+# ------------------------------------------------------------ Match awards
+
+## The MATCH AWARDS screen at the end of a match: a dark backdrop and a
+## row of medals (STRIKE KING, SPEED DEMON...) popping in one at a time,
+## each with the winner's name in their colour. The awards come from
+## MatchAwards (main.gd keeps them in `awards`).
+func _update_awards_screen(game, show: bool) -> void:
+	if _awards_screen == null:
+		_build_awards_screen()
+	# Wait for a last-frame STRIKE! to finish first.
+	show = show and _strike_left <= 0.0
+	_awards_screen.visible = show
+	if not show:
+		if game.state != game.State.AWARDS:
+			_awards_key = ""
+		return
+	var key := str(game.awards)
+	if key == _awards_key:
+		return
+	_awards_key = key
+	for c in _awards_row.get_children():
+		_awards_row.remove_child(c)
+		c.queue_free()
+	var tiles := []
+	for a in game.awards:
+		var tile := _award_tile(game, a)
+		tile.modulate.a = 0.0
+		_awards_row.add_child(tile)
+		tiles.append(tile)
+	_awards_screen.modulate.a = 0.0
+	create_tween().tween_property(_awards_screen, "modulate:a", 1.0, 0.3)
+	for i in tiles.size():
+		var tile: Control = tiles[i]
+		var t := create_tween()
+		t.tween_interval(0.5 + i * AWARD_STEP)
+		t.tween_callback(func():
+			tile.modulate.a = 1.0
+			tile.pivot_offset = tile.size / 2.0
+			tile.scale = Vector2.ONE * 0.4
+			tile.rotation = -0.12
+			var pop := create_tween().set_parallel(true)
+			pop.tween_property(tile, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			pop.tween_property(tile, "rotation", 0.0, 0.5).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT))
+
+
+## True while the STRIKE! banner is still playing.
+func strike_showing() -> bool:
+	return _strike_left > 0.0
+
+
+## One award: medal, award name, what it's for, who won and their number.
+func _award_tile(game, a: Dictionary) -> PanelContainer:
+	var tile := PanelContainer.new()
+	var style := _pill(Color(0.16, 0.1, 0.12, 0.95), 18, 16)
+	style.border_width_bottom = 4
+	style.border_color = Color(0.6, 0.1, 0.14)
+	tile.add_theme_stylebox_override("panel", style)
+	tile.custom_minimum_size = Vector2(230, 0)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	tile.add_child(box)
+	var medal := AwardMedal.new()
+	medal.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var first: int = a.players[0]
+	medal.ribbon = (game.player_colors[first] as Color).darkened(0.1)
+	box.add_child(medal)
+	box.add_child(_coin_cell(a.title, 28, GOLD, TITLE_FONT))
+	box.add_child(_coin_cell(a.about, 15, Color(1, 1, 1, 0.65)))
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 6)
+	box.add_child(gap)
+	for p in a.players:
+		box.add_child(_coin_cell(game.seat_name(p), 30 if a.players.size() < 3 else 24,
+				(game.player_colors[p] as Color).lightened(0.25), TITLE_FONT))
+	box.add_child(_coin_cell(a.detail, 18, Color.WHITE))
+	return tile
+
+
+func _build_awards_screen() -> void:
+	_awards_screen = Control.new()
+	_awards_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_awards_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_awards_screen.visible = false
+	add_child(_awards_screen)
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.015, 0.03, 0.72)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_awards_screen.add_child(dim)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 26)
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_awards_screen.add_child(box)
+	var title := _coin_cell("MATCH AWARDS", 64, GOLD, TITLE_FONT)
+	title.add_theme_color_override("font_outline_color", Color(0.25, 0.12, 0.0))
+	title.add_theme_constant_override("outline_size", 12)
+	box.add_child(title)
+	_awards_row = HBoxContainer.new()
+	_awards_row.add_theme_constant_override("separation", 18)
+	_awards_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(_awards_row)
+
+
 # ------------------------------------------------------------ Strike!
 
 ## Big STRIKE! in the middle of the screen, in the player's colour.
@@ -1334,6 +1471,8 @@ func _update_hints(game) -> void:
 				items += [[k.confirm, "Drop"], "|"]
 		game.State.REPLAY:
 			pass   # "Press any key to skip" is on the replay bar instead
+		game.State.AWARDS:
+			items += [[_gk("SPACE"), "Skip"], [_gk("TAB"), "Scores"]]
 		game.State.COUNTDOWN, game.State.ROLLING:
 			for p in game.local_seats():
 				var k := _key_names(game.seat_keys[p])

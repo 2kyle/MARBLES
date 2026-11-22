@@ -45,7 +45,7 @@ var _strike_burst: CPUParticles2D
 ## Seconds left of the STRIKE! banner (the scoreboard waits for it).
 var _strike_left := 0.0
 var _strike_player := -1
-var _hints: HBoxContainer
+var _hints: HFlowContainer
 var _hints_key := ""
 var _chips: HBoxContainer    # build-phase status, bottom centre
 var _ready_title: Label
@@ -172,12 +172,18 @@ func _ready() -> void:
 	_hub_coins.offset_top = 14
 	add_child(_hub_coins)
 
-	_hints = HBoxContainer.new()
-	_hints.add_theme_constant_override("separation", 6)
-	_hints.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	# Key hints along the bottom. They wrap onto a second line rather than
+	# run off the screen (four players on controllers is a lot of hints).
+	_hints = HFlowContainer.new()
+	_hints.add_theme_constant_override("h_separation", 6)
+	_hints.add_theme_constant_override("v_separation", 4)
+	_hints.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	_hints.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_hints.offset_left = 16
+	_hints.offset_right = -16
+	_hints.offset_top = 0
 	_hints.offset_bottom = -12
+	_hints.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hints)
 
 
@@ -222,6 +228,7 @@ func refresh(game) -> void:
 	_update_coins_screen(game, show_coins)
 	_update_awards_screen(game, game.state == game.State.AWARDS and not Input.is_action_pressed("scoreboard"))
 	_update_hints(game)
+	_tables.offset_bottom = -(_hints.size.y + 24.0)
 
 
 # ------------------------------------------------------------ Top of screen
@@ -324,16 +331,26 @@ func _build_draft_area() -> void:
 	_draft_root.add_child(_card_layer)
 
 
+## How much the card row is shrunk so every card fits on screen (six
+## cards are wider than a 1280 px screen at full size).
+func _card_scale(count: int) -> float:
+	var screen := _draft_root.get_viewport_rect().size
+	var width := count * (CARD_W + CARD_GAP)
+	return minf(1.0, (screen.x - 48.0) / maxf(width, 1.0))
+
+
 ## Top-left corner of the card row on screen.
 func _row_origin(count: int) -> Vector2:
 	var screen := _draft_root.get_viewport_rect().size
-	var width := count * (CARD_W + CARD_GAP)
-	return Vector2((screen.x - width) / 2.0, screen.y / 2.0 - CARD_H / 2.0 - 10.0)
+	var k := _card_scale(count)
+	var width := count * (CARD_W + CARD_GAP) * k
+	return Vector2((screen.x - width) / 2.0, screen.y / 2.0 - CARD_H * k / 2.0 - 10.0)
 
 
 ## Card-space point (see DraftBuild.draft_pointer) to screen pixels.
 func _card_to_screen(p: Vector2, count: int) -> Vector2:
-	return _row_origin(count) + Vector2(p.x * (CARD_W + CARD_GAP), p.y * CARD_H)
+	var k := _card_scale(count)
+	return _row_origin(count) + Vector2(p.x * (CARD_W + CARD_GAP), p.y * CARD_H) * k
 
 
 func _update_draft(game) -> void:
@@ -346,10 +363,14 @@ func _update_draft(game) -> void:
 		_build_cards(db.crate)
 	var n: int = db.crate.size()
 	var origin := _row_origin(n)
+	var fit := _card_scale(n)
 	for slot in _cards.size():
 		var card: Dictionary = _cards[slot]
 		var panel: PanelContainer = card.panel
-		panel.position = origin + Vector2(slot * (CARD_W + CARD_GAP) + CARD_GAP / 2.0, 0)
+		panel.position = origin + Vector2(slot * (CARD_W + CARD_GAP) + CARD_GAP / 2.0, 0) * fit
+		# Scale about the card's top-left corner shifted to its middle, so a
+		# shrunk card still sits in its slot.
+		panel.position += panel.size * (fit - 1.0) / 2.0
 		var owner: int = db.taken_by[slot]
 		var hover := -1
 		for p in game.player_count:
@@ -381,14 +402,14 @@ func _update_draft(game) -> void:
 		var k := clampf((Time.get_ticks_msec() / 1000.0 - card.born - 0.07 * slot) / 0.4, 0.0, 1.0)
 		if k < 1.0:
 			var e := 1.0 + 2.7 * pow(k - 1.0, 3) + 1.7 * pow(k - 1.0, 2)  # ease out, back
-			panel.scale = Vector2.ONE * lerpf(0.2, 1.0, e)
+			panel.scale = Vector2.ONE * lerpf(0.2, 1.0, e) * fit
 			panel.rotation = deg_to_rad(lerpf(-14.0, 0.0, e))
 			panel.position.y += (1.0 - e) * 80.0
 			panel.modulate.a = clampf(k * 4.0, 0.0, 1.0)
 		else:
 			panel.rotation = 0.0
 			panel.modulate.a = 1.0
-			panel.scale = panel.scale.lerp(Vector2.ONE * target_scale, 0.3)
+			panel.scale = panel.scale.lerp(Vector2.ONE * target_scale * fit, 0.3)
 
 	while _pointers.size() < game.player_count:
 		var ptr := DraftPointer.new()
@@ -524,7 +545,7 @@ func _update_chips(game) -> void:
 		style.border_width_bottom = 4
 		var piece := PieceCatalog.display_name(db.current_id(p)) if db.picks[p] != "" else ""
 		if PieceCatalog.is_track(db.picks[p]):
-			piece = "Track Altering: " + piece
+			piece = "TA · " + piece
 		if PieceCatalog.parts(db.picks[p]) > 1 and not db.has_placed[p]:
 			piece += "  %d/%d" % [db.part[p] + 1, PieceCatalog.parts(db.picks[p])]
 		if PieceCatalog.turns(db.picks[p]):
@@ -533,13 +554,15 @@ func _update_chips(game) -> void:
 		if db.has_placed[p]:
 			state = "DONE"
 		elif db.cursor_blocked(p):
-			state = "BLOCKED"
+			state = DraftBuild._reason_text(db.blocked_reason(p)) if not PieceCatalog.is_track(db.picks[p]) else "WON'T FIT"
 		var text := "%s  %s" % [game.seat_name(p), piece]
 		if state != "":
 			text += "  ·  " + state
 		var l: Label = chip.get_child(0)
 		l.text = text
-		l.add_theme_color_override("font_color", Color(1, 0.45, 0.4) if state == "BLOCKED" else Color.WHITE)
+		l.add_theme_color_override("font_color", Color(1, 0.45, 0.4) if state != "" and state != "DONE" else Color.WHITE)
+	# Sit just above the key hints, however many lines they take.
+	_chips.offset_bottom = -(_hints.size.y + 22.0)
 
 
 # ------------------------------------------------------------ Ready screen
@@ -1535,19 +1558,23 @@ func _update_hints(game) -> void:
 			gap.custom_minimum_size = Vector2(14, 0)
 			_hints.add_child(gap)
 			continue
+		# Key and word stay together when the row wraps.
+		var pair := HBoxContainer.new()
+		pair.add_theme_constant_override("separation", 6)
+		_hints.add_child(pair)
 		var cap := Label.new()
 		cap.text = it[0]
 		cap.add_theme_font_size_override("font_size", 13)
 		cap.add_theme_color_override("font_color", Color(0.1, 0.1, 0.15))
 		cap.add_theme_stylebox_override("normal", _pill(Color(1, 1, 1, 0.88), 7, 1))
-		_hints.add_child(cap)
+		pair.add_child(cap)
 		var word := Label.new()
 		word.text = it[1]
 		word.add_theme_font_size_override("font_size", 14)
 		word.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
 		word.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 		word.add_theme_constant_override("outline_size", 4)
-		_hints.add_child(word)
+		pair.add_child(word)
 
 
 ## Short key names for a player, for the hints.

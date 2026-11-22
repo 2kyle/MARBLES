@@ -188,6 +188,7 @@ var _overhead_camera := false
 var _last_arrival_time := -100.0
 var _rng := RandomNumberGenerator.new()
 var _repeat := {}  # held-key repeat timers for build cursors
+var _cursor_hold := {}  # per player: seconds the build cursor has been gliding
 ## Buttons each seat pressed this frame (see _poll_seats).
 var _pressed: Array = [[], [], [], []]
 ## A hop asked for since the last physics tick, per seat.
@@ -1000,15 +1001,45 @@ func _gather_build_inputs(delta: float) -> void:
 			# cursor keys: forward moves toward the pins).
 			var dir := seat_lean(p)
 			if dir != Vector2.ZERO:
-				draft_build.request_cursor_move(p, dir * cursor_speed * delta)
+				# People at this computer steer by the screen: up on the
+				# stick is up on the screen, even where the track turns.
+				if seat_kinds[p] == Seat.LOCAL and not PieceCatalog.is_track(draft_build.picks[p]):
+					dir = _screen_to_lane(dir, draft_build.cursor_pos[p])
+				# Starts slow for fine placing, then speeds up while held.
+				var held: float = _cursor_hold.get(p, 0.0) + delta
+				_cursor_hold[p] = held
+				var speed := cursor_speed * lerpf(0.45, 1.4, smoothstep(0.15, 0.8, held))
+				draft_build.request_cursor_move(p, dir * speed * delta)
+			else:
+				_cursor_hold[p] = 0.0
 			if PieceCatalog.is_track(draft_build.picks[p]):
 				# Track cards flip left/right: one flip per tap.
 				if seat_pressed(p, "rotate"):
 					draft_build.request_rotate(p, 180.0)
-			elif _pressed_or_repeat(p, "rotate", delta, 0.04):
+			elif _pressed_or_repeat(p, "rotate", delta, 0.11):
 				draft_build.request_rotate(p, rotate_step)
 			if seat_pressed(p, "confirm"):
 				draft_build.request_place(p)
+
+
+## A stick or key direction (screen space: -y is up) to a direction in lane
+## space at a build cursor, using this computer's camera.
+func _screen_to_lane(dir: Vector2, at: Vector2) -> Vector2:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return dir
+	var fwd := -cam.global_basis.z
+	fwd.y = 0.0
+	var right := cam.global_basis.x
+	right.y = 0.0
+	if fwd.length() < 0.01 or right.length() < 0.01:
+		return dir
+	var world := right.normalized() * dir.x - fwd.normalized() * dir.y
+	var f := track.world_frame_at(-at.y)
+	var lane := Vector2(world.dot(f.basis.x), world.dot(f.basis.z))
+	if lane.length() < 0.001:
+		return dir
+	return lane.normalized() * dir.length()
 
 
 func _gather_hub_inputs() -> void:

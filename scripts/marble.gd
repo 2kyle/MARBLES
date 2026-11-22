@@ -573,3 +573,8 @@ func _apply_look() -> void:
 			add_child(_eyes)
 			_eyes.setup(eyes_id, color)
 			_place_hat(0.0)
+	# With eyes, the finger holes ARE the eyes (and the thumb hole the
+	# mouth), so the plain rolling holes hide; they'd slide under the eyes.
+	var holes := mesh.get_node_or_null("Holes") as Node3D
+	if holes:
+		holes.visible = _eyes == null

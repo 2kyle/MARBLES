@@ -79,7 +79,7 @@ func why_blocked(id: String, pos: Vector2, angle := 0.0, skip = null) -> String:
 
 
 ## Two pieces may touch, but not overlap by more than this (square metres).
-const OVERLAP_SLACK := 0.004
+const OVERLAP_SLACK := 0.0005
 ## How close a piece may come to the inside of a wall, in metres.
 const WALL_MARGIN := 0.04
 
@@ -115,7 +115,7 @@ func footprint(id: String) -> Dictionary:
 	if _footprints.has(id):
 		return _footprints[id]
 	var info: Dictionary = PieceCatalog.info(id)
-	var fp := {"c": Vector2.ZERO, "h": Vector2.ONE * float(info.get("radius", 1.0)) * 0.7, "r": 0.0}
+	var fp := {"c": Vector2.ZERO, "h": Vector2.ONE * float(info.get("radius", 1.0)) * 0.7, "r": 0.0, "top": 0.5}
 	if info.get("kind", "") == "piece" and info.has("scene"):
 		var node: Node3D = load(info.scene).instantiate()
 		PieceStyle.dress(node, id)
@@ -139,6 +139,7 @@ func footprint(id: String) -> Dictionary:
 			var hi := Vector2(box.end.x, box.end.z) * s
 			fp.c = (lo + hi) / 2.0
 			fp.h = (hi - lo) / 2.0
+			fp.top = maxf(box.end.y * s, 0.05)
 			# Moving parts reach further than they rest.
 			var sweep: Vector2 = info.get("sweep", Vector2.ZERO) * s
 			fp.h = Vector2(maxf(fp.h.x, sweep.x), maxf(fp.h.y, sweep.y))
@@ -181,13 +182,18 @@ func outline_offsets(id: String, angle: float) -> PackedVector2Array:
 ## A piece's footprint where it really sits on the (bendy) track, seen
 ## from above: track-local x and z. Two pieces on a bend are turned a
 ## little differently, so this is what tells if they overlap.
+##
+## On a banked bend a tall piece leans over, so its top is in a slightly
+## different place to its foot: the outline covers both.
 func floor_outline(id: String, pos: Vector2, angle: float) -> PackedVector2Array:
 	var base := lane_xform(pos)
-	var out := PackedVector2Array()
+	var top: Vector3 = base.basis.y * float(footprint(id).top)
+	var pts := PackedVector2Array()
 	for v in outline_offsets(id, angle):
 		var p := base.origin + base.basis.x * v.x + base.basis.z * v.y
-		out.append(Vector2(p.x, p.z))
-	return out
+		pts.append(Vector2(p.x, p.z))
+		pts.append(Vector2(p.x + top.x, p.z + top.z))
+	return Geometry2D.convex_hull(pts)
 
 
 func _overlap_area(a: PackedVector2Array, b: PackedVector2Array) -> float:
@@ -211,6 +217,8 @@ func _wall_problem(id: String, pos: Vector2, angle: float) -> String:
 	for i in offs.size():
 		probes.append(offs[i])
 		probes.append((offs[i] + offs[(i + 1) % offs.size()]) / 2.0)
+	# Tall pieces are checked at wall height too (they lean on a bend).
+	var lift := minf(float(footprint(id).top), track.wall_height)
 	for v in probes:
 		var p := base.origin + base.basis.x * v.x + base.basis.z * v.y
 		var d := track.distance_of(track.to_global(p))
@@ -220,10 +228,15 @@ func _wall_problem(id: String, pos: Vector2, angle: float) -> String:
 			return "OVER A GAP"
 		var f := track.frame_at(d)
 		var rel := p - f.origin
-		if absf(rel.dot(f.basis.x)) > track.half_width_at(d) - WALL_MARGIN:
+		var hw := track.half_width_at(d) - WALL_MARGIN
+		if absf(rel.dot(f.basis.x)) > hw:
 			return "WALL"
-		if absf(rel.dot(f.basis.y)) > 0.22:
+		if absf(rel.dot(f.basis.y)) > 0.15:
 			return "TOO STEEP"
+		var high := p + base.basis.y * lift
+		var fh := track.frame_at(track.distance_of(track.to_global(high)))
+		if absf((high - fh.origin).dot(fh.basis.x)) > hw:
+			return "WALL"
 	return ""
 
 

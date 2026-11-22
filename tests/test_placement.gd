@@ -12,7 +12,7 @@ var _t := 0
 var _fails := 0
 var _rng := RandomNumberGenerator.new()
 var _round := 0
-const ROUNDS := 4
+const ROUNDS := 10
 
 
 func _initialize() -> void:
@@ -103,9 +103,14 @@ func _verify() -> void:
 						var f: Transform3D = game.track.world_frame_at(d)
 						var up: float = (info.point - f.origin).dot(f.basis.y)
 						if up > 0.08:
-							wall_hits.append("%s at %s (%.2f up)" % [entry.id, entry.pos, up])
+							wall_hits.append("%s at %s a%.0f (%.2f up, side %.2f, slope %.2f, d %.1f vs %.1f)" % [entry.id, entry.pos, entry.angle, up, (info.point - f.origin).dot(f.basis.x), game.track.direction_at(d).y, d, -entry.pos.y])
 				elif other is Node and _piece_of(other) != null and _piece_of(other) != node:
-					piece_hits.append("%s <-> %s" % [entry.id, _piece_of(other).name])
+					var o: Node = _piece_of(other)
+					var oe := {}
+					for e2 in b.placed:
+						if e2.node == o:
+							oe = e2
+					piece_hits.append("%s %s %.0f <-> %s %s %.0f" % [entry.id, entry.pos, entry.angle, oe.get("id", o.name), oe.get("pos", ""), oe.get("angle", 0.0)])
 	_check(wall_hits.is_empty(), "round %d: no piece pokes into a wall (%d pieces)%s" % [_round, b.placed.size(), "" if wall_hits.is_empty() else "  " + str(wall_hits.slice(0, 4))])
 	_check(piece_hits.is_empty(), "round %d: no two pieces overlap%s" % [_round, "" if piece_hits.is_empty() else "  " + str(piece_hits.slice(0, 4))])
 	_check(b.placed.size() >= 6, "round %d: still room for plenty of pieces (%d)" % [_round, b.placed.size()])
@@ -120,31 +125,47 @@ func _piece_of(n: Node) -> Node:
 	return n
 
 
+## A plain stretch of track (no gap or narrow bridge nearby), in lane z.
+func _plain_z() -> float:
+	var t: Track = game.track
+	var z := -12.0
+	while z > game.builder.bottom_z():
+		var ok := true
+		for k in range(-4, 5):
+			if t.in_gap(-z + k, 0.5) or t.in_narrow(-z + k, 0.5) or t.is_open(-z + k):
+				ok = false
+		if ok:
+			return z
+		z -= 1.0
+	return -15.0
+
+
 func _cursor_checks() -> void:
 	var b: CourseBuilder = game.builder
 	b.clear()
+	var z := _plain_z()
 	# A spinner pushed hard against the right wall stops with its blades
 	# inside the lane.
-	var pos := b.clamp_piece("spinner", Vector2(5.0, -15.0), 0.0)
+	var pos := b.clamp_piece("spinner", Vector2(5.0, z), 0.0)
 	var reach: float = b.footprint("spinner").r
 	_check(pos.x + reach <= game.track.lane_width / 2.0, "spinner cursor stops at the wall (x %.2f + %.2f)" % [pos.x, reach])
 	# Turning a long piece sideways next to the wall pulls it back in.
-	var long := b.clamp_piece("drop_step", Vector2(5.0, -15.0), 90.0)
+	var long := b.clamp_piece("drop_step", Vector2(5.0, z), 90.0)
 	var hi := -INF
 	for v in b.outline_offsets("drop_step", 90.0):
 		hi = maxf(hi, v.x)
 	_check(long.x + hi <= game.track.lane_width / 2.0, "sideways Ledge stays inside the walls")
 	# The wind fan sits by the wall it blows from, not floating off the track.
-	var fan := b.clamp_piece("wind_fan", Vector2(2.0, -15.0), 0.0)
+	var fan := b.clamp_piece("wind_fan", Vector2(2.0, z), 0.0)
 	_check(b.can_place("wind_fan", fan, 0.0) or b.why_blocked("wind_fan", fan, 0.0) != "WALL", "wind fan pushed right fits by the wall")
 	# Two pieces on the same spot: the second is refused with a reason.
-	b.place("hump", Vector2(0, -20), 0.0, 0)
-	_check(b.why_blocked("hump", Vector2(0.3, -20.5), 0.0) == "ON A PIECE", "a piece can't sit on another piece")
+	b.place("hump", Vector2(0, z), 0.0, 0)
+	_check(b.why_blocked("hump", Vector2(0.3, z - 0.5), 0.0) == "ON A PIECE", "a piece can't sit on another piece (%s)" % b.why_blocked("hump", Vector2(0.3, z - 0.5), 0.0))
 	# ... but a press right next to it snaps to the nearest free spot.
 	var db: DraftBuild = game.draft_build
 	db.picks = ["bumper_post", ""]
 	db.player_count = 2
 	db.start_build()
-	db.cursor_pos[0] = Vector2(0.0, -20.0)
+	db.cursor_pos[0] = Vector2(0.0, z)
 	_check(db.request_place(0), "placing on a busy spot snaps to a free one nearby")
 	db.end_build()

@@ -57,7 +57,7 @@ func start_draft(crate_size: int, rng: RandomNumberGenerator) -> void:
 	picks = _filled(player_count, "")
 	draft_pointer = []
 	for i in player_count:
-		draft_pointer.append(Vector2((i + 0.5) * crate.size() / float(player_count), 1.45))
+		draft_pointer.append(Vector2((i + 0.5) * crate.size() / float(player_count), 1.3))
 	message = _filled(player_count, "")
 
 
@@ -68,7 +68,7 @@ func mirror_draft(p_crate: Array) -> void:
 	picks = _filled(player_count, "")
 	draft_pointer = []
 	for i in player_count:
-		draft_pointer.append(Vector2((i + 0.5) * crate.size() / float(player_count), 1.45))
+		draft_pointer.append(Vector2((i + 0.5) * crate.size() / float(player_count), 1.3))
 	message = _filled(player_count, "")
 
 
@@ -77,7 +77,7 @@ func request_pointer_move(player: int, delta: Vector2) -> void:
 	if picks[player] != "":
 		return
 	var p: Vector2 = draft_pointer[player] + delta
-	draft_pointer[player] = Vector2(clampf(p.x, -0.2, crate.size() + 0.2), clampf(p.y, -0.4, 1.7))
+	draft_pointer[player] = Vector2(clampf(p.x, -0.2, crate.size() + 0.2), clampf(p.y, -0.4, 1.45))  # stays above the key hints
 
 
 ## The card a player's pointer is over, or -1.
@@ -144,7 +144,15 @@ func start_build() -> void:
 		var x: float = START_X[p % START_X.size()]
 		if PieceCatalog.is_track(picks[p]):
 			x = 0.0  # track cards change the whole width of the track
-		cursor_pos.append(Vector2(x, -12.0 - 1.5 * p))
+		# Spread the cursors down the lane so the pieces, outlines and labels
+		# don't start on top of each other.
+		var start := builder.clamp_piece(picks[p], Vector2(x, -10.0 - 5.0 * p), 0.0)
+		if picks[p] != "" and not PieceCatalog.is_track(picks[p]):
+			# Start somewhere the piece fits (not over a gap).
+			var free = builder.nearest_free(picks[p], start, 0.0)
+			if free != null:
+				start = free
+		cursor_pos.append(start)
 		if picks[p] == "":
 			has_placed[p] = true
 			_ghosts.append(null)

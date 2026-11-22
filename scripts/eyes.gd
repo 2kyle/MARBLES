@@ -6,6 +6,11 @@ extends Node3D
 ## squeeze shut (a wince) when the marble gets knocked about.
 ##
 ## To add a pair: add it to Cosmetics.EYES and a `match` branch in setup().
+##
+## The marble is a bowling ball, so the eyes peek out of its finger holes:
+## each eye sits in a drilled socket, and the thumb hole below is a little
+## mouth that gasps "O" when the ball gets knocked. (With No Eyes the ball
+## shows its plain finger holes instead, see Marble._add_finger_holes.)
 
 const INK := Color(0.08, 0.07, 0.1)
 const WHITE := Color(0.98, 0.98, 1.0)
@@ -22,6 +27,10 @@ var _pupil_vel: Array = []
 var _blink_wait := 2.0
 var _blink_t := -1.0         # time into a blink, or < 0
 var _wince := 0.0            # 1 = fully squeezed, eases back to 0
+var _mouth: Node3D = null    # the thumb hole, under the eyes
+
+## The finger holes the eyes sit in.
+const HOLE := Color(0.035, 0.03, 0.04)
 var _rng := RandomNumberGenerator.new()
 
 
@@ -36,6 +45,7 @@ func setup(p_kind: String, p_color: Color) -> void:
 	_rng.randomize()
 	_blink_wait = _rng.randf_range(1.0, 4.0)
 	var lid := color.darkened(0.25)
+	_mouth = null
 	match kind:
 		"classic":
 			for side in [-1.0, 1.0]:
@@ -113,6 +123,47 @@ func setup(p_kind: String, p_color: Color) -> void:
 				(star.material_override as StandardMaterial3D).cull_mode = BaseMaterial3D.CULL_DISABLED
 				star.position = Vector3(0, 0, -0.1)
 				e.add_child(star)
+	_drill_holes()
+
+
+## Finger holes: a dark drilled socket round each eye with a bevelled rim
+## in the ball's colour, and the thumb hole as a mouth.
+func _drill_holes() -> void:
+	var visor := kind in ["robot", "shades"]
+	for e in _eyes:
+		var squash: Node3D = e
+		var holder := squash.get_parent() as Node3D
+		var r := 0.29
+		if kind == "cyclops":
+			r = 0.46
+		elif kind in ["googly"]:
+			r = 0.34
+		elif kind in ["dots", "happy", "hearts"]:
+			r = 0.22
+		if visor or kind == "happy":
+			continue   # visors cover the holes; happy eyes are shut tight
+		# The socket stays put when the eye blinks (it's on the holder, not
+		# the squash node), so a blink shows the dark hole behind.
+		var rim := _disc(holder, r * 1.22, color.darkened(0.35), Vector3(0, 0, 0.01), 0.0, 18)
+		rim.scale.z = 0.13
+		var socket := _disc(holder, r * 1.05, HOLE, Vector3(0, 0, 0.0), 0.0, 18)
+		socket.scale.z = 0.15
+		holder.move_child(rim, 0)
+		holder.move_child(socket, 1)
+	# The thumb hole, a little below the eyes.
+	var out := Vector3(0, -0.3 - EYE_DROP, -1.0).normalized()
+	var holder := Node3D.new()
+	holder.basis = Basis.looking_at(out, Vector3.UP)
+	holder.position = out * 0.98
+	add_child(holder)
+	# (The holder sits 0.02 inside the ball, so anything flatter than that
+	# would hide under the surface.)
+	var lip := _disc(holder, 0.11, color.darkened(0.35), Vector3(0, 0, 0.0), 0.0, 16)
+	lip.scale = Vector3(1.25, 0.95, 0.3)
+	_mouth = Node3D.new()
+	holder.add_child(_mouth)
+	var hole := _disc(_mouth, 0.09, HOLE, Vector3(0, 0, -0.004), 0.0, 16)
+	hole.scale = Vector3(1.2, 0.8, 0.4)
 
 
 ## Call every frame. `velocity` makes googly pupils wobble.
@@ -142,6 +193,9 @@ func update(delta: float, velocity := Vector3.ZERO) -> void:
 		e.scale = Vector3(1.0 + w * 0.15, maxf(y, 0.08), 1.0)
 		# Squeezed eyes tilt into a > < shape.
 		e.rotation.z = -signf(e.position.x) * w * 0.35 if not keep_shape else 0.0
+	if _mouth:
+		# A wince opens the thumb hole into a gasping "O".
+		_mouth.scale = Vector3(1.0 - w * 0.25, 1.0 + w * 1.1, 1.0)
 	for i in _pupils.size():
 		var pupil: Node3D = _pupils[i]
 		var v: Vector2 = _pupil_vel[i]
@@ -186,12 +240,12 @@ func _eye(side: float, across: float, up: float) -> Node3D:
 	return squash
 
 
-func _disc(parent: Node3D, r: float, c: Color, at := Vector3.ZERO, glow := 0.0) -> MeshInstance3D:
+func _disc(parent: Node3D, r: float, c: Color, at := Vector3.ZERO, glow := 0.0, sides := 10) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var m := SphereMesh.new()
 	m.radius = r
 	m.height = r * 2.0
-	m.radial_segments = 10
+	m.radial_segments = sides
 	m.rings = 4
 	mi.mesh = m
 	mi.material_override = _mat(c, glow)

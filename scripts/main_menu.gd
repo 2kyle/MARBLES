@@ -449,6 +449,10 @@ func _build_settings_page() -> void:
 	shake.value_changed.connect(func(i):
 		settings.camera_shake = [0.0, 0.5, 1.0, 1.6][i]
 		_save())
+	var rumble := _stepper(page, "RUMBLE", ["OFF", "ON"])
+	rumble.value_changed.connect(func(i):
+		settings.rumble = i == 1
+		_save())
 	var replay := _stepper(page, "STRIKE REPLAY", ["OFF", "ON"])
 	replay.value_changed.connect(func(i):
 		settings.strike_replay = i == 1
@@ -468,6 +472,7 @@ func _build_settings_page() -> void:
 		gfx.index = settings.graphics
 		volume.index = roundi(settings.master_volume * 10.0)
 		shake.index = maxi([0.0, 0.5, 1.0, 1.6].find(settings.camera_shake), 0)
+		rumble.index = 1 if settings.rumble else 0
 		replay.index = 1 if settings.strike_replay else 0
 		fps.index = 1 if settings.show_fps else 0
 		wild.index = 1 if settings.wild_frames else 0)
@@ -646,9 +651,29 @@ func _page(name: String, heading: String) -> VBoxContainer:
 	panel.position = Vector2(72, 214)
 	panel.custom_minimum_size = Vector2(440, 0)
 	_root.add_child(panel)
+	# Long pages (SETTINGS) scroll instead of running off a small screen;
+	# the list follows the highlighted row, so controllers work too.
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	panel.add_child(scroll)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 7)
-	panel.add_child(box)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	var fit := func():
+		# Slide up toward the logo first (down to just under its letters),
+		# and only scroll if that still isn't enough room.
+		var want := box.get_combined_minimum_size().y
+		var screen_h := get_viewport().get_visible_rect().size.y
+		panel.position.y = clampf(screen_h - want - 48.0 - 12.0, 168.0, 214.0)
+		var room := screen_h - panel.position.y - 48.0 - 12.0
+		scroll.custom_minimum_size.y = minf(want, maxf(room, 200.0))
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if want > room else ScrollContainer.SCROLL_MODE_DISABLED
+		panel.reset_size()
+	box.minimum_size_changed.connect(fit, CONNECT_DEFERRED)
+	panel.visibility_changed.connect(fit, CONNECT_DEFERRED)
+	get_viewport().size_changed.connect(fit)
 	box.add_child(RetroTitle.Trim.new())
 	if heading != "":
 		var h := Label.new()

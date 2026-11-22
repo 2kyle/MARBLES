@@ -244,7 +244,9 @@ func _ready() -> void:
 	retro_filter.set_look(settings.retro_look)
 	ink = InkOutline.attach(camera)
 	_apply_graphics()
+	Controls.rumble_on = settings.rumble
 	menu.settings_changed.connect(func():
+		Controls.rumble_on = settings.rumble
 		camera_shake = settings.camera_shake
 		retro_filter.set_look(settings.retro_look)
 		_apply_graphics())
@@ -916,6 +918,12 @@ func _prepare_roll() -> void:
 		m.set_marble_collision(marbles_collide)
 		m.landed.connect(_on_marble_impact.bind(9.0))
 		m.bumped.connect(_on_marble_impact.bind(7.0))
+		m.landed.connect(func(s): _rumble(i, s / 14.0, 0.0, 0.12))
+		m.body_entered.connect(func(b):
+			if b is Marble and state == State.ROLLING:
+				var hit: float = (m.linear_velocity - (b as Marble).linear_velocity).length()
+				if hit > 3.0:
+					_rumble(i, hit / 10.0, hit / 16.0, 0.15))
 		marbles.append(m)
 
 	_put_marbles_at_gate()
@@ -1689,6 +1697,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 				profiles.save_to_disk()
 			if data.striker >= 0:
 				hud.show_strike(data.striker, player_colors[data.striker])
+				_rumble(data.striker, 0.8, 1.0, 0.5)
 			_frame_achievements(data.striker)
 			if state == State.MATCH_OVER:
 				awards = data.get("awards", [])
@@ -1799,6 +1808,7 @@ func _update_roll(delta: float) -> void:
 			m.out = true
 			m.freeze = true
 			_splash(m.global_position, m.color)
+			_rumble(m.player_id, 0.2, 0.6, 0.3)
 		_unstick(m, delta)
 
 	var all_done := true
@@ -1880,6 +1890,7 @@ func _finish_frame() -> void:
 func _show_frame_result(striker: int) -> void:
 	if striker >= 0:
 		hud.show_strike(striker, player_colors[striker])
+		_rumble(striker, 0.8, 1.0, 0.5)
 	net.send_event("result", {"result": last_result, "totals": totals, "points": frame_points,
 			"coins": coins_earned, "match_coins": match_coins, "breakdown": coin_breakdown,
 			"state": state, "striker": striker, "awards": awards})
@@ -2044,6 +2055,14 @@ func _splash(at: Vector3, color: Color) -> void:
 
 ## Shake the camera for a hard landing or a marble-on-marble crash.
 ## `full` is the impact speed that gives the biggest shake.
+## Buzz the controller of a player at this computer (no-op for bots,
+## keyboards, other computers' players, or with RUMBLE off).
+func _rumble(p: int, weak: float, strong: float, seconds: float) -> void:
+	if p < 0 or p >= seat_kinds.size() or seat_kinds[p] != Seat.LOCAL:
+		return
+	Controls.rumble(0 if net and net.active() else p, weak, strong, seconds)
+
+
 func _on_marble_impact(strength: float, full: float) -> void:
 	if state == State.ROLLING:
 		camera.shake(clampf((strength - 2.0) / full, 0.0, 0.6) * camera_shake)

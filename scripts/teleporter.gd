@@ -154,6 +154,7 @@ func _send(m: Marble) -> void:
 	m.linear_velocity = fwd * (2.0 if reusable else speed)
 	m.angular_velocity = Vector3.ZERO
 	_flash(partner.global_position)
+	m.pop_word("ZAP!", Color(0.55, 0.85, 1.0), true)
 
 
 func _flash(at: Vector3) -> void:

@@ -16,3 +16,4 @@ func _on_body_entered(body: Node) -> void:
 		var forward := -global_basis.z
 		forward.y = 0.0
 		(body as Marble).apply_central_impulse(forward.normalized() * boost * (body as Marble).mass)
+		(body as Marble).pop_word("WHOOSH!", Color(1.0, 0.6, 0.2))

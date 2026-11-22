@@ -136,6 +136,7 @@ var _last_pos := Vector3.ZERO
 ## How fast the ball is moving, worked out from where it was last frame
 ## (so it also works when the ball is moved by network updates).
 var _seen_velocity := Vector3.ZERO
+var _last_word := -100000  # when pop_word last showed a word (ms)
 
 const MARBLE_SHADER := preload("res://shaders/marble.gdshader")
 
@@ -447,6 +448,19 @@ func _hop_puff() -> void:
 	get_tree().create_timer(1.0).timeout.connect(puff.queue_free)
 
 
+## A comic word over this ball ("WHOOSH!", "ZAP!"...), at most one every
+## half second so a ball sitting on a booster doesn't spam them. `force`
+## skips the wait (for words that matter, like GUTTER!).
+func pop_word(word: String, color: Color, force := false) -> void:
+	if preview:
+		return
+	var now := Time.get_ticks_msec()
+	if not force and now - _last_word < 500:
+		return
+	_last_word = now
+	PopText.spawn(self, global_position + Vector3.UP * 0.8, word, color, 0.9)
+
+
 ## Take this marble out of the frame (fell in a gutter, for example).
 func knock_out(by_player: int) -> void:
 	if out or arrived:
@@ -470,6 +484,12 @@ func _on_body_entered(body: Node) -> void:
 			wince(hit)
 		if hit > 2.5 and player_id < (body as Marble).player_id:
 			bumped.emit(hit)  # once per crash, from the lower player id
+			if hit > 6.0:
+				pop_word("BONK!", Color(1.0, 0.9, 0.4))
+	elif body is AnimatableBody3D:
+		# A swinging pendulum or a spinner paddle.
+		if linear_velocity.length() > 2.0:
+			pop_word("WHACK!", Color(1.0, 0.5, 0.45))
 	elif body is Pin:
 		# Credit from this side too: with fast hits the physics engine
 		# sometimes reports the contact to only one of the two bodies.

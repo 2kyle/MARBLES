@@ -172,3 +172,15 @@ static func _add(action: String, keys: Array) -> void:
 		var kp := InputEventKey.new()
 		kp.physical_keycode = KEY_KP_ENTER
 		InputMap.action_add_event(action, kp)
+
+
+## Controller rumble on (Settings > RUMBLE). main.gd keeps it in step.
+static var rumble_on := true
+
+
+## Give a controller a little buzz: `weak` and `strong` are the two motors
+## (0..1). Does nothing for keyboards, bots, or with RUMBLE off.
+static func rumble(device: int, weak: float, strong: float, seconds: float) -> void:
+	if not rumble_on or device < 0 or not Input.get_connected_joypads().has(device):
+		return
+	Input.start_joy_vibration(device, clampf(weak, 0.0, 1.0), clampf(strong, 0.0, 1.0), seconds)

@@ -11,4 +11,6 @@ func _ready() -> void:
 
 func _on_body_entered(body: Node) -> void:
 	if body is Marble:
+		if not (body as Marble).out:
+			(body as Marble).pop_word("GUTTER!", Color(0.7, 0.75, 0.85), true)
 		(body as Marble).knock_out(placed_by)

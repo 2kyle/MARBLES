@@ -542,6 +542,7 @@ func _apply_look() -> void:
 		mat.set_shader_parameter("metallic_amount", style.metallic)
 		mat.set_shader_parameter("roughness_amount", style.roughness)
 		mat.set_shader_parameter("glow", style.glow)
+		TextureSlots.dress(mat, "marble")   # an artist's picture, if there is one
 		mesh.material_override = mat
 	_add_finger_holes(mesh)
 	var trail_id: String = look.get("trail", {"id": "none"}).id

@@ -256,6 +256,13 @@ func clamp_piece(id: String, pos: Vector2, angle: float) -> Vector2:
 	var x_min := -hw - lo
 	var x_max := hw - hi
 	pos.x = (x_min + x_max) / 2.0 if x_min > x_max else clampf(pos.x, x_min, x_max)
+	# On a bend the ends of a long piece swing out a little further: ease it
+	# in toward the middle until it clears the wall.
+	var mid := (x_min + x_max) / 2.0
+	for k in 24:
+		if _wall_problem(id, pos, angle) != "WALL":
+			break
+		pos.x = move_toward(pos.x, mid, 0.05)
 	return pos
 
 

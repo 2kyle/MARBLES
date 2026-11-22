@@ -7,12 +7,23 @@ extends RefCounted
 ## Soft, matte, low-poly shapes in a pastel palette, like painted wooden
 ## toys. Lighting is a plain sunny day: a blue sky, puffy white 3D clouds,
 ## light haze in the distance, and no heavy bloom or glare. Effects stay
-## cheap: no screen-space ambient occlusion, no noise-heavy sky shader.
+## cheap, and the costly ones follow Settings > GRAPHICS (see `quality`).
+##
+## Largest update: hand-inked outlines round everything (InkOutline, a
+## screen shader), soft ambient occlusion on HIGH so things sit in the
+## world, and texture slots for hand-made art (TextureSlots).
 ##
 ## Big Saturday update: a warmer "retro bowling alley" grade on top. The
 ## sun hangs a little lower and more golden (see Arena.plain_sun), a little
 ## more glow makes lanterns and neon bloom softly, and the colour grade itself
 ## is done by the RetroFilter screen shader (Settings > RETRO LOOK).
+
+## Settings > GRAPHICS: 0 LOW (no shadows, outlines, glow or ambient
+## occlusion: for old laptops), 1 MEDIUM (shadows, glow and ink outlines),
+## 2 HIGH (adds soft ambient occlusion, the dark contact shading where
+## things meet, which gives everything more depth).
+static var quality := 2
+const QUALITY_NAMES := ["LOW", "MEDIUM", "HIGH"]
 
 const SKY_TOP := Color(0.32, 0.56, 0.9)
 const SKY_HORIZON := Color(0.78, 0.86, 0.96)
@@ -54,7 +65,22 @@ static func environment(below: Color) -> Environment:
 	env.fog_light_color = HAZE
 	env.fog_density = 0.0015
 	env.fog_sky_affect = 0.0
+	apply_quality(env)
 	return env
+
+
+## Turn an environment's costly effects on or off for the GRAPHICS setting.
+static func apply_quality(env: Environment) -> void:
+	if env == null:
+		return
+	env.ssao_enabled = quality >= 2
+	env.ssao_radius = 1.4
+	env.ssao_intensity = 1.8
+	env.ssao_power = 1.3
+	env.ssao_detail = 0.6
+	env.ssao_horizon = 0.08
+	env.ssao_light_affect = 0.2
+	env.glow_enabled = quality >= 1
 
 
 ## One puffy cloud: a few flattened white balls. Opaque, so it's cheap.

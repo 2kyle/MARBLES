@@ -166,6 +166,6 @@ func _cursor_checks() -> void:
 	db.picks = ["bumper_post", ""]
 	db.player_count = 2
 	db.start_build()
-	db.cursor_pos[0] = Vector2(0.0, z)
+	db.cursor_pos[0] = Vector2(0.0, z - 1.3)   # overlapping the hump's edge
 	_check(db.request_place(0), "placing on a busy spot snaps to a free one nearby")
 	db.end_build()

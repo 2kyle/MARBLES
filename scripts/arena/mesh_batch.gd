@@ -145,6 +145,7 @@ static func matte_material() -> ShaderMaterial:
 	if _matte == null:
 		_matte = ShaderMaterial.new()
 		_matte.shader = MATTE
+		TextureSlots.dress(_matte, "scenery")   # an artist's picture, if there is one
 	return _matte
 
 

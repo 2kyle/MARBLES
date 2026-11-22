@@ -434,6 +434,10 @@ func _build_settings_page() -> void:
 	retro.value_changed.connect(func(i):
 		settings.retro_look = i
 		_save())
+	var gfx := _stepper(page, "GRAPHICS", ArtStyle.QUALITY_NAMES)
+	gfx.value_changed.connect(func(i):
+		settings.graphics = i
+		_save())
 	var volumes := []
 	for v in range(0, 101, 10):
 		volumes.append("%d%%" % v)
@@ -457,6 +461,7 @@ func _build_settings_page() -> void:
 		full.index = 1 if settings.fullscreen else 0
 		vsync.index = 1 if settings.vsync else 0
 		retro.index = settings.retro_look
+		gfx.index = settings.graphics
 		volume.index = roundi(settings.master_volume * 10.0)
 		shake.index = maxi([0.0, 0.5, 1.0, 1.6].find(settings.camera_shake), 0)
 		replay.index = 1 if settings.strike_replay else 0

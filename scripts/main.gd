@@ -153,6 +153,8 @@ var podium: Podium
 var _hub_env: Environment
 ## The retro screen filter (warm film colours, optional scanlines).
 var retro_filter: RetroFilter
+## Ink outlines over the 3D world (Settings > GRAPHICS).
+var ink: InkOutline
 var _menu_time := 0.0
 ## Coins, owned looks and equipped looks for each seat (saved to disk).
 var profiles := Profiles.new()
@@ -238,9 +240,12 @@ func _ready() -> void:
 	retro_filter.name = "RetroFilter"
 	add_child(retro_filter)
 	retro_filter.set_look(settings.retro_look)
+	ink = InkOutline.attach(camera)
+	_apply_graphics()
 	menu.settings_changed.connect(func():
 		camera_shake = settings.camera_shake
-		retro_filter.set_look(settings.retro_look))
+		retro_filter.set_look(settings.retro_look)
+		_apply_graphics())
 	menu.practice_requested.connect(_enter_hub)
 	closet = Closet.new()
 	add_child(closet)
@@ -638,6 +643,19 @@ func _after_screen(p: int) -> void:
 	_refresh_colors()
 
 
+## Put the GRAPHICS setting into effect: shadows, ink outlines, glow and
+## ambient occlusion (see ArtStyle.quality).
+func _apply_graphics() -> void:
+	ArtStyle.quality = settings.graphics
+	var env: WorldEnvironment = $WorldEnvironment
+	ArtStyle.apply_quality(env.environment)
+	for e in [_hub_env, arena.environment() if arena else null]:
+		ArtStyle.apply_quality(e)
+	($Sun as DirectionalLight3D).shadow_enabled = settings.graphics >= 1
+	if ink:
+		ink.visible = settings.graphics >= 1
+
+
 ## Shut the closet and crate screens without fuss (leaving the island).
 func _close_screens() -> void:
 	_hide_world(false)
@@ -661,6 +679,7 @@ func _show_hub_world(on: bool) -> void:
 	elif arena:
 		env.environment = arena.environment()
 		arena.light_sun($Sun)
+	ArtStyle.apply_quality(env.environment)
 	course.visible = not on
 	rack.visible = not on
 	for m in marbles:
@@ -833,6 +852,7 @@ func _show_podium() -> void:
 		names.append(seat_name(p))
 	podium.show_for(order, looks, player_colors, names, marble_scene)
 	($WorldEnvironment as WorldEnvironment).environment = podium.environment()
+	ArtStyle.apply_quality(($WorldEnvironment as WorldEnvironment).environment)
 	($Sun as DirectionalLight3D).light_energy = 0.0
 	rack.visible = false
 	for m in marbles:

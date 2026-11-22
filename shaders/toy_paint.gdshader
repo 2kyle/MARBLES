@@ -21,6 +21,8 @@ uniform float glow : hint_range(0.0, 4.0) = 0.0;
 uniform float ground_shade = 0.25;
 uniform float height_offset = 0.0;
 
+#include "res://shaders/detail.gdshaderinc"
+
 varying vec3 obj_pos;
 varying vec3 obj_normal;
 
@@ -80,7 +82,7 @@ void fragment() {
 	col *= 0.93 + 0.1 * noise(obj_pos * 22.0);
 	// Paint gets a touch darker near the ground (cheap contact shading).
 	col *= mix(0.8, 1.0, smoothstep(0.0, ground_shade, obj_pos.y + height_offset + 0.02));
-	ALBEDO = col;
+	ALBEDO = apply_detail(col, obj_pos, obj_normal);
 	ROUGHNESS = roughness_amount;
 	SPECULAR = 0.4;
 	// A soft bright edge, like light catching rounded toy edges.

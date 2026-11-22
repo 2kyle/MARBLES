@@ -9,6 +9,8 @@ uniform float metallic_amount = 0.1;
 uniform float roughness_amount = 0.15;
 uniform float glow = 0.0;
 
+#include "res://shaders/detail.gdshaderinc"
+
 varying vec3 obj;
 
 float hash(vec3 p) {
@@ -72,7 +74,7 @@ void fragment() {
 	if (pattern == 0 && glow > 0.0) {
 		e = base_color.rgb;
 	}
-	ALBEDO = c;
+	ALBEDO = apply_detail(c, obj, normalize(obj));
 	METALLIC = metallic_amount;
 	ROUGHNESS = roughness_amount;
 	EMISSION = e * glow;

@@ -170,5 +170,6 @@ static func _material(id: String, path: String, style: Dictionary, fallback: Col
 	m.set_shader_parameter("roughness_amount", style.get("rough", 0.55))
 	m.set_shader_parameter("glow", style.get("glow", 0.0))
 	m.set_shader_parameter("height_offset", height)
+	TextureSlots.dress(m, "pieces")   # an artist's picture, if there is one
 	_cache[key] = m
 	return m

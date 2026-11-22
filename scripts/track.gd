@@ -625,6 +625,7 @@ func _lane_material(len: float) -> ShaderMaterial:
 		oil_to[k] = oils[k][1]
 	m.set_shader_parameter("oil_from", oil_from)
 	m.set_shader_parameter("oil_to", oil_to)
+	TextureSlots.dress(m, "lane")   # an artist's picture, if there is one
 	return m
 
 

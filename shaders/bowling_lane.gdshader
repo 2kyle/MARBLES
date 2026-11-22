@@ -27,6 +27,10 @@ uniform float arrows_at = 7.0;
 uniform float oil_from[4];
 uniform float oil_to[4];
 
+// Texture slot "lane" (assets/textures/README.md): an artist's wood or
+// grain picture laid over the painted boards, in lane metres.
+#include "res://shaders/detail.gdshaderinc"
+
 const float BOARDS = 39.0;
 
 float hash(float n) { return fract(sin(n * 127.1) * 43758.5453); }
@@ -117,7 +121,7 @@ void fragment() {
 		vec3 wet = col * 0.62;
 		col = mix(col, mix(wet, film, 0.28), oil);
 	}
-	ALBEDO = col;
+	ALBEDO = apply_detail(col, vec3(UV.x, 0.0, UV.y), vec3(0.0, 1.0, 0.0));
 	// Polished and oiled: shiny, with a clear-coat sheen. Glassy on a slick.
 	ROUGHNESS = mix(0.3, 0.05, oil);
 	SPECULAR = mix(0.6, 0.9, oil);

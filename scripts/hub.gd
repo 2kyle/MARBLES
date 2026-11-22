@@ -361,7 +361,8 @@ func _island() -> void:
 	body.add_child(shape)
 	add_child(body)
 
-	LowPoly.cyl(self, ISLAND_RADIUS, ISLAND_RADIUS - 0.3, 0.4, Vector3(0, -0.2, 0), Color(0.36, 0.66, 0.3), 40)
+	var grass := LowPoly.cyl(self, ISLAND_RADIUS, ISLAND_RADIUS - 0.3, 0.4, Vector3(0, -0.2, 0), Color(0.36, 0.66, 0.3), 40)
+	TextureSlots.dress(LowPoly.own_mat(grass), "hub_grass")   # an artist's picture, if there is one
 	LowPoly.cyl(self, ISLAND_RADIUS - 0.3, ISLAND_RADIUS - 2.0, 1.8, Vector3(0, -1.3, 0), Color(0.55, 0.38, 0.24), 40)
 	# Rocky underside, a few low-poly layers getting narrower.
 	var rock := Color(0.48, 0.44, 0.42)

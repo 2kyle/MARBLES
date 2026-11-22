@@ -19,7 +19,7 @@ The game opens on the **BOWLING WIP** title screen (a working title; it's `TITLE
 - **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** hosts or joins a game over the internet or your home network (see below).
-- **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), volume, camera shake, strike replay on/off and an FPS counter. Settings and the last match options are saved on this computer (`user://settings.cfg`).
+- **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), **graphics** (LOW, MEDIUM or HIGH), volume, camera shake, controller **rumble** on/off, strike replay on/off, an FPS counter and **wild frames** on/off. Long menu pages scroll (following the highlighted row) so they fit small screens. Settings and the last match options are saved on this computer (`user://settings.cfg`).
 - **How to play** is a short picture guide to a frame: draft a piece, build it into the lane, then roll and smash the pins (see below).
 - **Controls**, **Credits** and **Quit**.
 
@@ -101,6 +101,10 @@ Looks are changed between games in the closet on the hub, not at the start of a 
 
 A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. Some tracks also have a gap. It starts empty. A marble that flies off the track splashes into the water and is out for that frame.
 
+### Time trial
+
+On the hub's practice run, the clock starts as your marble rolls away from the top pad and stops at the bottom; a little timer shows at the top of the screen. Falling off (or taking a shortcut) cancels the run. Your best time is saved in your profile, and the **RUN RECORDS** board beside the bottom of the run shows the fastest. A new best gets a "NEW BEST RUN!" message and confetti. The code is in `scripts/time_trial.gd`.
+
 ### Hopping and gaps
 
 While rolling, tap your place key (E for P1, Enter for P2) to hop. Hops are forgiving: one pressed a split second after rolling off an edge still works, and one pressed just before landing happens the moment you touch down. While your marble is in the air a soft round shadow sits right under it, so you can see where it'll land. The ball squashes when it lands and stretches when it hops (just the picture, not the physics). It's a small hop, about 0.8 m, which is just enough to clear the 0.7 m side walls if you want to jump off or cut a corner, and only works when your marble is touching the floor, so you can't fly. Hop just before a **gap** in the track to clear it. Miss, and your marble falls in and is out for the frame, just like flying off the edge. A random track has at most one gap. Fast marbles can sometimes fly a gap without hopping. You can also hop over small pieces like gutter cuts and carpet strips.
@@ -173,7 +177,7 @@ What's in it: 17 hats (party hat, beanie, ball cap, traffic cone, top hat, cowbo
 
 ![Marbles with eyes](docs/eyes.png)
 
-Every marble wears a pair of eyes by default. They sit on the front of the ball and stay turned toward the camera (leaning a little toward where the marble is heading) while the marble rolls underneath, the same way hats do. They blink every few seconds (sometimes a quick double blink), and they **squeeze shut in a wince** when the marble is knocked by another marble, hits a bumper or lands hard. Googly eyes' pupils wobble as the marble moves.
+Every marble wears a pair of eyes by default. They sit in the ball's two finger holes, like eyes peeking out of sockets, and the thumb hole below is the mouth (it gasps when the marble winces). With no eyes, the plain finger holes show instead. They sit on the front of the ball and stay turned toward the camera (leaning a little toward where the marble is heading) while the marble rolls underneath, the same way hats do. They blink every few seconds (sometimes a quick double blink), and they **squeeze shut in a wince** when the marble is knocked by another marble, hits a bumper or lands hard. Googly eyes' pupils wobble as the marble moves.
 
 The eyes: Classic, Dots and None (everyone has these), Googly, Sleepy and Happy (Common), Grumpy, Sparkly and Cyclops (Rare), Shades and Robot visor (Epic), Heart eyes and Star eyes (Legendary). They're in loot crates like every other look. Eye shapes are built in `scripts/eyes.gd`; to add a pair, add it to `EYES` in `scripts/cosmetics.gd` and a branch in `EyeRig.setup()`.
 
@@ -228,6 +232,14 @@ How it works: while the marbles roll, `scripts/strike_replay.gd` notes where eve
 Switch it off in **Settings > STRIKE REPLAY**. It doesn't play in online games yet (everyone would have to watch it at the same time).
 
 The scoreboard then pops in and counts each player's new points up into their total one row at a time, with a "+N" flying off and the leader marked with a star.
+
+### Wild frames
+
+Every third frame (3, 6, 9) is a **WILD FRAME**: one rule is bent for everyone, announced with a big banner when the draft starts and a tag in the corner. The rules: LOW GRAVITY, SUPER BOUNCY, TURBO, HEAVY BALLS, ICE RINK and BIG HOPS. Online, every computer gets the same rule. Switch them off in **Settings > WILD FRAMES**. To add a rule, add it to `LIST` in `scripts/wild_frames.gd` and a branch in `apply()`.
+
+### Placing pieces
+
+Each piece knows its real outline on the floor (worked out from its shape), and the build cursor draws that outline. A piece can't go where it would poke into a wall, another piece or a gap. If you try, it **snaps to the nearest free spot**, and if there's none nearby your chip says why ("HITS THE WALL", "ON ANOTHER PIECE", "OVER A GAP"). The cursor speeds up the longer you hold a direction, and moves the way the camera faces. If a track card reshapes the lane under pieces, they shuffle to fit (or pop if they can't).
 
 ### Pieces
 
@@ -304,7 +316,7 @@ Player 1's hop / place / grab key is **Space** (E still works too). Everything w
 | Hub: roll / hop / leave a plate | W A S D / Space / Q | Arrows / Enter / Right Shift | Left stick / A / B or X |
 | Hub: turn the camera | Z / X, or hold the right mouse button and drag; mouse wheel to zoom | | Right stick |
 
-**Controllers:** controller 1 plays as P1, controller 2 as P2, and so on, in the order they were plugged in. You can switch between keys and controller at any time, and the hints at the bottom of the screen show whichever you used last.
+**Controllers:** controller 1 plays as P1, controller 2 as P2, and so on, in the order they were plugged in. You can switch between keys and controller at any time, and the hints at the bottom of the screen show whichever you used last. Controllers give a little buzz on hard landings, crashes, falls and strikes (Settings > RUMBLE turns it off).
 
 | Key | What it does |
 | --- | --- |
@@ -322,7 +334,11 @@ The look is **toy diorama** with a **retro bowling alley** finish: soft, matte, 
 - **Retro look** (`scripts/retro_filter.gd`, `shaders/retro_screen.gdshader`): a screen filter under the HUD. LOUNGE (the default) gives amber highlights, purple shadows, dark corners and a little film grain; ARCADE adds faint CRT scanlines and colour fringing; OFF is the plain picture. Every effect has its own strength at the top of the shader.
 - **Marquee lights** (`shaders/marquee_lights.gdshader`): chase-light bulbs along the top of the track walls, like an old alley sign. They chase toward the pins, so they also show which way to roll.
 - **Retro sign title** (`scripts/retro_title.gd`): the title's bobbing letters on stacked orange, red and purple stripe shadows, and the matching three-stripe trim on menus and draft cards.
-- **Comic pop words** (`scripts/pop_text.gd`): POP!, BOING! and THUD! pop out of the world. `PopText.spawn(node, where, "TEXT", colour)` adds one anywhere.
+- **Comic pop words** (`scripts/pop_text.gd`): POP!, BOING!, THUD!, WHOOSH! (boosters), ZAP! (teleporters), GUTTER!, BONK! (big marble crashes) and WHACK! (pendulums and spinners) pop out of the world. `PopText.spawn(node, where, "TEXT", colour)` adds one anywhere.
+
+- **Ink outlines** (`shaders/ink_outline.gdshader`): thin dark outlines round shapes and creases, like a hand-inked cartoon, fading out in the distance.
+- **Graphics setting** (`ArtStyle.quality`): HIGH adds soft shadows in corners (ambient occlusion) and glow, MEDIUM keeps glow and shadows, LOW turns shadows and outlines off for older laptops.
+- **Texture slots** (`scripts/texture_slots.gd`): empty spots for hand-made pictures on the lane, pieces, scenery, marbles and hub grass. Drop a file with the right name into `assets/textures/` and it shows up. What to make: [assets/textures/README.md](assets/textures/README.md).
 
 ![The ARCADE retro look](docs/big-update/arcade.jpg)
 
@@ -532,6 +548,12 @@ godot --headless --script res://tests/test_how_to_play.gd
 godot --headless --script res://tests/test_track_cards.gd
 godot --headless --fixed-fps 120 --script res://tests/test_strike_replay.gd
 godot --headless --fixed-fps 120 --script res://tests/test_match_awards.gd
+godot --headless --script res://tests/test_controls.gd
+godot --headless --fixed-fps 120 --script res://tests/sim_hub.gd
+godot --headless --fixed-fps 120 --script res://tests/sim_items.gd
+godot --headless --fixed-fps 120 --script res://tests/test_placement.gd
+godot --headless --script res://tests/test_wild_frames.gd
+godot --headless --fixed-fps 120 --script res://tests/sim_time_trial.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam
 ```

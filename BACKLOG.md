@@ -18,17 +18,17 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## Up next
 
-1. **To do** · **Controller rumble** *(suggested by Claude)*
-   Short controller rumbles when a marble hits a bumper, lands a hop, or gets a strike. Add an on/off switch in Settings.
-
-2. **To do** · **Graphics quality setting** *(suggested by Claude)*
-   A Low / Medium / High choice in Settings (shadows, clouds, water detail) so the game runs smoothly on older laptops.
-
-3. **To do** · **Colour-blind friendly marbles** *(suggested by Claude)*
+1. **To do** · **Colour-blind friendly marbles** *(suggested by Claude)*
    A Settings option that gives each player a pattern or symbol as well as a colour on their marble, name tag and scoreboard row.
 
-4. **To do** · **Loop-de-loop piece** *(suggested by Claude)*
+2. **To do** · **Loop-de-loop piece** *(suggested by Claude)*
    A new track piece: a full vertical loop. Fast marbles make it round; slow ones fall back.
+
+3. **To do** · **Time trial ghost** *(suggested by Claude)*
+   On the hub's practice run, a see-through ghost marble replays your best run so you can race it. Builds on the new TIME TRIAL.
+
+4. **To do** · **More WILD FRAMES rules** *(suggested by Claude)*
+   New rule ideas: TINY BALLS (half size), GIANT PINS, REVERSE STEER (left is right), FOG (only see the lane near you), MAGNET MANIA (every marble pulls the others).
 
 5. **To do** · **Biplane rings and online plane** *(suggested by Claude)*
    Floating rings round the island to fly the biplane through (a little race against the clock), and show the plane to online guests too (right now only the person flying it sees the plane; guests see the ball flying).
@@ -39,19 +39,19 @@ This is the to-do list for the game, **most important at the top**. Every night 
 7. **To do** · **Strike replay online** *(suggested by Claude)*
    Show the slow-motion strike replay in online games too, so everyone watches it together (right now it only plays at one computer).
 
-9. **To do** · **Alley decorations for the hub** *(suggested by Claude)*
-   Giant bowling pin statues by the PLAY arch, a neon "LANES" sign, a shoe-rental counter and a ball rack, all with marquee lights. Left out of the Big Saturday update so it didn't clash with the hub clipping fixes.
+8. **To do** · **Alley decorations, part 2** *(suggested by Claude)*
+   A neon "LANES" sign and a shoe-rental counter in the hub. (The pin statues, ball rack and lights round the PLAY sign are done.)
 
-10. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
+9. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
    An achievement for a perfect 300, SKEE-JUMP for online guests, and a high-score table per player.
 
-11. **To do** · **More pop words** *(suggested by Claude)*
-   WHOOSH! on boosters, ZAP! on teleporters, SPLASH! when a marble falls in the water, GUTTER! on a gutter cut.
+10. **To do** · **SPLASH! and online TIME TRIAL board** *(suggested by Claude)*
+   A SPLASH! pop word when a marble falls in water, and show online guests' best runs on the RUN RECORDS board too.
 
-12. **To do** · **Corkscrew TA** *(suggested by Claude)*
+11. **To do** · **Corkscrew TA** *(suggested by Claude)*
    A full spiral that drops under itself. Needs the track to allow crossing over itself (supports and a clearance check by height), so it's a bigger job.
 
-13. **To do** · **Aimed Bounce Pad** *(suggested by Claude)*
+12. **To do** · **Aimed Bounce Pad** *(suggested by Claude)*
    Let the Bounce Pad tilt (rotate key) so it can fling marbles sideways off the track or onto another part of it.
 
 ## Needs you (Claude can't do these alone)
@@ -59,12 +59,16 @@ This is the to-do list for the game, **most important at the top**. Every night 
 - **Steam setup:** install the GodotSteam plugin, try online play with a friend, then get your own Steam App ID. Step-by-step guide: [docs/STEAM.md](docs/STEAM.md).
 - **Your first Blender model:** make a bowling pin in Blender and export it to `assets/models/pin/pin.glb`. Beginner guide: [docs/BLENDER.md](docs/BLENDER.md). Once it works, tell Claude what you'd like to model next (marble, hats, track pieces, hub trees and rocks) and it'll hook that up the same way.
 - **Sound and music:** you're adding these yourself, so Claude leaves audio out.
+- **Textures:** the game has empty texture slots waiting for hand-made pictures (lane wood, pieces, scenery, marbles, hub grass). Drop a file with the right name in `assets/textures/` and it shows up. What to make and where to find free ones: [assets/textures/README.md](assets/textures/README.md).
 
 ## In review
 
 *(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Biggest update yet** (November 22)
+  Pieces no longer clip into walls or each other (each piece's real outline is checked, and the build cursor shows it). Smoother placing: the cursor speeds up as you hold, moves the way the camera faces, snaps to the nearest free spot, and says why a spot is blocked ("HITS THE WALL"). Tidier screens: draft cards and the key hints always fit, and long menus scroll. Eyes now sit in the ball's finger holes, with the thumb hole as a mouth. Solid hub rocks, stones, garden and cones. More depth: ink outlines, soft shadows in corners, a **GRAPHICS** setting (Low / Medium / High) and texture slots for hand-made art. New: **WILD FRAMES** (every third frame bends a rule, with a Settings switch), a hub **TIME TRIAL** with a RUN RECORDS board, controller **RUMBLE** (with a Settings switch), more pop words (WHOOSH!, ZAP!, GUTTER!, BONK!, WHACK!) and pin statues by the PLAY arch.
 
 - **Done** · **Big Saturday update**
   4 new pieces (Pop Bumper, Pendulum, Magnet, Bounce Pad), 3 new TAs (Oil Slick, Zig-Zag, Rollercoaster Hill), the retro alley look (LOUNGE / ARCADE filter, marquee chase lights, warmer light), forgiving hops with squash and stretch and an air shadow, a retro sign title and livelier menus and draft cards, comic pop words, and the SKEE-JUMP minigame.

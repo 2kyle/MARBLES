@@ -457,6 +457,10 @@ func _build_settings_page() -> void:
 	fps.value_changed.connect(func(i):
 		settings.show_fps = i == 1
 		_save())
+	var wild := _stepper(page, "WILD FRAMES", ["OFF", "ON"])
+	wild.value_changed.connect(func(i):
+		settings.wild_frames = i == 1
+		_save())
 	page.set_meta("sync", func():
 		full.index = 1 if settings.fullscreen else 0
 		vsync.index = 1 if settings.vsync else 0
@@ -465,7 +469,8 @@ func _build_settings_page() -> void:
 		volume.index = roundi(settings.master_volume * 10.0)
 		shake.index = maxi([0.0, 0.5, 1.0, 1.6].find(settings.camera_shake), 0)
 		replay.index = 1 if settings.strike_replay else 0
-		fps.index = 1 if settings.show_fps else 0)
+		fps.index = 1 if settings.show_fps else 0
+		wild.index = 1 if settings.wild_frames else 0)
 	_button(page, "BACK", back)
 
 

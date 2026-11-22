@@ -18,6 +18,7 @@ func _initialize() -> void:
 	if a.size() > 2: arg = a[2]
 	if a.size() > 3: arg2 = a[3]
 	if mode == "awards": shot_at = 360
+	if mode == "wild": shot_at = 12
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 
@@ -41,7 +42,7 @@ func _setup() -> void:
 				game.force_theme = arg
 				game._new_match()
 				game.show_title()
-		"match", "roll", "end", "draft", "return", "build", "podium", "awards":
+		"match", "roll", "end", "draft", "return", "build", "podium", "awards", "wild":
 			game.force_theme = arg
 			game.settings.player_count = 2
 			game.settings.bot_count = 2
@@ -78,6 +79,14 @@ func _tick() -> void:
 				game.camera.snap_to(game.camera.target)
 		"draft":
 			if _t == 4:
+				game._start_draft()
+		"wild":
+			# A WILD FRAME's splash as its draft starts (arg2 = rule id).
+			if _t == 4:
+				game.frame = 3
+				game._prepare_roll()
+				if arg2 != "":
+					game.wild = arg2
 				game._start_draft()
 		"podium":
 			if _t == 4:

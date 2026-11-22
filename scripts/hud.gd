@@ -27,6 +27,9 @@ var _scores: HBoxContainer
 var _badge: Label            # "FRAME 3/10" top centre
 var _banner: Label           # "DRAFT 12" under the badge
 var _center: Label           # countdown number
+var _wild_tag: Label         # "WILD FRAME: LOW GRAVITY" under the badge
+var _wild_splash: VBoxContainer  # the big announcement when a wild frame's draft starts
+var _wild_shown := ""        # "frame|id" the splash last played for
 var _board: PanelContainer
 var _board_grid: VBoxContainer
 var _board_title: Label
@@ -136,6 +139,9 @@ func _ready() -> void:
 
 	_banner = _title_label(46, Control.PRESET_CENTER_TOP)
 	_banner.offset_top = 62
+
+	_wild_tag = _title_label(20, Control.PRESET_CENTER_TOP)
+	_wild_tag.offset_top = 118
 
 	_center = _title_label(150, Control.PRESET_CENTER)
 	_center.pivot_offset = Vector2(60, 90)
@@ -294,7 +300,69 @@ func _update_top(game) -> void:
 			banner = "BUILD  %d" % game.phase_time_left()
 	_banner.text = banner
 	_banner.visible = banner != ""
+	_update_wild(game)
 	_banner.add_theme_color_override("font_color", GOLD if game.phase_time_left() <= 5 else Color.WHITE)
+
+
+## WILD FRAMES: a tag under the badge all frame, and a big splash when
+## the draft starts.
+func _update_wild(game) -> void:
+	var w: Dictionary = WildFrames.info(game.wild)
+	var on: bool = not w.is_empty() and game.state in [game.State.DRAFT, game.State.BUILD, game.State.COUNTDOWN, game.State.ROLLING]
+	_wild_tag.visible = on
+	if on:
+		_wild_tag.text = "WILD FRAME:  " + w.name
+		_wild_tag.add_theme_color_override("font_color", w.color)
+		_wild_tag.offset_top = 118 if _banner.visible else 62
+		var style := _pill(PANEL_BG, 14, 4)
+		style.border_color = w.color
+		style.border_width_bottom = 3
+		_wild_tag.add_theme_stylebox_override("normal", style)
+	var key := "%d|%s" % [game.frame, game.wild]
+	if on and game.state == game.State.DRAFT and key != _wild_shown:
+		_wild_shown = key
+		_show_wild_splash(w)
+
+
+func _show_wild_splash(w: Dictionary) -> void:
+	if _wild_splash:
+		_wild_splash.queue_free()
+	_wild_splash = VBoxContainer.new()
+	_wild_splash.alignment = BoxContainer.ALIGNMENT_CENTER
+	_wild_splash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_wild_splash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_wild_splash)
+	var top := Label.new()
+	top.text = "WILD FRAME!"
+	top.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	top.add_theme_font_override("font", TITLE_FONT)
+	top.add_theme_font_size_override("font_size", 40)
+	top.add_theme_color_override("font_color", GOLD)
+	_wild_splash.add_child(top)
+	var name_l := Label.new()
+	name_l.text = w.name
+	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_l.add_theme_font_override("font", TITLE_FONT)
+	name_l.add_theme_font_size_override("font_size", 96)
+	name_l.add_theme_color_override("font_color", w.color)
+	_wild_splash.add_child(name_l)
+	var about := Label.new()
+	about.text = w.about
+	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	about.add_theme_font_size_override("font_size", 26)
+	_wild_splash.add_child(about)
+	for l in [top, name_l, about]:
+		l.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.1))
+		l.add_theme_constant_override("outline_size", 14)
+	_wild_splash.pivot_offset = get_viewport().get_visible_rect().size / 2.0
+	_wild_splash.scale = Vector2.ONE * 0.4
+	_wild_splash.modulate.a = 0.0
+	var tw := _wild_splash.create_tween()
+	tw.tween_property(_wild_splash, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(_wild_splash, "modulate:a", 1.0, 0.2)
+	tw.tween_interval(1.6)
+	tw.tween_property(_wild_splash, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(_wild_splash.queue_free)
 
 
 func _update_countdown(game) -> void:

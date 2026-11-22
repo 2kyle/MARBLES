@@ -169,6 +169,8 @@ var match_pins: Array = [0, 0, 0, 0]
 var match_bonus: Array = [0, 0, 0, 0]
 var coin_breakdown: Array = []
 var frame := 1
+## This frame's WILD FRAME rule (WildFrames.LIST id), or "" for a normal frame.
+var wild := ""
 var totals: Array = []
 var marbles: Array[Marble] = []
 var arrival_order: Array = []
@@ -877,12 +879,15 @@ func _prepare_roll() -> void:
 	_settling = false
 	_last_arrival_time = -100.0
 
+	# Every third frame bends a rule (the same one on every computer).
+	wild = WildFrames.pick(frame, ($Course/Decor as TrackDecor).seed, settings.wild_frames)
 	for i in player_count:
 		var m: Marble = marble_scene.instantiate()
 		m.player_id = i
 		m.look = look_for(i)
 		m.preview = state == State.WAITING
 		m.freeze = true
+		WildFrames.apply(wild, m)
 		add_child(m)
 		m.set_marble_collision(marbles_collide)
 		m.landed.connect(_on_marble_impact.bind(9.0))
@@ -1288,7 +1293,7 @@ func request_next() -> void:
 		State.RESULTS:
 			frame += 1
 			_prepare_roll()
-			net.send_event("prepare", {"frame": frame})
+			net.send_event("prepare", {"frame": frame, "wild": wild})
 			_start_draft()
 		State.MATCH_OVER:
 			if net.is_host():
@@ -1625,6 +1630,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 		"prepare":
 			frame = data.frame
 			_prepare_roll()
+			wild = data.get("wild", wild)   # the host's settings decide
 		"draft":
 			frame = data.frame
 			draft_build.mirror_draft(data.crate)

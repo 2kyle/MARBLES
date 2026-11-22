@@ -21,6 +21,8 @@ var graphics := 2
 var camera_shake := 1.0
 ## Slow-motion replay from by the pins after a strike.
 var strike_replay := true
+## Every third frame bends a rule (see WildFrames).
+var wild_frames := true
 ## Match options from the Play screen.
 ## How many people play at this computer, and how many bots join them.
 var player_count := 1
@@ -46,6 +48,7 @@ func load_from_disk() -> void:
 	master_volume = cfg.get_value("sound", "master_volume", master_volume)
 	camera_shake = cfg.get_value("camera", "shake", camera_shake)
 	strike_replay = cfg.get_value("camera", "strike_replay", strike_replay)
+	wild_frames = cfg.get_value("match", "wild_frames", wild_frames)
 	# "humans"/"bots" replaced the old "players" key, so older saves start
 	# on the new default of one person and one bot.
 	player_count = clampi(cfg.get_value("match", "humans", player_count), 1, 4)
@@ -66,6 +69,7 @@ func save_to_disk() -> void:
 	cfg.set_value("sound", "master_volume", master_volume)
 	cfg.set_value("camera", "shake", camera_shake)
 	cfg.set_value("camera", "strike_replay", strike_replay)
+	cfg.set_value("match", "wild_frames", wild_frames)
 	cfg.set_value("match", "humans", player_count)
 	cfg.set_value("match", "bots", bot_count)
 	cfg.set_value("match", "bot_level", bot_level)

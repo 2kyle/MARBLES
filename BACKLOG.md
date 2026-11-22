@@ -1,6 +1,6 @@
 # MARBLES 4P Backlog
 
-This is the to-do list for the game, **most important at the top**. Every night at 2 AM (New York time), Claude takes the top item marked **To do**, builds it on its own branch, and opens a pull request for you to playtest. Nothing reaches `main` until you approve it.
+This is the to-do list for the game, **most important at the top**. Every night at 2 AM (New York time), Claude takes the top item marked **To do**, builds it on its own branch, and opens a pull request for you to playtest. Once its tests pass it's merged into `main`, and you can ask for tweaks or a revert any time.
 
 **How to use this list**
 
@@ -47,10 +47,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **Match awards** *(suggested by Claude)* · branch `nightly/match-awards`
-  At the end of a match, before the podium, a MATCH AWARDS screen: STRIKE KING (most strikes), PIN CRUSHER (most pins in one roll), SPEED DEMON (fastest marble to the pins) and DEMOLITION (most pieces blown up with bombs). Skippable with any key.
+*(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Match awards** *(suggested by Claude)*
+  At the end of a match, before the podium, a MATCH AWARDS screen: STRIKE KING (most strikes), PIN CRUSHER (most pins in one roll), SPEED DEMON (fastest marble to the pins) and DEMOLITION (most pieces blown up with bombs). Skippable with any key.
 
 - **Done** · **Strike replay** *(suggested by Claude)*
   After a strike, the roll plays again in slow motion from a low camera by the pins, with cinema bars and a REPLAY tag, then carries on to the STRIKE! banner and the scoreboard. Press any key to skip. Can be switched off in Settings. Not in online games yet.

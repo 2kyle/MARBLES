@@ -62,10 +62,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **Big Saturday update** (branch `claude/project-thread-7x3r7q`)
-  4 new pieces (Pop Bumper, Pendulum, Magnet, Bounce Pad), 3 new TAs (Oil Slick, Zig-Zag, Rollercoaster Hill), the retro alley look (LOUNGE / ARCADE filter, marquee chase lights, warmer light), forgiving hops with squash and stretch and an air shadow, a retro sign title and livelier menus and draft cards, comic pop words, and the SKEE-JUMP minigame. Each part is its own commit, so any one can be left out.
+*(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Big Saturday update**
+  4 new pieces (Pop Bumper, Pendulum, Magnet, Bounce Pad), 3 new TAs (Oil Slick, Zig-Zag, Rollercoaster Hill), the retro alley look (LOUNGE / ARCADE filter, marquee chase lights, warmer light), forgiving hops with squash and stretch and an air shadow, a retro sign title and livelier menus and draft cards, comic pop words, and the SKEE-JUMP minigame.
 
 - **Done** · **Match awards** *(suggested by Claude)*
   At the end of a match, before the podium, a MATCH AWARDS screen: STRIKE KING (most strikes), PIN CRUSHER (most pins in one roll), SPEED DEMON (fastest marble to the pins) and DEMOLITION (most pieces blown up with bombs). Skippable with any key.

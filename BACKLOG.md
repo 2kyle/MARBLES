@@ -60,10 +60,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **Colour-blind friendly marbles** *(suggested by Claude)* · branch `nightly/colour-blind-marbles`
-  A **PLAYER SYMBOLS** setting: each player gets a shape as well as a colour (P1 circle, P2 triangle, P3 square, P4 cross), floating over their marble and next to their name on the score chips, scoreboard, draft pointers, coins screen, awards and island name tags.
+*(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Colour-blind friendly marbles** *(suggested by Claude)* (November 23)
+  A **PLAYER SYMBOLS** setting: each player gets a shape as well as a colour (P1 circle, P2 triangle, P3 square, P4 cross), floating over their marble and next to their name on the score chips, scoreboard, draft pointers, coins screen, awards and island name tags.
 
 - **Done** · **Polish pass** (November 23)
   WILD FRAME badges (on the tag, the splash, the scoreboard, plus a screen glow and a "next up" teaser), no overlapping text at 720p or 1080p (checked by `tests/find_ui_overlap.gd`), smoother hub (about a quarter of the triangles, draft card pictures only drawn when shown), GRAPHICS also sets edge smoothing and shadows and steps down by itself on slow computers, best time on the time trial clock, tidier pop words, and leaner code.

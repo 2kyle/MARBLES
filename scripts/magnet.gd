@@ -40,6 +40,8 @@ func _init() -> void:
 	var shoe := MeshInstance3D.new()
 	shoe.name = "Shoe"
 	var torus := TorusMesh.new()
+	torus.rings = 24
+	torus.ring_segments = 10
 	torus.inner_radius = 0.2
 	torus.outer_radius = 0.38
 	torus.material = red

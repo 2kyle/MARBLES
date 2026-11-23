@@ -435,6 +435,8 @@ func _hop_puff() -> void:
 	puff.scale_amount_min = 0.6
 	puff.scale_amount_max = 1.0
 	var mesh := SphereMesh.new()
+	mesh.radial_segments = 6
+	mesh.rings = 3
 	mesh.radius = 0.06
 	mesh.height = 0.12
 	var mat := StandardMaterial3D.new()

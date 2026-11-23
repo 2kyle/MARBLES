@@ -163,6 +163,8 @@ func _lanterns(track: Track) -> void:
 	var count := floori((len - 8.0) / lantern_spacing)
 	var light_every := maxi(1, ceili(float(count) / lantern_lights))
 	var pole := CylinderMesh.new()
+	pole.radial_segments = 6
+	pole.rings = 0
 	pole.top_radius = 0.05
 	pole.bottom_radius = 0.07
 	pole.height = 1.5

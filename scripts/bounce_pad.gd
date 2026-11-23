@@ -55,6 +55,8 @@ func _init() -> void:
 		var s := MeshInstance3D.new()
 		s.name = "Spring%d" % k
 		var sm := CylinderMesh.new()
+		sm.radial_segments = 6
+		sm.rings = 0
 		sm.top_radius = 0.025
 		sm.bottom_radius = 0.025
 		sm.height = 0.12

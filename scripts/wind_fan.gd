@@ -44,6 +44,8 @@ func _init() -> void:
 	var face_mat := StandardMaterial3D.new()
 	face_mat.albedo_color = Color(0.12, 0.14, 0.18)
 	var face := CylinderMesh.new()
+	face.radial_segments = 16
+	face.rings = 0
 	face.top_radius = 0.4
 	face.bottom_radius = 0.4
 	face.height = 0.04

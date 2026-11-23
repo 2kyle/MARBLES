@@ -292,6 +292,8 @@ func _build() -> void:
 		add_child(body)
 		var ball := MeshInstance3D.new()
 		var s := SphereMesh.new()
+		s.radial_segments = 16
+		s.rings = 8
 		s.radius = HORSE_R
 		s.height = HORSE_R * 2.0
 		ball.mesh = s
@@ -304,6 +306,8 @@ func _build() -> void:
 		# A white stripe so you can see it roll.
 		var stripe := MeshInstance3D.new()
 		var t := TorusMesh.new()
+		t.rings = 24
+		t.ring_segments = 6
 		t.inner_radius = HORSE_R - 0.02
 		t.outer_radius = HORSE_R + 0.015
 		stripe.mesh = t
@@ -346,6 +350,8 @@ func _build() -> void:
 		for k in 10:
 			var fan := MeshInstance3D.new()
 			var fs := SphereMesh.new()
+			fs.radial_segments = 8
+			fs.rings = 4
 			fs.radius = 0.2
 			fs.height = 0.4
 			fan.mesh = fs

@@ -9,12 +9,16 @@ roughness = 0.35
 material = SubResource("Mat_bomb")
 radius = 0.4
 height = 0.8
+radial_segments = 24
+rings = 12
 
 [sub_resource type="CylinderMesh" id="Mesh_cap"]
 material = SubResource("Mat_bomb")
 top_radius = 0.1
 bottom_radius = 0.12
 height = 0.12
+radial_segments = 12
+rings = 0
 
 [sub_resource type="StandardMaterial3D" id="Mat_fuse"]
 albedo_color = Color(0.75, 0.6, 0.4, 1)
@@ -24,6 +28,8 @@ material = SubResource("Mat_fuse")
 top_radius = 0.025
 bottom_radius = 0.025
 height = 0.25
+radial_segments = 6
+rings = 0
 
 [sub_resource type="StandardMaterial3D" id="Mat_spark"]
 shading_mode = 0
@@ -33,6 +39,8 @@ albedo_color = Color(1, 0.75, 0.2, 1)
 material = SubResource("Mat_spark")
 radius = 0.06
 height = 0.12
+radial_segments = 8
+rings = 4
 
 [node name="Bomb" type="Node3D"]
 

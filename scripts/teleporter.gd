@@ -170,6 +170,8 @@ func _flash(at: Vector3) -> void:
 	burst.initial_velocity_max = 3.5
 	burst.gravity = Vector3.ZERO
 	var mesh := SphereMesh.new()
+	mesh.radial_segments = 6
+	mesh.rings = 3
 	mesh.radius = 0.05
 	mesh.height = 0.1
 	var mat := StandardMaterial3D.new()

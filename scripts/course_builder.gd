@@ -688,6 +688,8 @@ func make_ghost(id: String) -> Node3D:
 	if PieceCatalog.is_bomb(id):
 		var disc := MeshInstance3D.new()
 		var mesh := CylinderMesh.new()
+		mesh.radial_segments = 24
+		mesh.rings = 0
 		var r: float = PieceCatalog.info(id).radius
 		mesh.top_radius = r
 		mesh.bottom_radius = r
@@ -720,6 +722,8 @@ func _make_inert(node: Node) -> void:
 func _boom_effect(at: Vector3, radius: float) -> void:
 	var ball := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
+	mesh.radial_segments = 16
+	mesh.rings = 8
 	mesh.radius = 1.0
 	mesh.height = 2.0
 	var mat := StandardMaterial3D.new()

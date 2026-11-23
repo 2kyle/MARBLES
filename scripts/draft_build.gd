@@ -424,6 +424,8 @@ func _outline_mesh(offsets: PackedVector2Array, mat: Material) -> ArrayMesh:
 func _make_marker(color: Color, radius: float) -> MeshInstance3D:
 	var marker := MeshInstance3D.new()
 	var mesh := TorusMesh.new()
+	mesh.rings = 32
+	mesh.ring_segments = 6
 	mesh.inner_radius = maxf(radius - 0.08, 0.1)
 	mesh.outer_radius = radius
 	var mat := StandardMaterial3D.new()
@@ -458,6 +460,8 @@ func _make_gate(color: Color) -> Node3D:
 	for side in [-1.0, 1.0]:
 		var pole := MeshInstance3D.new()
 		var pole_mesh := CylinderMesh.new()
+		pole_mesh.radial_segments = 6
+		pole_mesh.rings = 0
 		pole_mesh.top_radius = 0.05
 		pole_mesh.bottom_radius = 0.05
 		pole_mesh.height = 1.1

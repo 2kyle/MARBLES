@@ -17,10 +17,14 @@ material = SubResource("Mat_post")
 top_radius = 0.35
 bottom_radius = 0.35
 height = 0.8
+radial_segments = 24
+rings = 0
 
 [sub_resource type="TorusMesh" id="Mesh_ring"]
 inner_radius = 0.33
 outer_radius = 0.42
+rings = 32
+ring_segments = 8
 
 [node name="BumperPost" type="StaticBody3D" groups=["bumper"]]
 physics_material_override = SubResource("PhysicsMaterial_bouncy")

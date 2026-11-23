@@ -17,6 +17,8 @@ material = SubResource("Mat")
 top_radius = 0.22
 bottom_radius = 0.22
 height = 2.0
+radial_segments = 16
+rings = 0
 
 [node name="Washboard" type="StaticBody3D"]
 physics_material_override = SubResource("Phys")

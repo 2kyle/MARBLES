@@ -54,6 +54,8 @@ func _init() -> void:
 	var rod := MeshInstance3D.new()
 	rod.name = "Rod"
 	var rod_mesh := CylinderMesh.new()
+	rod_mesh.radial_segments = 6
+	rod_mesh.rings = 0
 	rod_mesh.top_radius = 0.03
 	rod_mesh.bottom_radius = 0.03
 	rod_mesh.height = ROD
@@ -74,6 +76,8 @@ func _init() -> void:
 	col.shape = sphere
 	_ball.add_child(col)
 	var ball_mesh := SphereMesh.new()
+	ball_mesh.radial_segments = 20
+	ball_mesh.rings = 10
 	ball_mesh.radius = BALL_R
 	ball_mesh.height = BALL_R * 2.0
 	var ball_mat := StandardMaterial3D.new()
@@ -94,6 +98,8 @@ func _init() -> void:
 		var disc := MeshInstance3D.new()
 		disc.name = "Hole%d" % k
 		var cyl := CylinderMesh.new()
+		cyl.radial_segments = 12
+		cyl.rings = 0
 		cyl.top_radius = 0.045
 		cyl.bottom_radius = 0.045
 		cyl.height = 0.02

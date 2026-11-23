@@ -29,6 +29,8 @@ material = SubResource("Mat_hub")
 top_radius = 0.18
 bottom_radius = 0.18
 height = 0.7
+radial_segments = 16
+rings = 0
 
 [node name="Spinner" type="Node3D"]
 script = ExtResource("1_spinner")

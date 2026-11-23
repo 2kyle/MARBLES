@@ -3,11 +3,17 @@ extends Node
 ## Live little pictures of every piece, for the draft cards. Each piece gets
 ## its own tiny 3D world (a SubViewport) with a camera and a light, so the
 ## pictures always match the real piece scenes, spinner spinning and all.
+##
+## Drawing all of them every frame would be a lot of wasted work, so each
+## picture is drawn once, and only the cards on screen in a draft keep
+## moving (the HUD calls set_live()).
 
 ## Picture size in pixels.
 @export var picture_size := 128
 
 var _textures := {}
+var _viewports := {}
+var _live: Array = []
 
 
 func _ready() -> void:
@@ -19,14 +25,26 @@ func texture_for(id: String) -> Texture2D:
 	return _textures.get(id)
 
 
+## Keep these pieces' pictures moving (the cards on screen) and freeze the
+## rest. An empty list freezes them all.
+func set_live(ids: Array) -> void:
+	if ids == _live:
+		return
+	_live = ids.duplicate()
+	for id in _viewports:
+		_viewports[id].render_target_update_mode = \
+				SubViewport.UPDATE_ALWAYS if _live.has(id) else SubViewport.UPDATE_DISABLED
+
+
 func _make(id: String) -> Texture2D:
 	var vp := SubViewport.new()
 	vp.size = Vector2i(picture_size, picture_size)
 	vp.own_world_3d = true
 	vp.transparent_bg = true
 	vp.msaa_3d = Viewport.MSAA_4X
-	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	add_child(vp)
+	_viewports[id] = vp
 
 	var info := PieceCatalog.info(id)
 	var piece: Node3D = load(info.scene).instantiate()

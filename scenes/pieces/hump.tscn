@@ -18,6 +18,7 @@ top_radius = 0.85
 bottom_radius = 0.85
 height = 2.2
 radial_segments = 48
+rings = 0
 
 [node name="Hump" type="StaticBody3D"]
 physics_material_override = SubResource("Phys")

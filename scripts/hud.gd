@@ -33,7 +33,7 @@ var _wild_icon: WildIcon
 var _wild_edge: Control      # a soft glow round the screen edge in the rule's colour
 var _wild_style: StyleBoxFlat
 var _run_clock: Label        # hub TIME TRIAL clock, top middle
-var _wild_splash: VBoxContainer  # the big announcement when a wild frame's draft starts
+var _wild_splash: Control    # the big announcement when a wild frame's draft starts
 var _wild_shown := ""        # "frame|id" the splash last played for
 var _board: PanelContainer
 var _board_grid: VBoxContainer
@@ -419,35 +419,45 @@ func _update_wild(game) -> void:
 func _show_wild_splash(w: Dictionary) -> void:
 	if _wild_splash:
 		_wild_splash.queue_free()
-	_wild_splash = VBoxContainer.new()
-	_wild_splash.alignment = BoxContainer.ALIGNMENT_CENTER
+	_wild_splash = Control.new()
 	_wild_splash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_wild_splash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_wild_splash)
+	# Dim what's behind (the draft cards) so the words stand clear of them.
+	var dim := ColorRect.new()
+	dim.color = Color(0.03, 0.02, 0.08, 0.7)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wild_splash.add_child(dim)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wild_splash.add_child(box)
 	var icon := WildIcon.make(w.id, 150)
 	icon.spin = true
 	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_wild_splash.add_child(icon)
+	box.add_child(icon)
 	var top := _text(40, GOLD)
 	top.text = "WILD FRAME!"
 	top.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_wild_splash.add_child(top)
+	box.add_child(top)
 	var name_l := _text(96, w.color)
 	name_l.text = w.name
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_wild_splash.add_child(name_l)
+	box.add_child(name_l)
 	var about := _text(26, null, false)
 	about.text = w.about
 	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_wild_splash.add_child(about)
+	box.add_child(about)
 	for l in [top, name_l, about]:
 		l.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.1))
 		l.add_theme_constant_override("outline_size", 14)
-	_wild_splash.pivot_offset = get_viewport().get_visible_rect().size / 2.0
-	_wild_splash.scale = Vector2.ONE * 0.4
+	box.pivot_offset = get_viewport().get_visible_rect().size / 2.0
+	box.scale = Vector2.ONE * 0.4
 	_wild_splash.modulate.a = 0.0
 	var tw := _wild_splash.create_tween()
-	tw.tween_property(_wild_splash, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(box, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(_wild_splash, "modulate:a", 1.0, 0.2)
 	tw.tween_interval(1.6)
 	tw.tween_property(_wild_splash, "modulate:a", 0.0, 0.4)

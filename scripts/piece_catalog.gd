@@ -95,14 +95,12 @@ const PIECES := {
 		"about": "Pinball kick, any way",
 		"scene": "res://scenes/pieces/pop_bumper.tscn",
 		"kind": "piece", "radius": 0.75, "base_rotation": 0.0,
-		"new": true,
 	},
 	"pendulum": {
 		"name": "Pendulum",
 		"about": "Swings across the lane",
 		"scene": "res://scenes/pieces/pendulum.tscn",
 		"kind": "piece", "radius": 1.6, "base_rotation": 0.0,
-		"new": true,
 		# The ball swings (rod + ball) * sin(58 degrees) either side.
 		"sweep": Vector2(1.63, 0.0),
 	},
@@ -111,13 +109,18 @@ const PIECES := {
 		"about": "Drags balls in",
 		"scene": "res://scenes/pieces/magnet.tscn",
 		"kind": "piece", "radius": 1.5, "base_rotation": 0.0,
-		"new": true,
 	},
 	"bounce_pad": {
 		"name": "Bounce Pad",
 		"about": "Springs balls high",
 		"scene": "res://scenes/pieces/bounce_pad.tscn",
 		"kind": "piece", "radius": 0.95, "base_rotation": 0.0,
+	},
+	"loop_de_loop": {
+		"name": "Loop-de-Loop",
+		"about": "Round and upside down",
+		"scene": "res://scenes/pieces/loop_de_loop.tscn",
+		"kind": "piece", "radius": 1.5, "base_rotation": 0.0,
 		"new": true,
 	},
 	"track_bend": {
@@ -192,7 +195,6 @@ const PIECES := {
 		"about": "Fresh lane oil, no grip",
 		"scene": "res://scenes/pieces/track_oil.tscn",
 		"kind": "track", "segment": "oil", "radius": 1.6, "base_rotation": 0.0,
-		"new": true,
 	},
 	"track_zigzag": {
 		"name": "Zig-Zag",
@@ -200,14 +202,12 @@ const PIECES := {
 		"turns": true,
 		"scene": "res://scenes/pieces/track_zigzag.tscn",
 		"kind": "track", "segment": "zigzag", "radius": 1.6, "base_rotation": 0.0,
-		"new": true,
 	},
 	"track_hill": {
 		"name": "Rollercoaster Hill",
 		"about": "Up and over, keep speed",
 		"scene": "res://scenes/pieces/track_hill.tscn",
 		"kind": "track", "segment": "hill", "radius": 1.6, "base_rotation": 0.0,
-		"new": true,
 	},
 	"bomb": {
 		"name": "Bomb",

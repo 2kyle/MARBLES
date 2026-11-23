@@ -3,13 +3,17 @@ extends Control
 ## A little drawn badge for a WILD FRAMES rule: a round disc in the rule's
 ## colour with a picture on it (a feather for LOW GRAVITY, a spring for
 ## SUPER BOUNCY, a flame for TURBO, a weight for HEAVY BALLS, a snowflake
-## for ICE RINK, an up arrow for BIG HOPS). Rule "?" draws a mystery badge
+## for ICE RINK, an up arrow for BIG HOPS, a tiny ball beside a big one for
+## TINY BALLS, swapped arrows for REVERSE STEER, a horseshoe magnet for
+## MAGNET MANIA and gusts for WINDY). Rule "?" draws a mystery badge
 ## (a wild frame that hasn't happened yet).
 ##
 ##   var icon := WildIcon.make("ice", 48)
 
 const INK := Color(0.07, 0.04, 0.12)
 const FONT := preload("res://fonts/Righteous-Regular.ttf")
+## Rules with their own picture (any other rule gets the "?" badge).
+const PICTURES := ["low_gravity", "bouncy", "turbo", "heavy", "ice", "big_hops", "tiny", "reverse", "magnet", "windy"]
 
 ## The rule's id from WildFrames.LIST, or "?".
 var rule := "":
@@ -18,6 +22,10 @@ var rule := "":
 		queue_redraw()
 ## Spin the badge slowly (for the big splash).
 var spin := false
+
+
+static func has_picture(rule_id: String) -> bool:
+	return rule_id in PICTURES
 
 
 static func make(rule_id: String, size: float) -> WildIcon:
@@ -96,6 +104,32 @@ func _draw() -> void:
 					c + Vector2(u * 0.25, -u * 0.2), c + Vector2(u * 0.25, u * 0.35), c + Vector2(-u * 0.25, u * 0.35),
 					c + Vector2(-u * 0.25, -u * 0.2), c + Vector2(-u * 0.7, -u * 0.2)]), INK)
 			draw_circle(c + Vector2(0, u * 0.75), u * 0.22, INK)
+		"tiny":
+			# A big ball outline and a little solid ball.
+			draw_arc(c + Vector2(-u * 0.25, -u * 0.1), u * 0.6, 0.0, TAU, 24, INK, w)
+			draw_circle(c + Vector2(u * 0.6, u * 0.55), u * 0.28, INK)
+		"reverse":
+			# Two arrows, one each way, crossing over.
+			for k in [-1.0, 1.0]:
+				var y: float = k * u * 0.38
+				var tip := c + Vector2(k * u * 0.85, y)
+				draw_line(c + Vector2(-k * u * 0.75, y), tip, INK, w * 1.3)
+				draw_colored_polygon(PackedVector2Array([tip + Vector2(k * u * 0.15, 0),
+						tip + Vector2(-k * u * 0.3, -u * 0.28), tip + Vector2(-k * u * 0.3, u * 0.28)]), INK)
+		"magnet":
+			# A horseshoe magnet with light tips.
+			draw_arc(c + Vector2(0, -u * 0.05), u * 0.62, PI, TAU, 16, INK, w * 2.6)
+			for k in [-1.0, 1.0]:
+				draw_line(c + Vector2(k * u * 0.62, -u * 0.05), c + Vector2(k * u * 0.62, u * 0.55), INK, w * 2.6)
+				draw_rect(Rect2(c + Vector2(k * u * 0.62 - w * 1.3, u * 0.45), Vector2(w * 2.6, u * 0.32)), col.lightened(0.55))
+		"windy":
+			# Three curly gusts.
+			for k in 3:
+				var y := (k - 1) * u * 0.55
+				var len := u * (1.2 if k == 1 else 0.9)
+				var x0 := -u * 0.8
+				draw_line(c + Vector2(x0, y), c + Vector2(x0 + len, y), INK, w)
+				draw_arc(c + Vector2(x0 + len, y - u * 0.18), u * 0.18, -PI * 0.5, PI * 0.9, 8, INK, w)
 		_:
 			# A mystery: a question mark.
 			draw_string(FONT, c + Vector2(-u * 0.38, u * 0.62), "?",

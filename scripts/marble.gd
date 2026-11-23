@@ -49,6 +49,27 @@ extends RigidBody3D
 ## changes, never the physics.
 @export var squash_amount := 1.0
 
+## WILD FRAMES extras (all off by default; WildFrames.apply sets them):
+## ball_size scales the ball (0.5 = TINY BALLS), steer_flip swaps left and
+## right (REVERSE STEER), magnet_pull pulls other marbles in (MAGNET
+## MANIA, metres per second squared at 1 m) and wind is a sideways push
+## that swings from side to side (WINDY, m/s squared).
+var ball_size := 1.0:
+	set(v):
+		ball_size = v
+		var shape := get_node_or_null("Shape") as CollisionShape3D
+		if shape and shape.shape is SphereShape3D:
+			var sp := (shape.shape as SphereShape3D).duplicate() as SphereShape3D
+			sp.radius = 0.3 * v
+			shape.shape = sp
+		var mesh := get_node_or_null("Mesh") as Node3D
+		if mesh:
+			mesh.basis = Basis.from_scale(Vector3.ONE * v)
+var steer_flip := false
+var magnet_pull := 0.0
+var wind := 0.0
+var _wind_time := 0.0
+
 ## Fired when the marble hops (for the puff effect and sound later).
 signal hopped
 ## Fired when the marble comes down hard after being in the air, or hits
@@ -210,7 +231,7 @@ func _update_badge() -> void:
 		add_child(_badge)
 	_badge.texture = PlayerSymbols.texture(symbol_seat)
 	_badge.visible = true
-	var size := global_transform.basis.get_scale().x * 0.3
+	var size := global_transform.basis.get_scale().x * 0.3 * ball_size
 	_badge.global_position = global_position + Vector3.UP * size * (3.6 if _hat else 2.4)
 
 
@@ -230,13 +251,14 @@ func _update_squash(delta: float) -> void:
 	if absf(_squash) < 0.002 and absf(_squash_vel) < 0.01:
 		_squash = 0.0
 		_squash_vel = 0.0
-		if mesh.basis != Basis.IDENTITY and not preview:
-			mesh.basis = Basis.IDENTITY
+		var rest := Basis.from_scale(Vector3.ONE * ball_size)
+		if mesh.basis != rest and not preview:
+			mesh.basis = rest
 		return
 	# Squash along the world's up, whichever way the ball has rolled: turn
 	# the world-space squash into the ball's own (rolling) space.
-	var f := 1.0 - _squash
-	var g := 1.0 + _squash * 0.5
+	var f := (1.0 - _squash) * ball_size
+	var g := (1.0 + _squash * 0.5) * ball_size
 	var up := Vector3.UP
 	var s := Basis(Vector3(g, 0, 0), Vector3(0, g, 0), Vector3(0, 0, g))
 	s.x += up * up.x * (f - g)
@@ -332,7 +354,7 @@ func _place_hat(delta: float) -> void:
 		_heading = want
 		_yaw_ready = true
 	var yaw := _heading + look_offset
-	var size := global_transform.basis.get_scale().x * 0.3
+	var size := global_transform.basis.get_scale().x * 0.3 * ball_size
 	var t := Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * size), global_position)
 	if _hat:
 		_hat.global_transform = t
@@ -356,6 +378,7 @@ func _physics_process(delta: float) -> void:
 		if _hop_wait <= 0.0 and floor_normal() != Vector3.ZERO:
 			_hop_buffered = 0.0
 			request_hop()
+	_wild_forces(delta)
 	if no_steer_time > 0.0:
 		no_steer_time -= delta
 		_track_landing(delta)
@@ -370,6 +393,8 @@ func _physics_process(delta: float) -> void:
 	var rate := lean_attack if want.length() > _lean_now.length() - 0.01 else lean_release
 	_lean_now = _lean_now.move_toward(want, rate * delta)
 	var l := _lean_now
+	if steer_flip:
+		l.x = -l.x
 	# Lean is relative to the lane, so "left" always means the lane's left
 	# even when the track bends.
 	var force := lane_basis.x * l.x * lean_side_force + lane_basis.z * l.y * lean_forward_force
@@ -384,13 +409,35 @@ func _physics_process(delta: float) -> void:
 	# away instead of skidding while its old spin wears off.
 	var up := floor_normal()
 	if up != Vector3.ZERO and spin_assist > 0.0:
-		var radius := 0.3
+		var radius := 0.3 * ball_size
 		var want_spin := up.cross(linear_velocity) / radius
 		var k := clampf(spin_assist * 10.0 * delta, 0.0, 1.0) if push_dir != Vector3.ZERO else 0.0
 		angular_velocity = angular_velocity.lerp(want_spin, k)
 	_track_landing(delta)
 	if linear_velocity.length() > max_speed:
 		linear_velocity = linear_velocity.limit_length(max_speed)
+
+
+## MAGNET MANIA and WINDY pushes (nothing on a normal frame).
+func _wild_forces(delta: float) -> void:
+	if arrived:
+		return
+	if wind != 0.0:
+		# A gusty side wind: swings left and right every few seconds, the
+		# same for every marble.
+		_wind_time += delta
+		var gust := sin(_wind_time * 0.9) + 0.35 * sin(_wind_time * 2.3 + 1.0)
+		apply_central_force(lane_basis.x * wind * gust * mass)
+	if magnet_pull > 0.0 and is_inside_tree():
+		for other in get_tree().get_nodes_in_group("magnet_marbles"):
+			if other == self or (other as Marble).out:
+				continue
+			var d: Vector3 = (other as Marble).global_position - global_position
+			var dist := d.length()
+			if dist < 0.7 or dist > 7.0:
+				continue
+			# Stronger close up, gone at 7 m.
+			apply_central_force(d / dist * magnet_pull * mass * clampf(1.6 / dist, 0.2, 1.6))
 
 
 ## Notice when the marble lands after some time in the air.
@@ -442,7 +489,7 @@ func request_hop() -> bool:
 func floor_normal() -> Vector3:
 	var space := get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(global_position,
-			global_position + Vector3.DOWN * 0.48, 1)
+			global_position + Vector3.DOWN * (0.18 + 0.3 * ball_size), 1)
 	q.exclude = [get_rid()]
 	var hit := space.intersect_ray(q)
 	if hit.is_empty():

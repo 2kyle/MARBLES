@@ -15,6 +15,10 @@ const LIST := [
 	{"id": "heavy", "name": "HEAVY BALLS", "about": "Triple weight: pins go flying", "color": Color(0.7, 0.6, 1.0)},
 	{"id": "ice", "name": "ICE RINK", "about": "Slippery lane, hard to steer", "color": Color(0.6, 0.95, 1.0)},
 	{"id": "big_hops", "name": "BIG HOPS", "about": "Hops go twice as high", "color": Color(0.55, 1.0, 0.5)},
+	{"id": "tiny", "name": "TINY BALLS", "about": "Half-size marbles, big gaps", "color": Color(1.0, 0.85, 0.35)},
+	{"id": "reverse", "name": "REVERSE STEER", "about": "Left is right, right is left", "color": Color(0.85, 0.5, 1.0)},
+	{"id": "magnet", "name": "MAGNET MANIA", "about": "Marbles pull on each other", "color": Color(1.0, 0.35, 0.35)},
+	{"id": "windy", "name": "WINDY", "about": "Gusts blow you side to side", "color": Color(0.7, 0.95, 0.85)},
 ]
 
 ## Every this many frames is wild (frame 3, 6, 9...).
@@ -62,3 +66,13 @@ static func apply(id: String, m: Marble) -> void:
 			m.spin_assist *= 0.3
 		"big_hops":
 			m.hop_speed *= 1.6
+		"tiny":
+			m.ball_size = 0.55
+			m.mass *= 0.5
+		"reverse":
+			m.steer_flip = true
+		"magnet":
+			m.magnet_pull = 5.0
+			m.add_to_group("magnet_marbles")
+		"windy":
+			m.wind = 4.5

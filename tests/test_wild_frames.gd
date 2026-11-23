@@ -40,10 +40,17 @@ func _process(_d: float) -> bool:
 			var changed: bool = m.gravity_scale != plain.gravity_scale or m.mass != plain.mass \
 					or m.hop_speed != plain.hop_speed or m.max_speed != plain.max_speed \
 					or (m.physics_material_override as PhysicsMaterial).bounce != (plain.physics_material_override as PhysicsMaterial).bounce \
-					or (m.physics_material_override as PhysicsMaterial).friction != (plain.physics_material_override as PhysicsMaterial).friction
+					or (m.physics_material_override as PhysicsMaterial).friction != (plain.physics_material_override as PhysicsMaterial).friction \
+					or m.ball_size != plain.ball_size or m.steer_flip != plain.steer_flip \
+					or m.magnet_pull != plain.magnet_pull or m.wind != plain.wind
 			_check(changed, "%s changes the marbles" % w.name)
 			# Bouncy and ice must not change every marble's shared material.
 			_check((plain.physics_material_override as PhysicsMaterial).bounce < 0.5 and (plain.physics_material_override as PhysicsMaterial).friction > 0.1, "%s leaves other marbles alone" % w.name)
+			if w.id == "tiny":
+				_check(is_equal_approx(((m.get_node("Shape") as CollisionShape3D).shape as SphereShape3D).radius, 0.3 * m.ball_size)
+						and is_equal_approx(((plain.get_node("Shape") as CollisionShape3D).shape as SphereShape3D).radius, 0.3),
+						"TINY BALLS shrinks the ball's collision, not every marble's")
+			_check(WildIcon.has_picture(w.id), "%s has its own badge picture" % w.name)
 			plain.free()
 			m.free()
 		# In a match: frame 3 is wild and its marbles really are changed.

@@ -1084,6 +1084,8 @@ func _gather_inputs() -> void:
 			_hop_latch[p] = false
 			continue
 		m.lean = seat_lean(p)
+		if m.steer_flip and seat_kinds[p] == Seat.BOT:
+			m.lean.x = -m.lean.x   # REVERSE STEER: bots know the trick
 		m.lane_basis = _lane_frame(m.global_position).basis
 		# The place key doubles as hop while rolling.
 		if _hop_latch[p]:

@@ -94,6 +94,14 @@ const STYLES := {
 		"Mat": {"base": Color(1.0, 0.35, 0.3), "accent": Color(1.0, 0.55, 0.45), "pattern": "dots", "scale": 6.0, "rough": 0.9},
 		"Frame": {"base": INK, "accent": Color(1.0, 0.8, 0.3), "pattern": "stripes", "scale": 10.0, "axis": Vector3(1, 0, 1)},
 	},
+	"loop_de_loop": {
+		"Ribbon": {"base": Color(1.0, 0.55, 0.15), "accent": Color(1.0, 0.82, 0.3), "pattern": "chevrons", "scale": 2.4, "axis": Vector3(0, 0, -1), "rough": 0.35},
+		"Walls": {"base": WHITE, "accent": Color(0.95, 0.3, 0.36), "pattern": "stripes", "scale": 6.0, "axis": Vector3(0, 0, 1)},
+		"Divider": {"base": WHITE, "accent": Color(0.95, 0.3, 0.36), "pattern": "stripes", "scale": 6.0, "axis": Vector3(0, 0, 1)},
+		"Rail": {"base": Color(0.25, 0.5, 0.95), "accent": WHITE, "pattern": "stripes", "scale": 3.0, "axis": Vector3(0, 1, 1)},
+		"Flare": {"base": Color(0.25, 0.5, 0.95), "accent": WHITE, "pattern": "stripes", "scale": 3.0, "axis": Vector3(0, 1, 1)},
+		"Beam": {"base": Color(1.0, 0.82, 0.3), "accent": INK, "pattern": "stripes", "scale": 8.0, "axis": Vector3(1, 0, 0.6)},
+	},
 	"bomb": {
 		"Body": {"base": Color(0.18, 0.18, 0.26), "accent": Color(0.28, 0.28, 0.38), "pattern": "dots", "scale": 5.0, "rough": 0.3},
 		"Cap": {"base": Color(0.8, 0.65, 0.42)},

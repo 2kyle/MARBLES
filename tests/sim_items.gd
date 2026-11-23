@@ -4,7 +4,7 @@ extends SceneTree
 ## and S-Bend TAs.
 ##   godot --headless --fixed-fps 120 --script res://tests/sim_items.gd -- [tele|fan|open|narrow|sbend]
 ## Newer pieces and TAs (prints each marble's speed and line as it passes):
-##   ... -- [pop_bumper|pendulum|magnet|bounce_pad|track_hill|track_oil|track_zigzag]
+##   ... -- [pop_bumper|pendulum|magnet|bounce_pad|loop_de_loop|track_hill|track_oil|track_zigzag]
 
 var game: Node
 var _ticks := 0
@@ -63,7 +63,7 @@ func _process(_delta: float) -> bool:
 				var f: Transform3D = game.track.world_frame_at(d)
 				print("  P%d at %.1f m: %.2f m from centre, sideways speed %.2f" % [m.player_id + 1, d,
 						f.basis.x.dot(m.global_position - f.origin), f.basis.x.dot(m.linear_velocity)])
-			if _mode.begins_with("track_") or _mode in ["pop_bumper", "pendulum", "magnet", "bounce_pad"]:
+			if _mode.begins_with("track_") or _mode in ["pop_bumper", "pendulum", "magnet", "bounce_pad", "loop_de_loop"]:
 				if d > 8.0 and d < 40.0 and _ticks % 15 == 0:
 					var f2: Transform3D = game.track.world_frame_at(d)
 					print("  P%d at %5.1f m  speed %4.1f  across %+.2f  height above floor %.2f" % [m.player_id + 1, d,

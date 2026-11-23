@@ -539,25 +539,13 @@ func _pressure_plate(at: Vector3, color: Color, on_enter: Callable, out := Vecto
 	mat.emission_enabled = true
 	mat.emission = color.darkened(0.4)
 	_plates.append([top, at])
-	var area := Area3D.new()
-	area.collision_layer = 0
-	area.collision_mask = 2
-	area.monitorable = false
-	var shape := CollisionShape3D.new()
-	var cyl := CylinderShape3D.new()
-	cyl.radius = 0.9
-	cyl.height = 0.8
-	shape.shape = cyl
-	shape.position = at + Vector3.UP * 0.4
-	area.add_child(shape)
-	add_child(area)
-	area.body_entered.connect(func(body):
-		if body is Marble and marbles.has(body) and not on_plate[body.player_id]:
-			on_plate[body.player_id] = true
-			_plate_of[body.player_id] = at
-			_plate_out[body.player_id] = out
-			_hold_on_plate.call_deferred(body)
-			on_enter.call(body.player_id))
+	LowPoly.marble_zone(self, Vector3(0, 0.8, 0), at + Vector3.UP * 0.4, func(m: Marble):
+		if marbles.has(m) and not on_plate[m.player_id]:
+			on_plate[m.player_id] = true
+			_plate_of[m.player_id] = at
+			_plate_out[m.player_id] = out
+			_hold_on_plate.call_deferred(m)
+			on_enter.call(m.player_id), 0.9)
 
 
 func _hold_on_plate(m: Marble) -> void:
@@ -593,20 +581,9 @@ func _play_portal() -> void:
 	add_child(glow)
 	_sparkles(PORTAL_POS + Vector3(0, 2.0, 0), Vector3(2.0, 1.8, 0.2), Color(1, 0.9, 0.5), 30)
 
-	var area := Area3D.new()
-	area.collision_layer = 0
-	area.collision_mask = 2
-	area.monitorable = false
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(4.0, 3.0, 0.6)
-	shape.shape = box
-	shape.position = PORTAL_POS + Vector3.UP * 1.5
-	area.add_child(shape)
-	add_child(area)
-	area.body_entered.connect(func(body):
-		if body is Marble and marbles.has(body):
-			play_requested.emit(body.player_id))
+	LowPoly.marble_zone(self, Vector3(4.0, 3.0, 0.6), PORTAL_POS + Vector3.UP * 1.5, func(m: Marble):
+		if marbles.has(m):
+			play_requested.emit(m.player_id))
 
 
 ## Dress the PLAY arch like the front of a bowling alley: chase lights
@@ -614,18 +591,8 @@ func _play_portal() -> void:
 ## ball rack. The statues are solid, so marbles bounce off them.
 func _alley_entrance() -> void:
 	var beam := PORTAL_POS + Vector3(0, 4.3, 0)
-	var bulbs := ShaderMaterial.new()
-	bulbs.shader = preload("res://shaders/marquee_lights.gdshader")
-	bulbs.set_shader_parameter("spacing", 0.045)
 	for y in [-0.5, 0.5]:
-		var strip := MeshInstance3D.new()
-		var q := QuadMesh.new()
-		q.size = Vector2(5.6, 0.12)
-		strip.mesh = q
-		strip.material_override = bulbs
-		strip.position = beam + Vector3(0, y * 0.9, -0.285)
-		strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(strip)
+		LowPoly.marquee_strip(self, 5.6, beam + Vector3(0, y * 0.9, -0.285), 0.0, 0.045)
 	var plinth := Color(0.35, 0.18, 0.42)
 	for side in [-1.0, 1.0]:
 		var at := PORTAL_POS + Vector3(side * 4.5, 0, 0.4)
@@ -737,6 +704,8 @@ func _pond(at: Vector3) -> void:
 	fall.scale_amount_min = 0.8
 	fall.scale_amount_max = 1.6
 	var drop := SphereMesh.new()
+	drop.radial_segments = 6
+	drop.rings = 3
 	drop.radius = 0.12
 	drop.height = 0.24
 	var dm := StandardMaterial3D.new()
@@ -1106,6 +1075,8 @@ func _cottage(at: Vector3) -> void:
 	smoke.scale_amount_min = 1.0
 	smoke.scale_amount_max = 2.2
 	var sm := SphereMesh.new()
+	sm.radial_segments = 8
+	sm.rings = 4
 	sm.radius = 0.2
 	sm.height = 0.4
 	var smm := StandardMaterial3D.new()
@@ -1272,6 +1243,8 @@ func _sparkles(at: Vector3, extents: Vector3, color: Color, amount: int) -> void
 	p.initial_velocity_max = 0.8
 	p.gravity = Vector3.ZERO
 	var mesh := SphereMesh.new()
+	mesh.radial_segments = 6
+	mesh.rings = 3
 	mesh.radius = 0.05
 	mesh.height = 0.1
 	var m := StandardMaterial3D.new()
@@ -1294,6 +1267,8 @@ func _poof(at: Vector3) -> void:
 	p.initial_velocity_max = 2.5
 	p.gravity = Vector3.ZERO
 	var mesh := SphereMesh.new()
+	mesh.radial_segments = 6
+	mesh.rings = 3
 	mesh.radius = 0.12
 	mesh.height = 0.24
 	var m := StandardMaterial3D.new()

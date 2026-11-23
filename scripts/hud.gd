@@ -28,6 +28,10 @@ var _badge: Label            # "FRAME 3/10" top centre
 var _banner: Label           # "DRAFT 12" under the badge
 var _center: Label           # countdown number
 var _wild_tag: Label         # "WILD FRAME: LOW GRAVITY" under the badge
+var _wild_chip: PanelContainer  # the tag's pill, with the rule's icon
+var _wild_icon: WildIcon
+var _wild_edge: Control      # a soft glow round the screen edge in the rule's colour
+var _wild_style: StyleBoxFlat
 var _run_clock: Label        # hub TIME TRIAL clock, top middle
 var _wild_splash: VBoxContainer  # the big announcement when a wild frame's draft starts
 var _wild_shown := ""        # "frame|id" the splash last played for
@@ -141,8 +145,7 @@ func _ready() -> void:
 	_banner = _title_label(46, Control.PRESET_CENTER_TOP)
 	_banner.offset_top = 62
 
-	_wild_tag = _title_label(20, Control.PRESET_CENTER_TOP)
-	_wild_tag.offset_top = 118
+	_build_wild_tag()
 
 	_run_clock = _title_label(26, Control.PRESET_CENTER_TOP)
 	_run_clock.offset_top = 64
@@ -242,6 +245,18 @@ func refresh(game) -> void:
 	_tables.offset_bottom = -(_hints.size.y + 24.0)
 
 
+## How much of the bottom of the screen the HUD is using (key hints, build
+## chips, casino panels), so messages can sit just above it.
+func bottom_used() -> float:
+	var h := 0.0
+	if visible and _hints.visible:
+		h = _hints.size.y + 12.0
+	for c in [_chips, _tables]:
+		if visible and (c as Control).visible and (c as Control).get_child_count() > 0:
+			h = maxf(h, -(c as Control).offset_bottom + (c as Control).size.y)
+	return h
+
+
 # ------------------------------------------------------------ Top of screen
 
 func _update_scores(game) -> void:
@@ -251,17 +266,11 @@ func _update_scores(game) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		chip.add_child(row)
-		var tag := Label.new()
-		tag.add_theme_font_override("font", TITLE_FONT)
-		tag.add_theme_font_size_override("font_size", 20)
+		var tag := _text(20)
 		row.add_child(tag)
-		var score := Label.new()
-		score.add_theme_font_override("font", TITLE_FONT)
-		score.add_theme_font_size_override("font_size", 26)
+		var score := _text(26)
 		row.add_child(score)
-		var status := Label.new()
-		status.add_theme_font_size_override("font_size", 14)
-		status.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
+		var status := _text(14, Color(1, 1, 1, 0.75), false)
 		row.add_child(status)
 		_scores.add_child(chip)
 	_show_first(_scores, game.player_count)
@@ -292,6 +301,7 @@ func _update_top(game) -> void:
 	if game.state == game.State.ROLLING:
 		text += "      %ds" % ceili(game.time_left())
 	_badge.text = text
+	_place_badge()
 	_badge.visible = not game.state in [game.State.WAITING, game.State.HUB, game.State.MATCH_OVER, game.State.REPLAY, game.State.AWARDS]
 	if game.state == game.State.HUB and game.hub.derby.status() != "":
 		_badge.text = game.hub.derby.status()
@@ -309,20 +319,97 @@ func _update_top(game) -> void:
 	_banner.add_theme_color_override("font_color", GOLD if game.phase_time_left() <= 5 else Color.WHITE)
 
 
-## WILD FRAMES: a tag under the badge all frame, and a big splash when
-## the draft starts.
+## The FRAME badge sits top centre, unless the score chips (four players
+## on a small screen) would reach it: then it moves to the top-right corner.
+var _badge_right := false
+
+func _place_badge() -> void:
+	var screen_w := get_viewport().get_visible_rect().size.x
+	var chips_end := _scores.offset_left + _scores.get_combined_minimum_size().x
+	var right := _scores.visible and chips_end + 20.0 > (screen_w - _badge.get_combined_minimum_size().x) / 2.0
+	if right and _badge_right:
+		# Hug the text as it gets shorter (the seconds count down).
+		_badge.offset_left = _badge.offset_right - _badge.get_combined_minimum_size().x
+	if right == _badge_right:
+		return
+	_badge_right = right
+	if right:
+		_badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+		_badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		_badge.offset_right = -16
+	else:
+		_badge.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+		_badge.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_badge.offset_top = 12
+	_badge.offset_bottom = 12
+
+
+## WILD FRAMES: a soft glow round the screen in the rule's colour.
+class WildEdge extends Control:
+	var color := Color.WHITE
+
+	func _process(_d: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 1000.0 * 2.4)
+		var w := 34.0
+		var bands := 8
+		for k in bands:
+			var a := (1.0 - float(k) / bands) * (0.16 + 0.12 * pulse)
+			var d := w * k / bands
+			var t := w / bands
+			var c := Color(color, a)
+			draw_rect(Rect2(0, d, size.x, t), c)
+			draw_rect(Rect2(0, size.y - d - t, size.x, t), c)
+			draw_rect(Rect2(d, 0, t, size.y), c)
+			draw_rect(Rect2(size.x - d - t, 0, t, size.y), c)
+
+
+func _build_wild_tag() -> void:
+	_wild_edge = WildEdge.new()
+	_wild_edge.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_wild_edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wild_edge.visible = false
+	add_child(_wild_edge)
+	move_child(_wild_edge, 1)   # behind the rest of the HUD
+	_wild_chip = PanelContainer.new()
+	_wild_style = _pill(PANEL_BG, 12, 3)
+	_wild_style.border_width_bottom = 3
+	_wild_chip.add_theme_stylebox_override("panel", _wild_style)
+	_wild_chip.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_wild_chip.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_wild_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_wild_chip)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_wild_chip.add_child(row)
+	_wild_icon = WildIcon.make("", 28)
+	row.add_child(_wild_icon)
+	_wild_tag = Label.new()
+	_wild_tag.add_theme_font_override("font", TITLE_FONT)
+	_wild_tag.add_theme_font_size_override("font_size", 20)
+	_wild_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(_wild_tag)
+
+
+## WILD FRAMES: a tag with the rule's icon under the badge all frame, a
+## glow round the screen, and a big splash when the draft starts.
 func _update_wild(game) -> void:
 	var w: Dictionary = WildFrames.info(game.wild)
 	var on: bool = not w.is_empty() and game.state in [game.State.DRAFT, game.State.BUILD, game.State.COUNTDOWN, game.State.ROLLING]
-	_wild_tag.visible = on
+	_wild_chip.visible = on
+	_wild_edge.visible = on
 	if on:
-		_wild_tag.text = "WILD FRAME:  " + w.name
-		_wild_tag.add_theme_color_override("font_color", w.color)
-		_wild_tag.offset_top = 118 if _banner.visible else 62
-		var style := _pill(PANEL_BG, 14, 4)
-		style.border_color = w.color
-		style.border_width_bottom = 3
-		_wild_tag.add_theme_stylebox_override("normal", style)
+		if _wild_icon.rule != game.wild:
+			_wild_icon.rule = game.wild
+			_wild_tag.text = "WILD FRAME:  " + w.name
+			_wild_tag.add_theme_color_override("font_color", w.color)
+			_wild_style.border_color = w.color
+			(_wild_edge as WildEdge).color = w.color
+		# Under the DRAFT / BUILD banner, or straight under the badge.
+		_wild_chip.offset_top = 118 if _banner.visible else 66
+		_wild_chip.offset_bottom = _wild_chip.offset_top
 	var key := "%d|%s" % [game.frame, game.wild]
 	if on and game.state == game.State.DRAFT and key != _wild_shown:
 		_wild_shown = key
@@ -337,24 +424,21 @@ func _show_wild_splash(w: Dictionary) -> void:
 	_wild_splash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_wild_splash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_wild_splash)
-	var top := Label.new()
+	var icon := WildIcon.make(w.id, 150)
+	icon.spin = true
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_wild_splash.add_child(icon)
+	var top := _text(40, GOLD)
 	top.text = "WILD FRAME!"
 	top.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	top.add_theme_font_override("font", TITLE_FONT)
-	top.add_theme_font_size_override("font_size", 40)
-	top.add_theme_color_override("font_color", GOLD)
 	_wild_splash.add_child(top)
-	var name_l := Label.new()
+	var name_l := _text(96, w.color)
 	name_l.text = w.name
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_l.add_theme_font_override("font", TITLE_FONT)
-	name_l.add_theme_font_size_override("font_size", 96)
-	name_l.add_theme_color_override("font_color", w.color)
 	_wild_splash.add_child(name_l)
-	var about := Label.new()
+	var about := _text(26, null, false)
 	about.text = w.about
 	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	about.add_theme_font_size_override("font_size", 26)
 	_wild_splash.add_child(about)
 	for l in [top, name_l, about]:
 		l.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.1))
@@ -430,6 +514,8 @@ func _update_draft(game) -> void:
 	var db: DraftBuild = game.draft_build
 	var show: bool = game.state == game.State.DRAFT
 	_draft_root.visible = show
+	if thumbnails:
+		thumbnails.set_live(db.crate if show else [])
 	if not show:
 		return
 	if _crate_shown != db.crate:
@@ -523,12 +609,9 @@ func _build_cards(crate: Array) -> void:
 		panel.add_child(box)
 		box.add_child(RetroTitle.Trim.new())
 		# Track altering cards (TAs) get a gold badge on top.
-		var badge := Label.new()
+		var badge := _text(16, Color(0.1, 0.08, 0.05))
 		badge.text = PieceCatalog.tag(id) if PieceCatalog.is_track(id) else ""
 		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		badge.add_theme_font_override("font", TITLE_FONT)
-		badge.add_theme_font_size_override("font_size", 16)
-		badge.add_theme_color_override("font_color", Color(0.1, 0.08, 0.05))
 		var badge_bg := _pill(GOLD, 10, 1)
 		badge_bg.set_corner_radius_all(8)
 		badge.add_theme_stylebox_override("normal", badge_bg if badge.text != "" else StyleBoxEmpty.new())
@@ -541,25 +624,20 @@ func _build_cards(crate: Array) -> void:
 		if thumbnails:
 			pic.texture = thumbnails.texture_for(id)
 		box.add_child(pic)
-		var name_label := Label.new()
+		var name_label := _text(26)
 		name_label.text = PieceCatalog.display_name(id).to_upper()
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_label.add_theme_font_override("font", TITLE_FONT)
-		name_label.add_theme_font_size_override("font_size", 26)
 		if PieceCatalog.is_track(id):
 			name_label.add_theme_color_override("font_color", GOLD)
 		box.add_child(name_label)
-		var about := Label.new()
+		var about := _text(17, null, false)
 		about.text = PieceCatalog.info(id).about
 		about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		about.add_theme_font_size_override("font_size", 17)
 		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		about.custom_minimum_size = Vector2(CARD_W - 24.0, 0)
 		about.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
 		box.add_child(about)
-		var stamp := Label.new()
-		stamp.add_theme_font_override("font", TITLE_FONT)
-		stamp.add_theme_font_size_override("font_size", 80)
+		var stamp := _text(80)
 		stamp.add_theme_color_override("font_outline_color", Color.BLACK)
 		stamp.add_theme_constant_override("outline_size", 12)
 		stamp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -579,11 +657,8 @@ func _build_cards(crate: Array) -> void:
 func _new_sticker() -> Control:
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var l := Label.new()
+	var l := _text(22, Color(1, 0.97, 0.88))
 	l.text = "NEW!"
-	l.add_theme_font_override("font", TITLE_FONT)
-	l.add_theme_font_size_override("font_size", 22)
-	l.add_theme_color_override("font_color", Color(1, 0.97, 0.88))
 	var bg := _pill(RetroTitle.STRIPES[1], 12, 2)
 	bg.set_corner_radius_all(14)
 	bg.border_color = Color(0.05, 0.05, 0.12)
@@ -606,8 +681,7 @@ func _update_chips(game) -> void:
 	while _chips.get_child_count() < game.player_count:
 		var chip := PanelContainer.new()
 		chip.add_theme_stylebox_override("panel", _pill(PANEL_BG, 14, 6))
-		var l := Label.new()
-		l.add_theme_font_size_override("font_size", 17)
+		var l := _text(17, null, false)
 		chip.add_child(l)
 		_chips.add_child(chip)
 	_show_first(_chips, game.player_count)
@@ -645,10 +719,13 @@ func _update_run_clock(game, show: bool) -> void:
 		for p in game.player_count:
 			var t: float = game.hub.trial.time_of(p)
 			var done: float = game.hub.trial.just_finished(p)
+			var prof: int = game.profile_of(p)
+			var best: float = game.profiles.best_run(prof) if prof >= 0 else 0.0
 			if t >= 0.0:
-				parts.append("%s  %.1fs" % [game.seat_name(p), t])
+				parts.append("%s  %.1fs" % [game.seat_name(p), t] + ("  (BEST %s)" % TimeTrial.format(best) if best > 0.0 else ""))
 			elif done >= 0.0:
-				parts.append("%s  FINISH  %s" % [game.seat_name(p), TimeTrial.format(done)])
+				var record := best > 0.0 and absf(best - done) < 0.001
+				parts.append("%s  %s  %s" % [game.seat_name(p), "NEW BEST!" if record else "FINISH", TimeTrial.format(done)])
 	_run_clock.visible = not parts.is_empty()
 	if _run_clock.visible:
 		_run_clock.text = "TIME TRIAL   " + "     ".join(parts)
@@ -670,10 +747,7 @@ func _update_ready(game) -> void:
 
 ## A gold number, for coins and prices.
 func _coin_label(size: int) -> Label:
-	var l := Label.new()
-	l.add_theme_font_override("font", TITLE_FONT)
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", GOLD)
+	var l := _text(size, GOLD)
 	return l
 
 
@@ -696,15 +770,10 @@ func _update_hub(game) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		chip.add_child(row)
-		var tag := Label.new()
-		tag.add_theme_font_override("font", TITLE_FONT)
-		tag.add_theme_font_size_override("font_size", 20)
+		var tag := _text(20)
 		row.add_child(tag)
 		row.add_child(_coin_label(24))
-		var gems := Label.new()
-		gems.add_theme_font_override("font", TITLE_FONT)
-		gems.add_theme_font_size_override("font_size", 20)
-		gems.add_theme_color_override("font_color", Cosmetics.rarity_color("secret"))
+		var gems := _text(20, Cosmetics.rarity_color("secret"))
 		row.add_child(gems)
 		_hub_coins.add_child(chip)
 	_show_first(_hub_coins, game.player_count)
@@ -804,9 +873,7 @@ const TICKET_RED := Color(0.66, 0.12, 0.13)
 ## Little playing cards in a row (null = a face-down card).
 func _show_cards(row: HBoxContainer, cards: Array) -> void:
 	while row.get_child_count() < cards.size():
-		var l := Label.new()
-		l.add_theme_font_override("font", TITLE_FONT)
-		l.add_theme_font_size_override("font_size", 18)
+		var l := _text(18)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.custom_minimum_size = Vector2(36, 0)
 		row.add_child(l)
@@ -853,14 +920,9 @@ func _make_table_panel() -> PanelContainer:
 	panel.add_child(box)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 8)
-	var tag := Label.new()
-	tag.add_theme_font_override("font", TITLE_FONT)
-	tag.add_theme_font_size_override("font_size", 22)
+	var tag := _text(22)
 	head.add_child(tag)
-	var title := Label.new()
-	title.add_theme_font_override("font", TITLE_FONT)
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", PAPER)
+	var title := _text(18, PAPER)
 	var ribbon := StyleBoxFlat.new()
 	ribbon.bg_color = TICKET_RED
 	ribbon.content_margin_left = 10
@@ -872,10 +934,7 @@ func _make_table_panel() -> PanelContainer:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(spacer)
-	var coins := Label.new()
-	coins.add_theme_font_override("font", TITLE_FONT)
-	coins.add_theme_font_size_override("font_size", 18)
-	coins.add_theme_color_override("font_color", Color(0.6, 0.42, 0.05))
+	var coins := _text(18, Color(0.6, 0.42, 0.05))
 	head.add_child(coins)
 	box.add_child(head)
 	# A thin double rule under the heading.
@@ -900,17 +959,11 @@ func _make_table_panel() -> PanelContainer:
 		cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cards.add_theme_constant_override("separation", 4)
 		cols.add_child(cards)
-		var right := Label.new()
-		right.add_theme_font_override("font", TITLE_FONT)
-		right.add_theme_font_size_override("font_size", 16)
-		right.add_theme_color_override("font_color", Color(0.6, 0.42, 0.05))
+		var right := _text(16, Color(0.6, 0.42, 0.05))
 		cols.add_child(right)
 		box.add_child(cols)
-	var foot := Label.new()
+	var foot := _text(14, TICKET_RED)
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	foot.add_theme_font_override("font", TITLE_FONT)
-	foot.add_theme_font_size_override("font_size", 14)
-	foot.add_theme_color_override("font_color", TICKET_RED)
 	foot.custom_minimum_size = Vector2(0, 22)
 	box.add_child(foot)
 	return panel
@@ -961,7 +1014,7 @@ func _make_board_row(frames: int, header: bool) -> PanelContainer:
 	row.add_theme_constant_override("separation", 10)
 	card.add_child(row)
 	var name := Label.new()
-	name.custom_minimum_size = Vector2(70, 0)
+	name.custom_minimum_size = Vector2(128, 0)
 	name.add_theme_font_override("font", TITLE_FONT)
 	name.add_theme_font_size_override("font_size", 28)
 	_shadow(name)
@@ -992,6 +1045,18 @@ func _make_board_row(frames: int, header: bool) -> PanelContainer:
 	return card
 
 
+## A new label: `size` points, in the title font unless `title` is false,
+## and in `color` if one is given (otherwise the theme's text colour).
+func _text(size: int, color: Variant = null, title := true) -> Label:
+	var l := Label.new()
+	if title:
+		l.add_theme_font_override("font", TITLE_FONT)
+	l.add_theme_font_size_override("font_size", size)
+	if color != null:
+		l.add_theme_color_override("font_color", color)
+	return l
+
+
 ## A dark edge round white text, so it reads on any player colour.
 func _shadow(l: Label) -> void:
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.55))
@@ -1015,6 +1080,18 @@ func _fill_board(game) -> void:
 		var l: Label = head.get_child(1 + f)
 		l.text = str(f + 1)
 		l.add_theme_color_override("font_color", GOLD if f == game.frame - 1 else Color(1, 1, 1, 0.4))
+		# Wild frames get their rule's badge (a "?" until they're played).
+		var rule: String = game.wild_for(f + 1)
+		var icon: WildIcon = l.get_child(0) if l.get_child_count() > 0 else null
+		if rule != "" and icon == null:
+			icon = WildIcon.make("", 18)
+			icon.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+			icon.offset_top = -20
+			icon.offset_left = -9
+			l.add_child(icon)
+		if icon:
+			icon.visible = rule != ""
+			icon.rule = rule if f < game.frame else "?"
 	(head.get_child(1 + frames) as Label).text = "TOTAL"
 	(head.get_child(1 + frames) as Label).add_theme_color_override("font_color", Color(1, 1, 1, 0.4))
 
@@ -1049,6 +1126,8 @@ func _fill_board(game) -> void:
 			_board_title.text = "FRAME %d" % game.frame
 			lines.append(_frame_summary(game))
 			lines.append(_coins_text(game, false))
+			if game.wild_for(game.frame + 1) != "":
+				lines.append("NEXT UP: A WILD FRAME!")
 		game.State.MATCH_OVER:
 			_board_title.text = _winner_text(game)
 			lines.append(_coins_text(game, true))
@@ -1163,7 +1242,7 @@ func _update_coins_screen(game, show: bool) -> void:
 			var text := ""
 			var value := 0
 			match r:
-				0: text = "%d pins  +%d" % [b.pins, b.pin_coins]
+				0: text = "%d pin%s  +%d" % [b.pins, "" if b.pins == 1 else "s", b.pin_coins]
 				1: text = "+%d" % b.bonus
 				2: text = "%s  +%d" % [_ordinal(b.place + 1), b.place_coins]
 				3: text = "+%d" % b.finish
@@ -1451,20 +1530,14 @@ func _next_award() -> void:
 	var words := VBoxContainer.new()
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(words)
-	var top := Label.new()
+	var top := _text(15, GOLD, false)
 	top.text = "ACHIEVEMENT UNLOCKED"
-	top.add_theme_font_size_override("font_size", 15)
-	top.add_theme_color_override("font_color", GOLD)
 	words.add_child(top)
-	var name_label := Label.new()
+	var name_label := _text(28)
 	name_label.text = entry.name
-	name_label.add_theme_font_override("font", TITLE_FONT)
-	name_label.add_theme_font_size_override("font_size", 28)
 	words.add_child(name_label)
-	var how := Label.new()
+	var how := _text(15, Color(1, 1, 1, 0.75), false)
 	how.text = entry.text
-	how.add_theme_font_size_override("font_size", 15)
-	how.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 	words.add_child(how)
 	_award_layer.add_child(card)
 	card.reset_size()
@@ -1488,7 +1561,7 @@ func _frame_summary(game) -> String:
 		return ""
 	var parts := []
 	for i in game.player_count:
-		var bits := ["%d pins" % r.pins[i]]
+		var bits := ["%d pin%s" % [r.pins[i], "" if r.pins[i] == 1 else "s"]]
 		if r.race[i] > 0:
 			bits.append("race +%d" % r.race[i])
 		if r.sweep[i] > 0:
@@ -1652,16 +1725,12 @@ func _update_hints(game) -> void:
 		var pair := HBoxContainer.new()
 		pair.add_theme_constant_override("separation", 6)
 		_hints.add_child(pair)
-		var cap := Label.new()
+		var cap := _text(13, Color(0.1, 0.1, 0.15), false)
 		cap.text = it[0]
-		cap.add_theme_font_size_override("font_size", 13)
-		cap.add_theme_color_override("font_color", Color(0.1, 0.1, 0.15))
 		cap.add_theme_stylebox_override("normal", _pill(Color(1, 1, 1, 0.88), 7, 1))
 		pair.add_child(cap)
-		var word := Label.new()
+		var word := _text(14, Color(1, 1, 1, 0.85), false)
 		word.text = it[1]
-		word.add_theme_font_size_override("font_size", 14)
-		word.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))
 		word.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 		word.add_theme_constant_override("outline_size", 4)
 		pair.add_child(word)
@@ -1713,9 +1782,7 @@ func _pill(bg: Color, h_margin: int, v_margin: int) -> StyleBoxFlat:
 
 
 func _title_label(size: int, preset: int) -> Label:
-	var l := Label.new()
-	l.add_theme_font_override("font", TITLE_FONT)
-	l.add_theme_font_size_override("font_size", size)
+	var l := _text(size)
 	l.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.12))
 	l.add_theme_constant_override("outline_size", maxi(6, size / 6))
 	# A chunky retro drop shadow in sign orange.

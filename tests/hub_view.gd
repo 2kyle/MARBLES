@@ -21,6 +21,7 @@ func _initialize() -> void:
 		views.append([parts[0], _v(parts[1]), _v(parts[2])])
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
+	game.settings.graphics_auto = false   # software drawing is slow; keep the look fixed
 
 func _process(_d: float) -> bool:
 	_t += 1

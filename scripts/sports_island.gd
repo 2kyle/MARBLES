@@ -380,21 +380,9 @@ func _hoop() -> void:
 	(net.mesh as CylinderMesh).cap_top = false
 	(net.mesh as CylinderMesh).cap_bottom = false
 	# Through the hoop (going down) = a basket.
-	var area := Area3D.new()
-	area.collision_layer = 0
-	area.collision_mask = 2
-	area.monitorable = false
-	var shape := CollisionShape3D.new()
-	var cyl := CylinderShape3D.new()
-	cyl.radius = RIM_RADIUS - 0.15
-	cyl.height = 0.2
-	shape.shape = cyl
-	area.add_child(shape)
-	area.position = RIM + Vector3.DOWN * 0.35
-	add_child(area)
-	area.body_entered.connect(func(body):
-		if body is Marble and body.linear_velocity.y < 0.0:
-			_basket(body))
+	LowPoly.marble_zone(self, Vector3(0, 0.2, 0), RIM + Vector3.DOWN * 0.35, func(m: Marble):
+		if m.linear_velocity.y < 0.0:
+			_basket(m), RIM_RADIUS - 0.15)
 	_hoop_label = LowPoly.label(self, board + Vector3(0, 1.1, 0), "", 48, Color(0.35, 0.1, 0.0), 0.0, true)
 	_refresh_hoop()
 

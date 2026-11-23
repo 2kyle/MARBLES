@@ -17,6 +17,9 @@ var show_fps := false
 var retro_look := 1
 ## Graphics quality: 0 low, 1 medium, 2 high. See ArtStyle.quality.
 var graphics := 2
+## True until the player picks GRAPHICS themselves: the game may step it
+## down once if this computer struggles (see main.gd).
+var graphics_auto := true
 ## Camera.
 var camera_shake := 1.0
 ## Controller rumble on big hits, strikes and falls.
@@ -47,6 +50,7 @@ func load_from_disk() -> void:
 	show_fps = cfg.get_value("screen", "show_fps", show_fps)
 	retro_look = clampi(cfg.get_value("screen", "retro_look", retro_look), 0, 2)
 	graphics = clampi(cfg.get_value("screen", "graphics", graphics), 0, 2)
+	graphics_auto = cfg.get_value("screen", "graphics_auto", graphics_auto)
 	master_volume = cfg.get_value("sound", "master_volume", master_volume)
 	camera_shake = cfg.get_value("camera", "shake", camera_shake)
 	strike_replay = cfg.get_value("camera", "strike_replay", strike_replay)
@@ -69,6 +73,7 @@ func save_to_disk() -> void:
 	cfg.set_value("screen", "show_fps", show_fps)
 	cfg.set_value("screen", "retro_look", retro_look)
 	cfg.set_value("screen", "graphics", graphics)
+	cfg.set_value("screen", "graphics_auto", graphics_auto)
 	cfg.set_value("sound", "master_volume", master_volume)
 	cfg.set_value("camera", "shake", camera_shake)
 	cfg.set_value("camera", "strike_replay", strike_replay)

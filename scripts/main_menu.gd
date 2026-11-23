@@ -161,12 +161,15 @@ func _ready() -> void:
 	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root.add_child(_toast)
 
+	# Bottom right, above the game's key hints (see set_toast_floor()).
 	_fps = Label.new()
-	_fps.position = Vector2(12, 860)
-	_fps.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	_fps.offset_top = -64
-	_fps.offset_left = 16
+	_fps.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	_fps.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_fps.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_fps.offset_right = -16
+	_fps.offset_bottom = -40
 	_fps.add_theme_font_size_override("font_size", 14)
+	_fps.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
 	add_child(_fps)
 
 
@@ -297,6 +300,12 @@ func _first_focus(node: Node) -> Control:
 		if inner:
 			return inner
 	return null
+
+
+## Keep the toast just above whatever the game shows along the bottom.
+func set_toast_floor(px: float) -> void:
+	_toast.offset_bottom = -maxf(60.0, px + 14.0)
+	_fps.offset_bottom = -maxf(40.0, px + 6.0)
 
 
 func toast(text: String) -> void:
@@ -437,6 +446,7 @@ func _build_settings_page() -> void:
 	var gfx := _stepper(page, "GRAPHICS", ArtStyle.QUALITY_NAMES)
 	gfx.value_changed.connect(func(i):
 		settings.graphics = i
+		settings.graphics_auto = false
 		_save())
 	var volumes := []
 	for v in range(0, 101, 10):

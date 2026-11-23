@@ -54,7 +54,7 @@ func _process(_d: float) -> bool:
 		game._start_draft()
 	if _t == 20:
 		var hud = game.hud
-		_check(hud._wild_tag.visible and hud._wild_tag.text.contains(WildFrames.info(game.wild).name), "the wild frame tag shows: " + hud._wild_tag.text)
+		_check(hud._wild_chip.visible and hud._wild_tag.text.contains(WildFrames.info(game.wild).name), "the wild frame tag shows: " + hud._wild_tag.text)
 		_check(hud._wild_splash != null and is_instance_valid(hud._wild_splash), "a WILD FRAME! splash plays when the draft starts")
 		game.settings.wild_frames = false
 		game.frame = 4

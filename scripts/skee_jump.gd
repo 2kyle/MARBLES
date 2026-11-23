@@ -229,20 +229,9 @@ func _sign() -> void:
 		l.modulate = Color(1.0, 0.85, 0.35)
 		l.double_sided = false
 	# Chase lights round the edge of the sign.
-	var bulbs := ShaderMaterial.new()
-	bulbs.shader = preload("res://shaders/marquee_lights.gdshader")
-	bulbs.set_shader_parameter("spacing", 0.05)
 	for y in [-0.5, 0.5]:
 		for face in [1.0, -1.0]:
-			var strip := MeshInstance3D.new()
-			var q := QuadMesh.new()
-			q.size = Vector2(3.4, 0.12)
-			strip.mesh = q
-			strip.material_override = bulbs
-			strip.position = board + Vector3(face * 0.1, y * 0.9, 0)
-			strip.rotation.y = face * PI / 2.0
-			strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			add_child(strip)
+			LowPoly.marquee_strip(self, 3.4, board + Vector3(face * 0.1, y * 0.9, 0), face * PI / 2.0)
 
 
 func _scoreboard() -> void:

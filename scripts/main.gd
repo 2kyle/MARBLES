@@ -171,6 +171,8 @@ var coin_breakdown: Array = []
 var frame := 1
 ## This frame's WILD FRAME rule (WildFrames.LIST id), or "" for a normal frame.
 var wild := ""
+## WILD FRAMES are on for this match (the host's setting, online).
+var wild_on := true
 var totals: Array = []
 var marbles: Array[Marble] = []
 var arrival_order: Array = []
@@ -368,13 +370,12 @@ func _enter_hub() -> void:
 ## TIME TRIAL: a run down the practice run finished. Save it if it's the
 ## player's best and update the RUN RECORDS board.
 func _on_run_finished(p: int, seconds: float) -> void:
+	# The time itself shows on the TIME TRIAL clock (with NEW BEST!).
 	var prof := profile_of(p)
-	var text := "%s: %s" % [seat_name(p), TimeTrial.format(seconds)]
 	if prof >= 0 and profiles.record_run(prof, seconds):
 		profiles.save_to_disk()
-		text = "%s: NEW BEST RUN!  %s" % [seat_name(p), TimeTrial.format(seconds)]
 		LowPoly.confetti(hub, hub.to_local(hub.marbles[p].global_position), 50)
-	menu.toast(text)
+		_rumble(p, 0.5, 0.7, 0.4)
 	_refresh_run_board()
 
 
@@ -671,17 +672,45 @@ func _after_screen(p: int) -> void:
 	_refresh_colors()
 
 
-## Put the GRAPHICS setting into effect: shadows, ink outlines, glow and
-## ambient occlusion (see ArtStyle.quality).
+## Put the GRAPHICS setting into effect: shadows, ink outlines, glow,
+## ambient occlusion and smoothing of jagged edges (see ArtStyle.quality).
 func _apply_graphics() -> void:
-	ArtStyle.quality = settings.graphics
+	var q: int = settings.graphics
+	ArtStyle.quality = q
 	var env: WorldEnvironment = $WorldEnvironment
 	ArtStyle.apply_quality(env.environment)
 	for e in [_hub_env, arena.environment() if arena else null]:
 		ArtStyle.apply_quality(e)
-	($Sun as DirectionalLight3D).shadow_enabled = settings.graphics >= 1
+	var sun := $Sun as DirectionalLight3D
+	sun.shadow_enabled = q >= 1
+	# HIGH: sharp shadows in four steps out to 120 m. MEDIUM: two steps
+	# out to 80 m, which is about half the work.
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS if q >= 2 else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sun.directional_shadow_max_distance = 120.0 if q >= 2 else 80.0
+	get_viewport().msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][q]
 	if ink:
-		ink.visible = settings.graphics >= 1
+		ink.visible = q >= 1
+
+
+## GRAPHICS starts on HIGH. If the game is clearly struggling on this
+## computer (under 40 frames a second for several seconds while playing),
+## step it down once and say so, until the player picks a level themselves.
+var _slow_time := 0.0
+
+func _watch_frame_rate(delta: float) -> void:
+	if not settings.graphics_auto or settings.graphics == 0 or _state_age < 4.0 \
+			or DisplayServer.get_name() == "headless":
+		_slow_time = 0.0
+		return
+	if not state in [State.DRAFT, State.BUILD, State.COUNTDOWN, State.ROLLING, State.HUB]:
+		return
+	_slow_time = _slow_time + delta if Engine.get_frames_per_second() < 40 else maxf(_slow_time - delta * 2.0, 0.0)
+	if _slow_time > 6.0:
+		_slow_time = 0.0
+		settings.graphics -= 1
+		settings.save_to_disk()
+		_apply_graphics()
+		menu.toast("GRAPHICS set to %s so the game runs smoother (Settings to change it)" % ArtStyle.QUALITY_NAMES[settings.graphics])
 
 
 ## Shut the closet and crate screens without fuss (leaving the island).
@@ -772,9 +801,8 @@ func _on_quit_to_menu() -> void:
 	show_title()
 
 
-## Start a fresh match on the ready screen. `new_track` false keeps the island
-## that's already built (the one behind the title screen).
-func _new_match(new_track := true) -> void:
+## Back to frame 1 with no points, strikes or awards.
+func _reset_scores() -> void:
 	frame = 1
 	totals.resize(player_count)
 	totals.fill(0)
@@ -783,6 +811,12 @@ func _new_match(new_track := true) -> void:
 	_strikes = [0, 0, 0, 0]
 	match_stats.reset()
 	awards = []
+
+
+## Start a fresh match on the ready screen. `new_track` false keeps the island
+## that's already built (the one behind the title screen).
+func _new_match(new_track := true) -> void:
+	_reset_scores()
 	builder.clear()
 	if random_track and (new_track or track.layout.is_empty()):
 		_new_track()
@@ -889,6 +923,13 @@ func _show_podium() -> void:
 	camera.snap_to(camera.target)
 
 
+## Which rule frame `f` of this match bends ("" for a normal frame).
+func wild_for(f: int) -> String:
+	if not net.is_client():
+		wild_on = settings.wild_frames
+	return WildFrames.pick(f, ($Course/Decor as TrackDecor).seed, wild_on)
+
+
 func _prepare_roll() -> void:
 	## Put fresh marbles at the start gate (frozen) and a fresh rack of pins.
 	if podium and podium.visible:
@@ -906,7 +947,7 @@ func _prepare_roll() -> void:
 	_last_arrival_time = -100.0
 
 	# Every third frame bends a rule (the same one on every computer).
-	wild = WildFrames.pick(frame, ($Course/Decor as TrackDecor).seed, settings.wild_frames)
+	wild = wild_for(frame)
 	for i in player_count:
 		var m: Marble = marble_scene.instantiate()
 		m.player_id = i
@@ -975,6 +1016,7 @@ func _release_marbles() -> void:
 
 func _process(delta: float) -> void:
 	_state_age += delta
+	_watch_frame_rate(delta)
 	if state == State.AWARDS and not hud.strike_showing():
 		awards_left -= delta
 		if awards_left <= 0.0:
@@ -992,6 +1034,7 @@ func _process(delta: float) -> void:
 			_end_replay()
 	_update_camera()
 	hud.refresh(self)
+	menu.set_toast_floor(hud.bottom_used())
 
 
 func _physics_process(delta: float) -> void:
@@ -1325,7 +1368,7 @@ func request_next() -> void:
 		State.RESULTS:
 			frame += 1
 			_prepare_roll()
-			net.send_event("prepare", {"frame": frame, "wild": wild})
+			net.send_event("prepare", {"frame": frame, "wild": wild, "wild_on": wild_on})
 			_start_draft()
 		State.MATCH_OVER:
 			if net.is_host():
@@ -1644,14 +1687,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 			if hub:
 				hub.stop()
 			_show_hub_world(false)
-			frame = 1
-			totals.resize(player_count)
-			totals.fill(0)
-			frame_points.clear()
-			last_result = {}
-			_strikes = [0, 0, 0, 0]
-			match_stats.reset()
-			awards = []
+			_reset_scores()
 			_reset_match_coins()
 			builder.clear()
 			($Course/Decor as TrackDecor).seed = data.decor
@@ -1662,7 +1698,8 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 		"prepare":
 			frame = data.frame
 			_prepare_roll()
-			wild = data.get("wild", wild)   # the host's settings decide
+			wild_on = data.get("wild_on", wild_on)   # the host's settings decide
+			wild = data.get("wild", wild)
 		"draft":
 			frame = data.frame
 			draft_build.mirror_draft(data.crate)

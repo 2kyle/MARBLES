@@ -9,6 +9,12 @@ extends Label3D
 const FONT := preload("res://fonts/Righteous-Regular.ttf")
 ## Seconds on screen.
 const LIFE := 0.8
+## At most this many words on screen at once (the oldest goes first), so
+## a big pile-up stays readable.
+const MAX_LIVE := 6
+
+## The words on screen right now, oldest first.
+static var _live: Array = []
 
 var _age := 0.0
 var _tilt := 0.0
@@ -32,6 +38,14 @@ static func spawn(parent: Node, at: Vector3, text: String, color: Color, size :=
 	p.render_priority = 5
 	p.outline_render_priority = 4
 	p._tilt = randf_range(-0.25, 0.25)
+	# Don't land on top of another word: stack above it instead.
+	_live = _live.filter(func(w): return is_instance_valid(w))
+	for w in _live:
+		if (w as PopText).global_position.distance_to(at) < 0.55:
+			at = (w as PopText).global_position + Vector3.UP * 0.5
+	if _live.size() >= MAX_LIVE:
+		(_live.pop_front() as PopText).queue_free()
+	_live.append(p)
 	# Straight under the viewport, so a scaled piece doesn't stretch it.
 	parent.get_viewport().add_child(p)
 	p.global_position = at

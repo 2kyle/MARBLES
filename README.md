@@ -103,7 +103,7 @@ A match is 10 frames. Every match starts on a new random track that winds left a
 
 ### Time trial
 
-On the hub's practice run, the clock starts as your marble rolls away from the top pad and stops at the bottom; a little timer shows at the top of the screen. Falling off (or taking a shortcut) cancels the run. Your best time is saved in your profile, and the **RUN RECORDS** board beside the bottom of the run shows the fastest. A new best gets a "NEW BEST RUN!" message and confetti. The code is in `scripts/time_trial.gd`.
+On the hub's practice run, the clock starts as your marble rolls away from the top pad and stops at the bottom; a little timer shows at the top of the screen, with your best time next to it. Falling off (or taking a shortcut) cancels the run. Your best time is saved in your profile, and the **RUN RECORDS** board beside the bottom of the run shows the fastest. A new best gets a "NEW BEST RUN!" message and confetti. The code is in `scripts/time_trial.gd`.
 
 ### Hopping and gaps
 
@@ -235,7 +235,7 @@ The scoreboard then pops in and counts each player's new points up into their to
 
 ### Wild frames
 
-Every third frame (3, 6, 9) is a **WILD FRAME**: one rule is bent for everyone, announced with a big banner when the draft starts and a tag in the corner. The rules: LOW GRAVITY, SUPER BOUNCY, TURBO, HEAVY BALLS, ICE RINK and BIG HOPS. Online, every computer gets the same rule. Switch them off in **Settings > WILD FRAMES**. To add a rule, add it to `LIST` in `scripts/wild_frames.gd` and a branch in `apply()`.
+Every third frame (3, 6, 9) is a **WILD FRAME**: one rule is bent for everyone. Each rule has its own badge (a feather, spring, flame, weight, snowflake or up arrow, drawn in `scripts/wild_icon.gd`). It's announced with a big spinning badge and banner when the draft starts, a tag with the badge under the frame number all frame, and a soft glow round the screen edge in the rule's colour. The scoreboard marks wild frames with their badge (a "?" until they're played), and the results say "NEXT UP: A WILD FRAME!" the frame before one. The rules: LOW GRAVITY, SUPER BOUNCY, TURBO, HEAVY BALLS, ICE RINK and BIG HOPS. Online, every computer gets the same rule. Switch them off in **Settings > WILD FRAMES**. To add a rule, add it to `LIST` in `scripts/wild_frames.gd` and a branch in `apply()`.
 
 ### Placing pieces
 
@@ -337,7 +337,7 @@ The look is **toy diorama** with a **retro bowling alley** finish: soft, matte, 
 - **Comic pop words** (`scripts/pop_text.gd`): POP!, BOING!, THUD!, WHOOSH! (boosters), ZAP! (teleporters), GUTTER!, BONK! (big marble crashes) and WHACK! (pendulums and spinners) pop out of the world. `PopText.spawn(node, where, "TEXT", colour)` adds one anywhere.
 
 - **Ink outlines** (`shaders/ink_outline.gdshader`): thin dark outlines round shapes and creases, like a hand-inked cartoon, fading out in the distance.
-- **Graphics setting** (`ArtStyle.quality`): HIGH adds soft shadows in corners (ambient occlusion) and glow, MEDIUM keeps glow and shadows, LOW turns shadows and outlines off for older laptops.
+- **Graphics setting** (`ArtStyle.quality`): HIGH adds soft shadows in corners (ambient occlusion), glow, sharp far shadows and the smoothest edges; MEDIUM keeps glow, shorter shadows and lighter edge smoothing; LOW turns shadows, outlines and edge smoothing off for older laptops. Until you pick a level yourself, the game steps it down once if your computer is struggling (under 40 frames a second for a few seconds) and tells you.
 - **Texture slots** (`scripts/texture_slots.gd`): empty spots for hand-made pictures on the lane, pieces, scenery, marbles and hub grass. Drop a file with the right name into `assets/textures/` and it shows up. What to make: [assets/textures/README.md](assets/textures/README.md).
 
 ![The ARCADE retro look](docs/big-update/arcade.jpg)
@@ -554,6 +554,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_items.gd
 godot --headless --fixed-fps 120 --script res://tests/test_placement.gd
 godot --headless --script res://tests/test_wild_frames.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_time_trial.gd
+godot --headless --fixed-fps 120 --script res://tests/perf_probe.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam
 ```
@@ -567,4 +568,12 @@ godot --headless -d --script res://tests/find_clipping.gd -- world 3 1
 
 Add `ghosts` on the end (`-- hub x x ghosts`) to check the physics instead: it lists things you can see but roll straight through, and solid shapes with nothing drawn there.
 
-It prints pairs like `jungle.gd:_walls <-> hub.gd:_lookout` with how deep they overlap and where. Some are on purpose (the waterfall and the cave are built into the cliff), so look at the worst ones in the game before changing anything.
+To check that no on-screen text overlaps other text (or runs off the screen), run the text checker with a real window. It steps through the title, settings, draft, a wild frame, build, roll, results, scoreboard and hub, lists any problems, and saves a picture of each screen into the folder you give it. The numbers are how many people and bots play:
+
+```
+godot --resolution 1280x720 --script res://tests/find_ui_overlap.gd -- shots/ 2 2
+```
+
+`tests/perf_probe.gd` prints how long each frame takes during a match and in the hub.
+
+The clipping finder prints pairs like `jungle.gd:_walls <-> hub.gd:_lookout` with how deep they overlap and where. Some are on purpose (the waterfall and the cave are built into the cliff), so look at the worst ones in the game before changing anything.

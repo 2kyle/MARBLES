@@ -73,6 +73,25 @@ static func ball(parent: Node3D, pos: Vector3, r: float, color: Color, segments 
 	return _shape(parent, mesh, pos, color)
 
 
+## A strip of chase-light bulbs (like an old bowling alley sign), `length`
+## metres long, facing +Z (turned `yaw` radians). `spacing` is the gap
+## between bulbs as a share of the length.
+static func marquee_strip(parent: Node3D, length: float, pos: Vector3, yaw := 0.0, spacing := 0.05) -> MeshInstance3D:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/marquee_lights.gdshader")
+	mat.set_shader_parameter("spacing", spacing)
+	var strip := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(length, 0.12)
+	strip.mesh = q
+	strip.material_override = mat
+	strip.position = pos
+	strip.rotation.y = yaw
+	strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(strip)
+	return strip
+
+
 ## Chunky outlined text in the game's title font.
 static func label(parent: Node3D, pos: Vector3, text: String, size: int, outline: Color, yaw := 0.0, billboard := false) -> Label3D:
 	var l := Label3D.new()
@@ -126,15 +145,22 @@ static func solid_cyl(parent: Node3D, r: float, h: float, pos: Vector3, bounce :
 
 
 ## A trigger zone that calls `on_marble(marble)` when a marble rolls in.
-static func marble_zone(parent: Node3D, size: Vector3, pos: Vector3, on_marble: Callable) -> Area3D:
+## Pass `cylinder_r` above 0 for a round zone (`size.y` tall) instead of a box.
+static func marble_zone(parent: Node3D, size: Vector3, pos: Vector3, on_marble: Callable, cylinder_r := 0.0) -> Area3D:
 	var area := Area3D.new()
 	area.collision_layer = 0
 	area.collision_mask = 2
 	area.monitorable = false
 	var shape := CollisionShape3D.new()
-	var b := BoxShape3D.new()
-	b.size = size
-	shape.shape = b
+	if cylinder_r > 0.0:
+		var c := CylinderShape3D.new()
+		c.radius = cylinder_r
+		c.height = size.y
+		shape.shape = c
+	else:
+		var b := BoxShape3D.new()
+		b.size = size
+		shape.shape = b
 	area.add_child(shape)
 	area.position = pos
 	parent.add_child(area)

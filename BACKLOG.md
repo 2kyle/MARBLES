@@ -18,40 +18,37 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## Up next
 
-1. **To do** · **Colour-blind friendly marbles** *(suggested by Claude)*
-   A Settings option that gives each player a pattern or symbol as well as a colour on their marble, name tag and scoreboard row.
-
-2. **To do** · **Loop-de-loop piece** *(suggested by Claude)*
+1. **To do** · **Loop-de-loop piece** *(suggested by Claude)*
    A new track piece: a full vertical loop. Fast marbles make it round; slow ones fall back.
 
-3. **To do** · **Time trial ghost** *(suggested by Claude)*
+2. **To do** · **Time trial ghost** *(suggested by Claude)*
    On the hub's practice run, a see-through ghost marble replays your best run so you can race it. Builds on the new TIME TRIAL.
 
-4. **To do** · **More WILD FRAMES rules** *(suggested by Claude)*
+3. **To do** · **More WILD FRAMES rules** *(suggested by Claude)*
    New rule ideas: TINY BALLS (half size), GIANT PINS, REVERSE STEER (left is right), FOG (only see the lane near you), MAGNET MANIA (every marble pulls the others).
 
-5. **To do** · **Biplane rings and online plane** *(suggested by Claude)*
+4. **To do** · **Biplane rings and online plane** *(suggested by Claude)*
    Floating rings round the island to fly the biplane through (a little race against the clock), and show the plane to online guests too (right now only the person flying it sees the plane; guests see the ball flying).
 
-6. **To do** · **Pick the game's real name** *(suggested by Claude)*
+5. **To do** · **Pick the game's real name** *(suggested by Claude)*
    The title is now **BOWLING WIP** as a stand-in. Pick a name and it changes everywhere at once (`TITLE` in `scripts/main_menu.gd`).
 
-7. **To do** · **Strike replay online** *(suggested by Claude)*
+6. **To do** · **Strike replay online** *(suggested by Claude)*
    Show the slow-motion strike replay in online games too, so everyone watches it together (right now it only plays at one computer).
 
-8. **To do** · **Alley decorations, part 2** *(suggested by Claude)*
+7. **To do** · **Alley decorations, part 2** *(suggested by Claude)*
    A neon "LANES" sign and a shoe-rental counter in the hub. (The pin statues, ball rack and lights round the PLAY sign are done.)
 
-9. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
+8. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
    An achievement for a perfect 300, SKEE-JUMP for online guests, and a high-score table per player.
 
-10. **To do** · **SPLASH! and online TIME TRIAL board** *(suggested by Claude)*
+9. **To do** · **SPLASH! and online TIME TRIAL board** *(suggested by Claude)*
    A SPLASH! pop word when a marble falls in water, and show online guests' best runs on the RUN RECORDS board too.
 
-11. **To do** · **Corkscrew TA** *(suggested by Claude)*
+10. **To do** · **Corkscrew TA** *(suggested by Claude)*
    A full spiral that drops under itself. Needs the track to allow crossing over itself (supports and a clearance check by height), so it's a bigger job.
 
-12. **To do** · **Aimed Bounce Pad** *(suggested by Claude)*
+11. **To do** · **Aimed Bounce Pad** *(suggested by Claude)*
    Let the Bounce Pad tilt (rotate key) so it can fling marbles sideways off the track or onto another part of it.
 
 ## Needs you (Claude can't do these alone)
@@ -66,6 +63,9 @@ This is the to-do list for the game, **most important at the top**. Every night 
 *(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Colour-blind friendly marbles** *(suggested by Claude)* (November 23)
+  A **PLAYER SYMBOLS** setting: each player gets a shape as well as a colour (P1 circle, P2 triangle, P3 square, P4 cross), floating over their marble and next to their name on the score chips, scoreboard, draft pointers, coins screen, awards and island name tags.
 
 - **Done** · **Polish pass** (November 23)
   WILD FRAME badges (on the tag, the splash, the scoreboard, plus a screen glow and a "next up" teaser), no overlapping text at 720p or 1080p (checked by `tests/find_ui_overlap.gd`), smoother hub (about a quarter of the triangles, draft card pictures only drawn when shown), GRAPHICS also sets edge smoothing and shadows and steps down by itself on slow computers, best time on the time trial clock, tidier pop words, and leaner code.

@@ -137,6 +137,11 @@ var _last_pos := Vector3.ZERO
 ## (so it also works when the ball is moved by network updates).
 var _seen_velocity := Vector3.ZERO
 var _last_word := -100000  # when pop_word last showed a word (ms)
+## Colour-blind friendly symbol: the seat whose shape (see PlayerSymbols)
+## floats over the ball while PLAYER SYMBOLS is on. -1 = no symbol (hub,
+## closet and podium balls, which have name tags instead).
+var symbol_seat := -1
+var _badge: Sprite3D
 
 const MARBLE_SHADER := preload("res://shaders/marble.gdshader")
 
@@ -181,6 +186,32 @@ func _process(delta: float) -> void:
 	_place_hat(delta)
 	_update_squash(delta)
 	_update_blob()
+	_update_badge()
+
+
+## The PLAYER SYMBOLS badge: the seat's shape floating over the ball (and
+## over its hat), always facing the camera and the same size on screen.
+func _update_badge() -> void:
+	var show := symbol_seat >= 0 and PlayerSymbols.enabled and not out
+	if not show:
+		if _badge:
+			_badge.visible = false
+		return
+	if _badge == null:
+		_badge = Sprite3D.new()
+		_badge.name = "SymbolBadge"
+		_badge.top_level = true
+		_badge.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_badge.no_depth_test = true
+		_badge.shaded = false
+		_badge.fixed_size = true
+		_badge.pixel_size = 0.0006
+		_badge.render_priority = 2
+		add_child(_badge)
+	_badge.texture = PlayerSymbols.texture(symbol_seat)
+	_badge.visible = true
+	var size := global_transform.basis.get_scale().x * 0.3
+	_badge.global_position = global_position + Vector3.UP * size * (3.6 if _hat else 2.4)
 
 
 ## Give the ball a squash (+, flatten) or stretch (-, tall) that springs

@@ -19,7 +19,7 @@ The game opens on the **BOWLING WIP** title screen (a working title; it's `TITLE
 - **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** hosts or joins a game over the internet or your home network (see below).
-- **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), **graphics** (LOW, MEDIUM or HIGH), volume, camera shake, controller **rumble** on/off, strike replay on/off, an FPS counter and **wild frames** on/off. Long menu pages scroll (following the highlighted row) so they fit small screens. Settings and the last match options are saved on this computer (`user://settings.cfg`).
+- **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), **graphics** (LOW, MEDIUM or HIGH), volume, camera shake, controller **rumble** on/off, strike replay on/off, an FPS counter, **wild frames** on/off and **player symbols** on/off (colour-blind friendly shapes, see below). Long menu pages scroll (following the highlighted row) so they fit small screens. Settings and the last match options are saved on this computer (`user://settings.cfg`).
 - **How to play** is a short picture guide to a frame: draft a piece, build it into the lane, then roll and smash the pins (see below).
 - **Controls**, **Credits** and **Quit**.
 
@@ -236,6 +236,12 @@ The scoreboard then pops in and counts each player's new points up into their to
 ### Wild frames
 
 Every third frame (3, 6, 9) is a **WILD FRAME**: one rule is bent for everyone. Each rule has its own badge (a feather, spring, flame, weight, snowflake or up arrow, drawn in `scripts/wild_icon.gd`). It's announced with a big spinning badge and banner when the draft starts, a tag with the badge under the frame number all frame, and a soft glow round the screen edge in the rule's colour. The scoreboard marks wild frames with their badge (a "?" until they're played), and the results say "NEXT UP: A WILD FRAME!" the frame before one. The rules: LOW GRAVITY, SUPER BOUNCY, TURBO, HEAVY BALLS, ICE RINK and BIG HOPS. Online, every computer gets the same rule. Switch them off in **Settings > WILD FRAMES**. To add a rule, add it to `LIST` in `scripts/wild_frames.gd` and a branch in `apply()`.
+
+### Player symbols (colour-blind friendly)
+
+![Player symbols on the marbles and score chips](docs/player_symbols.png)
+
+Turn on **Settings > PLAYER SYMBOLS** and every player gets a shape as well as a colour, so you can tell everyone apart even if some colours look the same to you: **P1 is a circle, P2 a triangle, P3 a square and P4 a cross**. The shape floats over each marble during a match (over its hat too), and shows next to the name on the score chips, the scoreboard rows, the build-phase chips, the draft pointers, the stamp on a grabbed draft card, the coins screen, the match awards and the name tags on the island. The shapes are white with a dark edge, so they read the same on any colour. It's off unless you switch it on, and it's saved with your other settings. Online, everyone sees the same shape for each seat. The shapes are drawn in code in `scripts/player_symbols.gd`; change `SEAT_SHAPES` at the top to swap which seat gets which.
 
 ### Placing pieces
 
@@ -553,6 +559,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_hub.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_items.gd
 godot --headless --fixed-fps 120 --script res://tests/test_placement.gd
 godot --headless --script res://tests/test_wild_frames.gd
+godot --headless --script res://tests/test_player_symbols.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_time_trial.gd
 godot --headless --fixed-fps 120 --script res://tests/perf_probe.gd
 GODOT=godot tests/run_net_test.sh

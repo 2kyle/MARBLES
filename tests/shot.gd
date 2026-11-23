@@ -37,6 +37,10 @@ func _process(_d: float) -> bool:
 	return false
 
 func _setup() -> void:
+	# SYMBOLS=1 in front of the command turns PLAYER SYMBOLS on for the picture.
+	if OS.get_environment("SYMBOLS") == "1":
+		game.settings.player_symbols = true
+		PlayerSymbols.enabled = true
 	match mode:
 		"title":
 			if arg != "":

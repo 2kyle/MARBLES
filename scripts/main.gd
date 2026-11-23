@@ -247,8 +247,12 @@ func _ready() -> void:
 	ink = InkOutline.attach(camera)
 	_apply_graphics()
 	Controls.rumble_on = settings.rumble
+	PlayerSymbols.enabled = settings.player_symbols
 	menu.settings_changed.connect(func():
 		Controls.rumble_on = settings.rumble
+		PlayerSymbols.enabled = settings.player_symbols
+		if hub and hub.visible:
+			_refresh_ready_tags()
 		camera_shake = settings.camera_shake
 		retro_filter.set_look(settings.retro_look)
 		_apply_graphics())
@@ -951,6 +955,7 @@ func _prepare_roll() -> void:
 	for i in player_count:
 		var m: Marble = marble_scene.instantiate()
 		m.player_id = i
+		m.symbol_seat = i
 		m.look = look_for(i)
 		m.preview = state == State.WAITING
 		m.freeze = true

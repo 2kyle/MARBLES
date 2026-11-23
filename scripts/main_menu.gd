@@ -475,6 +475,11 @@ func _build_settings_page() -> void:
 	wild.value_changed.connect(func(i):
 		settings.wild_frames = i == 1
 		_save())
+	# Colour-blind friendly: a shape for each player as well as a colour.
+	var symbols := _stepper(page, "PLAYER SYMBOLS", ["OFF", "ON"])
+	symbols.value_changed.connect(func(i):
+		settings.player_symbols = i == 1
+		_save())
 	page.set_meta("sync", func():
 		full.index = 1 if settings.fullscreen else 0
 		vsync.index = 1 if settings.vsync else 0
@@ -485,7 +490,8 @@ func _build_settings_page() -> void:
 		rumble.index = 1 if settings.rumble else 0
 		replay.index = 1 if settings.strike_replay else 0
 		fps.index = 1 if settings.show_fps else 0
-		wild.index = 1 if settings.wild_frames else 0)
+		wild.index = 1 if settings.wild_frames else 0
+		symbols.index = 1 if settings.player_symbols else 0)
 	_button(page, "BACK", back)
 
 

@@ -108,6 +108,8 @@ class AwardMedal extends Control:
 class DraftPointer extends Control:
 	var color := Color.WHITE
 	var tag := "P1"
+	## Seat, for the PLAYER SYMBOLS shape after the name.
+	var seat := 0
 	const SHAPE := [Vector2(0, 0), Vector2(0, 38), Vector2(10, 29), Vector2(17, 44),
 			Vector2(24, 41), Vector2(17, 26), Vector2(30, 26)]
 
@@ -125,6 +127,9 @@ class DraftPointer extends Control:
 		var at := Vector2(30, 56)
 		draw_string_outline(font, at, tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, 6, Color(0, 0, 0, 0.8))
 		draw_string(font, at, tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, color.lightened(0.25))
+		if PlayerSymbols.enabled:
+			var w := font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+			PlayerSymbols.draw(self, seat, at + Vector2(w + 14, -8), 22)
 
 
 func _ready() -> void:
@@ -281,6 +286,7 @@ func _update_scores(game) -> void:
 		style.border_width_bottom = 4
 		var row := chip.get_child(0)
 		row.get_child(0).text = game.seat_name(i)
+		PlayerSymbols.mark(row.get_child(0), i)
 		row.get_child(0).add_theme_color_override("font_color", game.player_colors[i].lightened(0.2))
 		row.get_child(1).text = str(game.totals[i])
 		var status := ""
@@ -552,6 +558,7 @@ func _update_draft(game) -> void:
 			style.border_color = game.player_colors[owner]
 			card.pic.modulate = Color(1, 1, 1, 0.35)
 			card.stamp.text = game.seat_name(owner)
+			PlayerSymbols.mark(card.stamp, owner, PlayerSymbols.enabled, true)
 			card.stamp.add_theme_color_override("font_color", game.player_colors[owner].lightened(0.2))
 			card.stamp.visible = true
 		elif hover != -1:
@@ -592,6 +599,7 @@ func _update_draft(game) -> void:
 			continue
 		ptr.color = game.player_colors[p]
 		ptr.tag = game.seat_name(p)
+		ptr.seat = p
 		var target := _card_to_screen(db.draft_pointer[p], n)
 		ptr.position = target if ptr.position == Vector2.ZERO else ptr.position.lerp(target, 0.5)
 		ptr.queue_redraw()
@@ -717,6 +725,7 @@ func _update_chips(game) -> void:
 			text += "  ·  " + state
 		var l: Label = chip.get_child(0)
 		l.text = text
+		PlayerSymbols.mark(l, p)
 		l.add_theme_color_override("font_color", Color(1, 0.45, 0.4) if state != "" and state != "DONE" else Color.WHITE)
 	# Sit just above the key hints, however many lines they take.
 	_chips.offset_bottom = -(_hints.size.y + 22.0)
@@ -795,6 +804,7 @@ func _update_hub(game) -> void:
 		var row := chip.get_child(0)
 		row.get_child(0).text = game.seat_name(p)
 		row.get_child(0).add_theme_color_override("font_color", game.player_colors[p].lightened(0.2))
+		PlayerSymbols.mark(row.get_child(0), p)
 		var prof: int = game.profile_of(p)
 		row.get_child(1).text = "%d COINS" % game.profiles.coins(prof) if prof >= 0 else ""
 		# Secret gems found so far (saved between visits).
@@ -813,6 +823,7 @@ func _update_hub(game) -> void:
 		var box := panel.get_child(0)
 		var head: HBoxContainer = box.get_child(0)
 		(head.get_child(0) as Label).text = game.seat_name(p)
+		PlayerSymbols.mark(head.get_child(0), p)
 		(head.get_child(0) as Label).add_theme_color_override("font_color", (game.player_colors[p] as Color).darkened(0.35))
 		(head.get_child(1) as Label).text = {"derby": "THE DERBY", "blackjack": "BLACKJACK", "bar": "THE BAR"}.get(kind, kind.to_upper())
 		var prof: int = game.profile_of(p)
@@ -1120,6 +1131,7 @@ func _fill_board(game) -> void:
 		var name: Label = row.get_child(0)
 		name.text = ("★ " if p == leader and game.totals[p] > 0 else "") + game.seat_name(p)
 		name.add_theme_color_override("font_color", color)
+		PlayerSymbols.mark(name, p)
 		for f in frames:
 			var cell: Label = row.get_child(1 + f)
 			var played: bool = f < game.frame_points.size()
@@ -1241,6 +1253,7 @@ func _update_coins_screen(game, show: bool) -> void:
 	_coins_grid.add_child(Control.new())
 	for p in n:
 		var name := _coin_cell(game.seat_name(p), 30, (game.player_colors[p] as Color).lightened(0.25), TITLE_FONT)
+		PlayerSymbols.mark(name, p)
 		_coins_grid.add_child(name)
 	var cells := []   # [row, player, Label, final value]
 	for r in COIN_ROWS.size():
@@ -1416,8 +1429,10 @@ func _award_tile(game, a: Dictionary) -> PanelContainer:
 	gap.custom_minimum_size = Vector2(0, 6)
 	box.add_child(gap)
 	for p in a.players:
-		box.add_child(_coin_cell(game.seat_name(p), 30 if a.players.size() < 3 else 24,
-				(game.player_colors[p] as Color).lightened(0.25), TITLE_FONT))
+		var who := _coin_cell(game.seat_name(p), 30 if a.players.size() < 3 else 24,
+				(game.player_colors[p] as Color).lightened(0.25), TITLE_FONT)
+		PlayerSymbols.mark(who, p)
+		box.add_child(who)
 	box.add_child(_coin_cell(a.detail, 18, Color.WHITE))
 	return tile
 

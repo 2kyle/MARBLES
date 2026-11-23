@@ -185,6 +185,7 @@ func sync_marbles(count: int, looks: Array, marble_scene: PackedScene, names: Ar
 		var tag := _name_tag(name_text, looks[p].color.color)
 		add_child(tag)
 		_tags.append(tag)
+		PlayerSymbols.mark_3d(tag.get_child(0), p)
 
 
 ## Change the words (and colour) over a player's marble, like "Sam  READY".
@@ -195,6 +196,7 @@ func set_tag(p: int, text: String, color: Color) -> void:
 	label.text = text
 	label.modulate = color.lightened(0.15)
 	(_tags[p].get_child(1) as MeshInstance3D).material_override.albedo_color = color.lightened(0.15)
+	PlayerSymbols.mark_3d(label, p)
 
 
 func stop() -> void:

@@ -28,6 +28,9 @@ var rumble := true
 var strike_replay := true
 ## Every third frame bends a rule (see WildFrames).
 var wild_frames := true
+## Colour-blind friendly: each player gets a shape as well as a colour
+## (see PlayerSymbols).
+var player_symbols := false
 ## Match options from the Play screen.
 ## How many people play at this computer, and how many bots join them.
 var player_count := 1
@@ -55,6 +58,7 @@ func load_from_disk() -> void:
 	camera_shake = cfg.get_value("camera", "shake", camera_shake)
 	strike_replay = cfg.get_value("camera", "strike_replay", strike_replay)
 	rumble = cfg.get_value("controls", "rumble", rumble)
+	player_symbols = cfg.get_value("screen", "player_symbols", player_symbols)
 	wild_frames = cfg.get_value("match", "wild_frames", wild_frames)
 	# "humans"/"bots" replaced the old "players" key, so older saves start
 	# on the new default of one person and one bot.
@@ -78,6 +82,7 @@ func save_to_disk() -> void:
 	cfg.set_value("camera", "shake", camera_shake)
 	cfg.set_value("camera", "strike_replay", strike_replay)
 	cfg.set_value("controls", "rumble", rumble)
+	cfg.set_value("screen", "player_symbols", player_symbols)
 	cfg.set_value("match", "wild_frames", wild_frames)
 	cfg.set_value("match", "humans", player_count)
 	cfg.set_value("match", "bots", bot_count)

@@ -67,6 +67,9 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## Done
 
+- **Done** · **Polish pass** (November 23)
+  WILD FRAME badges (on the tag, the splash, the scoreboard, plus a screen glow and a "next up" teaser), no overlapping text at 720p or 1080p (checked by `tests/find_ui_overlap.gd`), smoother hub (about a quarter of the triangles, draft card pictures only drawn when shown), GRAPHICS also sets edge smoothing and shadows and steps down by itself on slow computers, best time on the time trial clock, tidier pop words, and leaner code.
+
 - **Done** · **Biggest update yet** (November 22)
   Pieces no longer clip into walls or each other (each piece's real outline is checked, and the build cursor shows it). Smoother placing: the cursor speeds up as you hold, moves the way the camera faces, snaps to the nearest free spot, and says why a spot is blocked ("HITS THE WALL"). Tidier screens: draft cards and the key hints always fit, and long menus scroll. Eyes now sit in the ball's finger holes, with the thumb hole as a mouth. Solid hub rocks, stones, garden and cones. More depth: ink outlines, soft shadows in corners, a **GRAPHICS** setting (Low / Medium / High) and texture slots for hand-made art. New: **WILD FRAMES** (every third frame bends a rule, with a Settings switch), a hub **TIME TRIAL** with a RUN RECORDS board, controller **RUMBLE** (with a Settings switch), more pop words (WHOOSH!, ZAP!, GUTTER!, BONK!, WHACK!) and pin statues by the PLAY arch.
 

@@ -7,6 +7,8 @@ var _t := 0
 var _fails := 0
 var _low := 1000.0
 var _far := 0.0
+var _laps := []
+var _coins_before := 0
 
 
 func _initialize() -> void:
@@ -27,6 +29,8 @@ func _physics_process(_d: float) -> bool:
 	if _t == 3:
 		game.settings.player_count = 1
 		game._enter_hub()
+		game.hub.plane.rings_finished.connect(func(_m, secs): _laps.append(secs))
+		_coins_before = game.profiles.coins(game.profile_of(0))
 	elif _t == 10:
 		var m := hub.marbles[0]
 		m.global_position = hub.plane.global_transform * Vector3(0, 0.7, 0.4)
@@ -53,6 +57,34 @@ func _physics_process(_d: float) -> bool:
 		check("hopping out lands you on the lookout (%.1f, %.1f, %.1f)" % [at.x, at.y, at.z],
 				at.y > -1.0 and at.y < 2.0 and at.z < -Hub.ISLAND_RADIUS)
 		check("the plane is back on its spot", hub.plane.pilot == null and hub.to_local(hub.plane.global_position).y < 1.0)
-		print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
-		quit(1 if _fails > 0 else 0)
+		# SKY RINGS: climb back in and fly the plane through every ring.
+		var m := hub.marbles[0]
+		m.global_position = hub.plane.global_transform * Vector3(0, 0.7, 0.4)
+	elif _t > 60 + 120 * 42 + 30 and hub.plane.pilot != null:
+		# Steer like a pilot: turn toward the next ring, nose up or down to its height.
+		var pl := hub.plane
+		var at := hub.to_local(pl.global_position)
+		var goal: Vector3 = (pl.rings[pl.ring_next] as Transform3D).origin
+		var fwd := -(hub.global_basis.inverse() * pl.global_basis).z
+		var to := goal - at
+		var yaw := atan2(-fwd.x, -fwd.z)
+		var diff := angle_difference(yaw, atan2(-to.x, -to.z))
+		pl.steer = Vector2(clampf(-diff * 3.0, -1.0, 1.0), clampf(to.y * 0.2, -1.0, 1.0))
+		if _t % 600 == 0:
+			print("    ring %d  plane %s  goal %s" % [pl.ring_next, at.round(), goal.round()])
+		if _t > 60 + 120 * 130:
+			check("flying through all %d rings finishes a lap (got to ring %d)" % [Biplane.RING_COUNT, pl.ring_next], false)
+			_finish()
+	if not _laps.is_empty() and _t > 0:
+		var coins: int = game.profiles.coins(game.profile_of(0))
+		check("flying through all %d rings finishes a lap (%.1fs)" % [Biplane.RING_COUNT, _laps[0]], _laps[0] > 5.0)
+		check("a lap pays %d coins" % Biplane.RING_COINS, coins == _coins_before + Biplane.RING_COINS)
+		check("the HUD line shows the best lap", hub.plane.race_text().contains("BEST"))
+		_finish()
 	return false
+
+
+func _finish() -> void:
+	print("ALL PASSED" if _fails == 0 else "%d FAILED" % _fails)
+	quit(1 if _fails > 0 else 0)
+	_laps.clear()

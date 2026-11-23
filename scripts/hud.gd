@@ -745,9 +745,17 @@ func _update_run_clock(game, show: bool) -> void:
 			elif done >= 0.0:
 				var record := best > 0.0 and absf(best - done) < 0.001
 				parts.append("%s  %s  %s" % [game.seat_name(p), "NEW BEST!" if record else "FINISH", TimeTrial.format(done)])
-	_run_clock.visible = not parts.is_empty()
+	var sky := ""
+	if show and game.hub and game.hub.plane:
+		sky = game.hub.plane.race_text()
+	_run_clock.visible = not parts.is_empty() or sky != ""
 	if _run_clock.visible:
-		_run_clock.text = "TIME TRIAL   " + "     ".join(parts)
+		var lines := []
+		if not parts.is_empty():
+			lines.append("TIME TRIAL   " + "     ".join(parts))
+		if sky != "":
+			lines.append(sky)
+		_run_clock.text = "\n".join(lines)
 
 
 # ------------------------------------------------------------ Ready screen

@@ -383,6 +383,16 @@ func _on_run_finished(p: int, seconds: float) -> void:
 	_refresh_run_board()
 
 
+## A lap of the biplane's SKY RINGS: coins for the pilot.
+func _on_rings_finished(m: Marble, _seconds: float) -> void:
+	var p := hub.marbles.find(m)
+	var prof := profile_of(p) if p >= 0 else -1
+	if prof >= 0:
+		profiles.add_coins(prof, Biplane.RING_COINS)
+		profiles.save_to_disk()
+		_rumble(p, 0.4, 0.6, 0.3)
+
+
 func _refresh_run_board() -> void:
 	var rows := []
 	for prof in profiles.seats.size():
@@ -433,6 +443,7 @@ func _ensure_hub() -> void:
 	hub.sports.basket_made.connect(_on_basket_made)
 	hub.sports.skee.game_over.connect(_on_skee_game_over)
 	hub.trial.finished.connect(_on_run_finished)
+	hub.plane.rings_finished.connect(_on_rings_finished)
 
 
 ## The island's world, state and camera, once its marbles are placed.

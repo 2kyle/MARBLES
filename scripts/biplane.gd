@@ -7,7 +7,12 @@ extends Node3D
 ##   place key      a burst of speed
 ##   turn key       hop out (you land back on the lookout)
 ## It flies itself at a steady speed and won't go too low or too far, so
-## you can't crash it. Just for fun: nothing is saved.
+## you can't crash it.
+##
+## SKY RINGS: eight big rings float in a loop round the island. Fly through
+## them in order (the next one glows gold, with an arrow on the plane
+## pointing to it) for a little race against the clock. Clearing all eight
+## pays RING_COINS.
 ##
 ## Built by hub.gd in the hub's space (this node's parent is the hub). The
 ## hub calls update() every physics tick; main.gd sets `steer` and calls
@@ -16,6 +21,8 @@ extends Node3D
 ## Fired when a ball climbs in, and when it hops out.
 signal boarded(m: Marble)
 signal left_plane(m: Marble)
+## Fired when the pilot clears the last ring: how long the lap took.
+signal rings_finished(m: Marble, seconds: float)
 
 const SPEED := 13.0
 const BOOST_SPEED := 22.0
@@ -28,6 +35,15 @@ const TAKEOFF_TIME := 3.0
 const CREAM := Color(0.97, 0.92, 0.78)
 const CHERRY := Color(0.72, 0.12, 0.14)
 const WOOD := Color(0.5, 0.33, 0.2)
+## The ring course: how many rings, their size and where they float
+## (a loop this far from the middle of the hub, about this high).
+const RING_COUNT := 8
+const RING_RADIUS := 5.0
+const RING_LOOP := 60.0
+const RING_HEIGHT := 32.0
+const RING_COINS := 20
+const RING_GOLD := Color(1.0, 0.8, 0.25)
+const RING_DIM := Color(0.55, 0.85, 1.0)
 
 ## Stick input: x = right, y = back (-1 = forward, like rolling).
 var steer := Vector2.ZERO
@@ -43,6 +59,14 @@ var _boost := 0.0
 var _flying := 0.0           # seconds since take-off
 var _prop: Node3D
 var _hub: Node3D
+## Ring race: rings (hub space), which ring is next (-1 = not racing yet,
+## so ring 0 is next and starts the clock), seconds since ring 0.
+var rings: Array = []
+var ring_next := 0
+var ring_time := -1.0
+var best_lap := 0.0
+var _ring_mats: Array = []
+var _pointer: MeshInstance3D
 
 
 ## Build the plane and park it at `at` (hub space) facing `yaw`.
@@ -56,6 +80,138 @@ func build(hub: Node3D, at: Vector3, yaw: float) -> void:
 	var sign := LowPoly.label(self, Vector3(0, 2.6, 0.6), "FLY ME!", 48, Color(0.35, 0.05, 0.05), 0.0, true)
 	sign.modulate = CREAM
 	sign.name = "Sign"
+	_build_rings()
+
+
+## Where ring `k` floats (hub space) and which way it faces (along the loop).
+static func ring_xform(k: int) -> Transform3D:
+	# Starts just north of the lookout and goes round anticlockwise seen
+	# from above, rising and dipping as it goes.
+	var a := -PI / 2.0 - TAU * k / RING_COUNT
+	var at := Vector3(cos(a) * RING_LOOP, RING_HEIGHT + sin(a * 2.0) * 7.0 + (k % 2) * 3.0, sin(a) * RING_LOOP)
+	var tangent := Vector3(sin(a), 0, -cos(a))
+	return Transform3D(Basis.looking_at(tangent, Vector3.UP), at)
+
+
+func _build_rings() -> void:
+	for k in RING_COUNT:
+		var xf := ring_xform(k)
+		var mi := MeshInstance3D.new()
+		mi.name = "Ring%d" % k
+		var tm := TorusMesh.new()
+		tm.inner_radius = RING_RADIUS - 0.35
+		tm.outer_radius = RING_RADIUS + 0.35
+		tm.rings = 28
+		tm.ring_segments = 8
+		mi.mesh = tm
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.albedo_color = RING_DIM
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# A torus lies flat; stand it up facing along the loop.
+		mi.transform = Transform3D(xf.basis * Basis(Vector3.RIGHT, PI / 2.0), xf.origin)
+		var num := Label3D.new()
+		num.text = str(k + 1)
+		num.font = LowPoly.TITLE_FONT
+		num.font_size = 160
+		num.pixel_size = 0.02
+		num.outline_size = 24
+		num.modulate = CREAM
+		num.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		num.position = xf.origin + Vector3.UP * (RING_RADIUS + 1.6)
+		num.name = "RingNumber%d" % k
+		_hub.add_child.call_deferred(mi)
+		_hub.add_child.call_deferred(num)
+		rings.append(xf)
+		_ring_mats.append(mat)
+	# An arrow on the plane's nose that points to the next ring.
+	_pointer = MeshInstance3D.new()
+	_pointer.name = "RingPointer"
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 0.28
+	cone.height = 0.8
+	cone.radial_segments = 8
+	cone.rings = 0
+	_pointer.mesh = cone
+	var pm := StandardMaterial3D.new()
+	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pm.albedo_color = RING_GOLD
+	_pointer.material_override = pm
+	_pointer.top_level = true
+	_pointer.visible = false
+	add_child(_pointer)
+	_show_rings()
+
+
+## Light the next ring gold and dim the rest.
+func _show_rings() -> void:
+	for k in _ring_mats.size():
+		var mat: StandardMaterial3D = _ring_mats[k]
+		var next := k == ring_next and pilot != null
+		mat.albedo_color = Color(RING_GOLD, 0.95) if next else Color(RING_DIM, 0.45 if pilot else 0.3)
+
+
+## "RINGS 3/8  12.4s" while racing, or "" (for the HUD).
+func race_text() -> String:
+	if pilot == null:
+		return ""
+	var t := "SKY RINGS  %d/%d" % [maxi(ring_next, 0), RING_COUNT]
+	if ring_time >= 0.0:
+		t += "  %.1fs" % ring_time
+	else:
+		t += "  (fly through ring 1)"
+	if best_lap > 0.0:
+		t += "  BEST %.1fs" % best_lap
+	return t
+
+
+## Did the plane fly through ring `k` going from `a` to `b` (hub space)?
+func _through(k: int, a: Vector3, b: Vector3) -> bool:
+	var xf: Transform3D = rings[k]
+	var n := -xf.basis.z
+	var da := (a - xf.origin).dot(n)
+	var db := (b - xf.origin).dot(n)
+	if signf(da) == signf(db) and da != 0.0:
+		return false
+	var t := da / (da - db) if da != db else 0.0
+	var hit := a.lerp(b, t)
+	return hit.distance_to(xf.origin) < RING_RADIUS + 0.6
+
+
+func _update_rings(delta: float, from: Vector3, to: Vector3) -> void:
+	if ring_time >= 0.0:
+		ring_time += delta
+	if _through(ring_next, from, to):
+		var at: Vector3 = _hub.to_global((rings[ring_next] as Transform3D).origin)
+		if ring_next == 0:
+			ring_time = 0.0
+		ring_next += 1
+		if ring_next >= RING_COUNT:
+			var lap := ring_time
+			if best_lap <= 0.0 or lap < best_lap:
+				best_lap = lap
+			PopText.spawn(_hub, at, "LAP! %.1fs" % lap, RING_GOLD, 2.2)
+			LowPoly.confetti(_hub, _hub.to_local(at), 60)
+			rings_finished.emit(pilot, lap)
+			ring_next = 0
+			ring_time = -1.0
+		else:
+			PopText.spawn(_hub, at, "%d / %d" % [ring_next, RING_COUNT], RING_GOLD, 2.0)
+		_show_rings()
+	# The arrow floats over the nose and points at the next ring.
+	var aim: Vector3 = _hub.to_global((rings[ring_next] as Transform3D).origin)
+	var tip := to_global(Vector3(0, 2.4, -0.6))
+	_pointer.visible = true
+	var dir := (aim - tip).normalized()
+	var side := dir.cross(Vector3.UP)
+	if side.length() < 0.01:
+		side = Vector3.RIGHT
+	# The cone points along its +Y: turn +Y onto `dir`.
+	var bx := side.normalized()
+	_pointer.global_transform = Transform3D(Basis(bx, dir, bx.cross(dir)), tip)
 
 
 ## The plane's own model: cream fuselage with cherry trim, two wings with
@@ -108,6 +264,9 @@ func _board(m: Marble) -> void:
 	_boost = 0.0
 	steer = Vector2.ZERO
 	(get_node("Sign") as Node3D).visible = false
+	ring_next = 0
+	ring_time = -1.0
+	_show_rings()
 	boarded.emit(m)
 
 
@@ -126,6 +285,10 @@ func bail() -> void:
 	transform = _park
 	(get_node("Body") as Node3D).rotation = Vector3.ZERO
 	(get_node("Sign") as Node3D).visible = true
+	ring_next = 0
+	ring_time = -1.0
+	_pointer.visible = false
+	_show_rings()
 	if not is_instance_valid(m):
 		return
 	m.global_position = _hub.to_global(_park.origin + _park.basis.z * 3.2 + Vector3.UP * 0.6)
@@ -167,8 +330,10 @@ func update(delta: float) -> void:
 	_pitch = lerpf(_pitch, want_pitch, clampf(delta * 3.0, 0.0, 1.0))
 	_roll = lerpf(_roll, -turn * 0.6, clampf(delta * 4.0, 0.0, 1.0))
 	var b := Basis(Vector3.UP, _yaw) * Basis(Vector3.RIGHT, _pitch)
+	var was := pos
 	pos += -b.z * _speed * delta
 	transform = Transform3D(b, pos)
+	_update_rings(delta, was, pos)
 	(get_node("Body") as Node3D).rotation.z = _roll
 	# The ball sits in the cockpit.
 	pilot.global_position = to_global(Vector3(0, 1.45, 0.25))

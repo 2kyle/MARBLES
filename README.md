@@ -54,11 +54,11 @@ Only people come to the island (no bots). The camera is a free third-person came
 - **Ball Derby** (in the casino): a betting minigame. Roll onto the gold PLACE BETS plate, pick one of four bowling ball "horses" (Frank, Trunk, Fatty and Jakob) with left and right, set your wager with up and down (10 coins a step), and press your place key to bet. The race starts 6 seconds after the first bet, so friends can join in. Each race the horses get a random form, and the odds board shows what each one pays (a favourite might pay 2x, a long shot 7x). Win and you get your wager times the odds; lose and the wager is gone. Press your turn key to leave.
 - **Your coins** show in the top right corner the whole time you're on the island.
 - **Sports island:** a short wooden bridge through the north-east gorge (follow the SPORTS sign) leads to a second island (see below).
-- A rope bridge off the north edge leads to a tiny lookout islet with a little vintage **biplane** on it. Roll into the plane to climb in and fly round the island: left and right turn, forward dives and back climbs, your place key gives a burst of speed and your turn key hops you out (back onto the lookout). It flies itself at a steady speed and won't go too low or too far, so you can't crash. It's built in `scripts/biplane.gd`. There's also a cottage with a smoking chimney and a vegetable garden, benches, bunting over the plaza, hot-air balloons and flocks of birds.
+- A rope bridge off the north edge leads to a tiny lookout islet with a little vintage **biplane** on it. Roll into the plane to climb in and fly round the island: left and right turn, forward dives and back climbs, your place key gives a burst of speed and your turn key hops you out (back onto the lookout). It flies itself at a steady speed and won't go too low or too far, so you can't crash. **SKY RINGS:** eight big rings float in a loop round the island, numbered 1 to 8. Fly through them in order: the next one glows gold and a gold arrow over the plane's nose points to it. Ring 1 starts the clock, and clearing all eight shows your lap time (with your best this visit) and pays 20 coins. It's built in `scripts/biplane.gd`. There's also a cottage with a smoking chimney and a vegetable garden, benches, bunting over the plaza, hot-air balloons and flocks of birds.
 - **Jungle things to explore:** stepped temple ruins with a shrine (and a waving monkey), a giant stone head, broken pillars to hop up, rock steps climbing the south-west cliff to a high ledge, bouncy giant mushrooms (roll onto the little red BOING! one and it bounces you from cap to cap), a hollow log to roll through, a glowing crystal cave in the north-east cliff, a waterfall in the east cliff with a hollow behind it, and grassy hills. Parrots fly overhead, frogs hop between lily pads on the pond, and fireflies and leaves drift about.
 - **Secret gems:** six glowing gems are hidden round the jungle (the stone by the spawn says so). Roll into one to collect it: the first time each player finds each gem they get 25 coins, and a message shows how many of the six they've found. Your progress is saved with your coins (`user://profiles.cfg`) and shows next to your coins (◆ 3/6). Gems you've already found come back each visit as faint glass ghosts, so you can see which are left. Find all six to win the **Jungle Gem Crown** hat (a vine circlet with all six gems, rarity *Secret*, never in crates) and the **Treasure Hunter** achievement.
 - **Hurdles** to practise hops, and a yard of real practice pieces (bumpers, a booster, a spinner, a jump ramp) behind the start tower, by the PRACTICE PIECES sign.
-- **PLAY arch:** roll through it to start a match with the options from the Play page.
+- **PLAY arch:** roll through it to start a match with the options from the Play page. It's dressed like the front of a bowling alley: chase lights round the sign, a giant pin statue on each side, a ball rack, a **neon LANES sign** on top (its E sputters now and then, like every old sign) and a **SHOE RENTAL** counter with a bell and cubbies of two-tone bowling shoes.
 - Fall off the edge and you pop back on the plaza. **Esc** opens the pause menu, where Retry puts everyone back at the start.
 
 ![The Ball Derby](docs/derby.png)
@@ -104,6 +104,8 @@ A match is 10 frames. Every match starts on a new random track that winds left a
 ### Time trial
 
 On the hub's practice run, the clock starts as your marble rolls away from the top pad and stops at the bottom; a little timer shows at the top of the screen, with your best time next to it. Falling off (or taking a shortcut) cancels the run. Your best time is saved in your profile, and the **RUN RECORDS** board beside the bottom of the run shows the fastest. A new best gets a "NEW BEST RUN!" message and confetti. The code is in `scripts/time_trial.gd`.
+
+**Ghost:** the fastest run ever on this computer is recorded, and whenever someone starts a run a see-through blue **ghost marble** (with a tag like "GHOST P1 6.02s") races down beside them, replaying that run, so you can see exactly where you're winning or losing time. Beat it and your run becomes the new ghost. It's saved in `user://ghost_run.cfg` (delete that file to clear it). On an online island only the host sees the ghost for now.
 
 ### Hopping and gaps
 
@@ -235,7 +237,7 @@ The scoreboard then pops in and counts each player's new points up into their to
 
 ### Wild frames
 
-Every third frame (3, 6, 9) is a **WILD FRAME**: one rule is bent for everyone. Each rule has its own badge (a feather, spring, flame, weight, snowflake or up arrow, drawn in `scripts/wild_icon.gd`). It's announced with a big spinning badge and banner when the draft starts, a tag with the badge under the frame number all frame, and a soft glow round the screen edge in the rule's colour. The scoreboard marks wild frames with their badge (a "?" until they're played), and the results say "NEXT UP: A WILD FRAME!" the frame before one. The rules: LOW GRAVITY, SUPER BOUNCY, TURBO, HEAVY BALLS, ICE RINK and BIG HOPS. Online, every computer gets the same rule. Switch them off in **Settings > WILD FRAMES**. To add a rule, add it to `LIST` in `scripts/wild_frames.gd` and a branch in `apply()`.
+Every third frame (3, 6, 9) is a **WILD FRAME**: one rule is bent for everyone. Each rule has its own badge (a feather, spring, flame, weight, snowflake, up arrow, little ball, crossed arrows, horseshoe magnet or gusts, drawn in `scripts/wild_icon.gd`). It's announced with a big spinning badge and banner when the draft starts, a tag with the badge under the frame number all frame, and a soft glow round the screen edge in the rule's colour. The scoreboard marks wild frames with their badge (a "?" until they're played), and the results say "NEXT UP: A WILD FRAME!" the frame before one. The rules: LOW GRAVITY, SUPER BOUNCY, TURBO, HEAVY BALLS, ICE RINK, BIG HOPS, **TINY BALLS** (half-size marbles that slip through gaps between pieces), **REVERSE STEER** (left is right and right is left; bots know the trick), **MAGNET MANIA** (every marble pulls on the others when they're close) and **WINDY** (a gusty side wind that swings left and right). Online, every computer gets the same rule. Switch them off in **Settings > WILD FRAMES**. To add a rule, add it to `LIST` in `scripts/wild_frames.gd` and a branch in `apply()`.
 
 ### Player symbols (colour-blind friendly)
 
@@ -287,7 +289,8 @@ Pieces further down the track move with it, and the pins move to the new end.
 | Pop Bumper | A pinball bumper. Touch it and it throws you away from its middle, hard, any direction (even back up the lane), with a POP! |
 | Pendulum | A heavy bowling ball swinging side to side across the lane from a little gantry. Time your run or get batted sideways |
 | Magnet | Drags marbles toward its middle. Fast ones whip round it and fly off at a new angle; slow ones get stuck circling for a moment |
-| Bounce Pad | A trampoline in the lane: springs marbles up about 2 m with a BOING!, keeping their speed down the lane |
+| Bounce Pad | A trampoline in the lane: springs marbles up about 2 m with a BOING!, keeping their speed. It's **aimed**: the mat leans the way its arrow points and flings marbles that way too, so turn it (rotate key) to send marbles straight on for a long jump, or sideways across the lane (or off it) |
+| Loop-de-Loop | A full vertical loop. Two angled rails funnel marbles into the way in, a booster gives them the speed to go round upside down (WHEEE!), and they come out on the other half of the piece, so the loop never runs into itself. Marbles that miss the funnel bump its posts |
 | TA: Oil Slick | Adds 10 m of freshly oiled lane with almost no grip (rainbow sheen). Steering barely works, so you keep whatever line you came in on |
 | TA: Zig-Zag | Adds three quick bends: left, right, left (rotate key flips it) |
 | TA: Rollercoaster Hill | Adds a climb then a steep drop. Slow marbles may roll back and need a push |
@@ -340,7 +343,7 @@ The look is **toy diorama** with a **retro bowling alley** finish: soft, matte, 
 - **Retro look** (`scripts/retro_filter.gd`, `shaders/retro_screen.gdshader`): a screen filter under the HUD. LOUNGE (the default) gives amber highlights, purple shadows, dark corners and a little film grain; ARCADE adds faint CRT scanlines and colour fringing; OFF is the plain picture. Every effect has its own strength at the top of the shader.
 - **Marquee lights** (`shaders/marquee_lights.gdshader`): chase-light bulbs along the top of the track walls, like an old alley sign. They chase toward the pins, so they also show which way to roll.
 - **Retro sign title** (`scripts/retro_title.gd`): the title's bobbing letters on stacked orange, red and purple stripe shadows, and the matching three-stripe trim on menus and draft cards.
-- **Comic pop words** (`scripts/pop_text.gd`): POP!, BOING!, THUD!, WHOOSH! (boosters), ZAP! (teleporters), GUTTER!, BONK! (big marble crashes) and WHACK! (pendulums and spinners) pop out of the world. `PopText.spawn(node, where, "TEXT", colour)` adds one anywhere.
+- **Comic pop words** (`scripts/pop_text.gd`): POP!, BOING!, THUD!, WHOOSH! (boosters), ZAP! (teleporters), GUTTER!, BONK! (big marble crashes), WHACK! (pendulums and spinners) and WHEEE! (the Loop-de-Loop) pop out of the world. A marble that falls off the track gets a word for the world it lands in: SPLASH! at the beach, KER-SPLAT! in the city, FIZZLE! in the caves, FLUMP! in the snow and POOF! in the clouds (`fall_word()` in each `scripts/arena/` file). `PopText.spawn(node, where, "TEXT", colour)` adds one anywhere.
 
 - **Ink outlines** (`shaders/ink_outline.gdshader`): thin dark outlines round shapes and creases, like a hand-inked cartoon, fading out in the distance.
 - **Graphics setting** (`ArtStyle.quality`): HIGH adds soft shadows in corners (ambient occlusion), glow, sharp far shadows and the smoothest edges; MEDIUM keeps glow, shorter shadows and lighter edge smoothing; LOW turns shadows, outlines and edge smoothing off for older laptops. Until you pick a level yourself, the game steps it down once if your computer is struggling (under 40 frames a second for a few seconds) and tells you.
@@ -559,6 +562,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_hub.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_items.gd
 godot --headless --fixed-fps 120 --script res://tests/test_placement.gd
 godot --headless --script res://tests/test_wild_frames.gd
+godot --headless --fixed-fps 120 --script res://tests/sim_wild.gd
 godot --headless --script res://tests/test_player_symbols.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_time_trial.gd
 godot --headless --fixed-fps 120 --script res://tests/perf_probe.gd

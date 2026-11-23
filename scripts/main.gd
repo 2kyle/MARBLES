@@ -2108,6 +2108,8 @@ func _lane_frame(pos: Vector3) -> Transform3D:
 ## the track and hits the arena's ground.
 func _splash(at: Vector3, color: Color) -> void:
 	arena.fall_burst(self, at, color)
+	var word: Array = arena.fall_word()
+	PopText.spawn(self, Vector3(at.x, maxf(at.y, Arena.GROUND_Y) + 1.4, at.z), word[0], word[1], 1.3)
 
 
 # ------------------------------------------------------------ Camera

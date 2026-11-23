@@ -112,9 +112,11 @@ const PIECES := {
 	},
 	"bounce_pad": {
 		"name": "Bounce Pad",
-		"about": "Springs balls high",
+		"about": "Flings balls where it points",
 		"scene": "res://scenes/pieces/bounce_pad.tscn",
 		"kind": "piece", "radius": 0.95, "base_rotation": 0.0,
+		"aimed": true,
+		"new": true,
 	},
 	"loop_de_loop": {
 		"name": "Loop-de-Loop",

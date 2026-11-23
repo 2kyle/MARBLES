@@ -3,6 +3,10 @@ extends Node3D
 ## in a high arc and keep their speed down the lane, so they can sail over
 ## pieces (or the wall, if it's aimed badly on a bend).
 ##
+## AIMED: the mat leans one way (the arrow on it), and the pad flings balls
+## that way too. Turn it with the rotate key: straight ahead for a long
+## jump, sideways to throw balls across the lane (or off it!).
+##
 ## Built in code: a dark frame, a red springy mat that dips when it fires,
 ## little springs round the edge, and the trigger zone.
 
@@ -10,8 +14,12 @@ extends Node3D
 var placed_by := -1
 ## Upward speed it gives, metres per second (about 2 m high).
 @export var launch := 6.4
+## Extra push the way the mat leans (metres per second).
+@export var fling := 2.6
 
 const R := 0.6
+## How far the mat leans (radians, just for the look).
+const TILT := 0.16
 
 var _mat_node: MeshInstance3D
 var _dip := 0.0
@@ -45,7 +53,21 @@ func _init() -> void:
 	cm.material = mat
 	_mat_node.mesh = cm
 	_mat_node.position.y = 0.05
+	_mat_node.rotation.x = -TILT   # leans toward -Z, the way it flings
 	add_child(_mat_node)
+	# An arrow painted on the mat, pointing the way it flings.
+	var arrow := MeshInstance3D.new()
+	arrow.name = "Arrow"
+	var pm := PrismMesh.new()
+	pm.size = Vector3(0.42, 0.36, 0.02)
+	arrow.mesh = pm
+	var am := StandardMaterial3D.new()
+	am.albedo_color = Color(1.0, 0.95, 0.85)
+	arrow.material_override = am
+	# Lie the prism flat, tip toward -Z, just on top of the mat.
+	arrow.rotation = Vector3(-PI / 2.0, 0, 0)
+	arrow.position = Vector3(0, 0.025, 0)
+	_mat_node.add_child(arrow)
 
 	var spring_mat := StandardMaterial3D.new()
 	spring_mat.albedo_color = Color(0.85, 0.87, 0.9)
@@ -100,7 +122,9 @@ func _on_body_entered(body: Node) -> void:
 	var up := global_basis.y.normalized()
 	var v := m.linear_velocity
 	v -= up * v.dot(up)
-	m.linear_velocity = v + up * launch
+	var aim := -global_basis.z
+	aim = (aim - up * aim.dot(up)).normalized()
+	m.linear_velocity = v + up * launch + aim * fling
 	# Fly true for a moment, then steer again in the air.
 	m.no_steer_time = 0.35
 	m.wince(3.0)

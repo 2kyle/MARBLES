@@ -136,6 +136,11 @@ static func plain_sun(sun: DirectionalLight3D) -> void:
 
 
 ## A burst where a marble falls off the track and hits the ground.
+## The pop word when a marble falls off the track and lands here.
+func fall_word() -> Array:
+	return ["SPLASH!", Color(0.55, 0.85, 1.0)]
+
+
 func fall_burst(parent: Node, at: Vector3, color: Color) -> void:
 	_burst(parent, Vector3(at.x, GROUND_Y + 0.1, at.z), Color(0.85, 0.95, 1.0).lerp(color, 0.15), 40, 0.08, 3.0, 6.5)
 

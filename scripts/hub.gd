@@ -101,6 +101,9 @@ var _top: Marker3D
 var _spinners: Array = []   # [node, axis, speed] things that turn forever
 var _clouds: Array = []
 var _bobbers: Array = []
+## The neon LANES sign's letters and tubes (they flicker now and then).
+var _neon: Array = []
+var _neon_flicker := 0.0
 var _time := 0.0
 var _rng := RandomNumberGenerator.new()
 var _trophies: Array = []   # trophy nodes on the island right now
@@ -124,6 +127,7 @@ func _process(delta: float) -> void:
 		ball.rotate_y(delta)
 	for b in _bobbers:
 		(b.node as Node3D).position.y = b.y + sin(_time * b.speed + b.phase) * b.amount
+	_update_neon(delta)
 	var cam := get_viewport().get_camera_3d()
 	for i in mini(_tags.size(), marbles.size()):
 		var tag: Node3D = _tags[i]
@@ -312,6 +316,8 @@ func _build() -> void:
 	_sports_island()
 	_play_portal()
 	_alley_entrance()
+	_neon_sign()
+	_shoe_rental()
 	_hurdles()
 	_playground()
 	_windmill(Vector3(-17, 0, -23))
@@ -633,6 +639,101 @@ func _alley_entrance() -> void:
 	for k in 6:
 		var shelf := 0.5 if k < 3 else 0.93
 		LowPoly.ball(self, rack + Vector3(-0.58 + (k % 3) * 0.58, shelf + 0.2, 0), 0.2, colors[k], 12)
+
+
+## A neon LANES sign on top of the PLAY arch: pink glowing letters on a
+## dark board, ringed by a blue tube. Like a real old sign, a letter
+## sputters now and then.
+func _neon_sign() -> void:
+	var at := PORTAL_POS + Vector3(0, 5.55, 0.05)
+	var board := LowPoly.box(self, Vector3(3.6, 1.0, 0.14), at, Color(0.08, 0.06, 0.12), 0.0)
+	board.name = "NeonBoard"
+	for x in [-1.3, 1.3]:
+		LowPoly.box(self, Vector3(0.08, 0.5, 0.08), PORTAL_POS + Vector3(x, 4.9, 0.05), Color(0.2, 0.2, 0.24), 0.0)
+	var tube := Color(0.3, 0.75, 1.0)
+	for e in [[Vector3(3.5, 0.05, 0.05), Vector3(0, 0.44, 0)], [Vector3(3.5, 0.05, 0.05), Vector3(0, -0.44, 0)],
+			[Vector3(0.05, 0.93, 0.05), Vector3(-1.73, 0, 0)], [Vector3(0.05, 0.93, 0.05), Vector3(1.73, 0, 0)]]:
+		var t := _glow_box(e[0], at + e[1] + Vector3(0, 0, -0.1), tube)
+		_neon.append({"node": t, "color": tube})
+	var letters := "LANES"
+	for k in letters.length():
+		var l := LowPoly.label(self, at + Vector3(1.2 - k * 0.6, -0.02, -0.1), letters[k], 96, Color(1.0, 0.25, 0.6), PI)
+		l.modulate = Color(1.0, 0.85, 0.95)
+		l.outline_size = 22
+		l.shaded = false
+		l.name = "Neon%s%d" % [letters[k], k]
+		_neon.append({"node": l, "color": l.modulate})
+
+
+## A see-through-free glowing bar (neon tube).
+func _glow_box(size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = pos
+	add_child(mi)
+	return mi
+
+
+func _update_neon(delta: float) -> void:
+	if _neon.is_empty():
+		return
+	# Every so often one letter (the E, like every old sign) buzzes off and on.
+	_neon_flicker -= delta
+	var e: Dictionary = _neon[_neon.size() - 2]
+	var on := true
+	if _neon_flicker < 0.0:
+		if _neon_flicker < -0.6:
+			_neon_flicker = _rng.randf_range(3.0, 7.0)
+		else:
+			on = fmod(-_neon_flicker, 0.16) > 0.07
+	(e.node as Label3D).modulate = e.color if on else Color(0.35, 0.2, 0.3)
+	(e.node as Label3D).outline_modulate = Color(1.0, 0.25, 0.6) if on else Color(0.25, 0.08, 0.18)
+
+
+## A bowling alley shoe-rental counter on the other side of the PLAY arch
+## from the ball rack: a wooden counter with a bell, cubbies of two-tone
+## bowling shoes behind it and a SHOE RENTAL sign. Solid, so marbles
+## bounce off it.
+func _shoe_rental() -> void:
+	var at := PORTAL_POS + Vector3(-7.1, 0, -0.4)
+	reserved.append([at + Vector3(0, 0, 0.5), 1.7])
+	var wood := Color(0.55, 0.33, 0.18)
+	var cream := Color(0.96, 0.9, 0.76)
+	# The counter (front faces the plaza, toward -Z).
+	LowPoly.box(self, Vector3(2.4, 0.95, 0.6), at + Vector3(0, 0.475, 0), wood, 0.0)
+	LowPoly.box(self, Vector3(2.5, 0.08, 0.7), at + Vector3(0, 0.99, 0), cream, 0.0)
+	LowPoly.box(self, Vector3(2.4, 0.12, 0.02), at + Vector3(0, 0.75, -0.31), Color(0.95, 0.3, 0.36), 0.0)
+	LowPoly.solid_box(self, Vector3(2.5, 1.05, 0.7), at + Vector3(0, 0.52, 0))
+	# A service bell.
+	LowPoly.cyl(self, 0.09, 0.09, 0.02, at + Vector3(0.75, 1.04, -0.1), Color(0.2, 0.2, 0.24), 10)
+	LowPoly.ball(self, at + Vector3(0.75, 1.08, -0.1), 0.07, Color(1.0, 0.8, 0.3), 10)
+	# Cubbies of shoes behind the counter.
+	var back := at + Vector3(0, 0, 0.75)
+	LowPoly.box(self, Vector3(2.4, 1.9, 0.4), back + Vector3(0, 0.95, 0.1), wood.darkened(0.25), 0.0)
+	LowPoly.solid_box(self, Vector3(2.4, 1.9, 0.4), back + Vector3(0, 0.95, 0.1))
+	var shoe_colors := [[Color(0.85, 0.2, 0.25), cream], [Color(0.2, 0.4, 0.85), cream], [Color(0.2, 0.6, 0.35), Color(0.15, 0.12, 0.1)],
+			[Color(0.9, 0.7, 0.2), Color(0.15, 0.12, 0.1)]]
+	for row in 3:
+		LowPoly.box(self, Vector3(2.4, 0.05, 0.42), back + Vector3(0, 0.45 + row * 0.55, -0.12), wood, 0.0)
+		for col in 4:
+			var pair: Array = shoe_colors[(row + col) % shoe_colors.size()]
+			var spot := back + Vector3(-0.85 + col * 0.57, 0.53 + row * 0.55, -0.2)
+			for side in [-0.07, 0.07]:
+				# A two-tone shoe: a toe and a heel.
+				LowPoly.box(self, Vector3(0.11, 0.1, 0.13), spot + Vector3(side, 0, -0.05), pair[0], 0.0)
+				LowPoly.box(self, Vector3(0.11, 0.1, 0.12), spot + Vector3(side, 0, 0.07), pair[1], 0.0)
+	# The sign over the cubbies.
+	LowPoly.box(self, Vector3(2.5, 0.45, 0.1), back + Vector3(0, 2.15, -0.05), Color(0.12, 0.1, 0.18), 0.0)
+	var sign := LowPoly.label(self, back + Vector3(0, 2.15, -0.12), "SHOE RENTAL", 52, Color(0.35, 0.05, 0.1), PI)
+	sign.modulate = Color(1.0, 0.85, 0.4)
+	sign.name = "ShoeRentalSign"
 
 
 func _hurdles() -> void:

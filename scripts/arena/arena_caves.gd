@@ -43,6 +43,11 @@ func light_sun(sun: DirectionalLight3D) -> void:
 	sun.light_energy = 0.45
 
 
+## The pop word when a marble falls off the track and lands here.
+func fall_word() -> Array:
+	return ["FIZZLE!", Color(0.6, 0.95, 1.0)]
+
+
 func fall_burst(parent: Node, at: Vector3, color: Color) -> void:
 	# A shower of glowing sparkles.
 	_burst(parent, Vector3(at.x, GROUND_Y + 0.1, at.z), Color(0.6, 0.95, 1.0).lerp(color, 0.4), 45, 0.07, 3.0, 7.0,

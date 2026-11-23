@@ -459,6 +459,11 @@ func _build_settings_page() -> void:
 	shake.value_changed.connect(func(i):
 		settings.camera_shake = [0.0, 0.5, 1.0, 1.6][i]
 		_save())
+	# The little jolt when you press a button (see UIFeel).
+	var ui_shake := _stepper(page, "UI SHAKE", ["OFF", "LOW", "NORMAL", "HIGH"])
+	ui_shake.value_changed.connect(func(i):
+		settings.ui_shake = [0.0, 0.5, 1.0, 1.6][i]
+		_save())
 	var rumble := _stepper(page, "RUMBLE", ["OFF", "ON"])
 	rumble.value_changed.connect(func(i):
 		settings.rumble = i == 1
@@ -487,6 +492,7 @@ func _build_settings_page() -> void:
 		gfx.index = settings.graphics
 		volume.index = roundi(settings.master_volume * 10.0)
 		shake.index = maxi([0.0, 0.5, 1.0, 1.6].find(settings.camera_shake), 0)
+		ui_shake.index = maxi([0.0, 0.5, 1.0, 1.6].find(settings.ui_shake), 0)
 		rumble.index = 1 if settings.rumble else 0
 		replay.index = 1 if settings.strike_replay else 0
 		fps.index = 1 if settings.show_fps else 0

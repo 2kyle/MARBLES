@@ -58,6 +58,9 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## Done
 
+- **Done** · **Pickaxe-on-rock UI feel** (November 23)
+  Chipped, faceted stone look for every button, panel and card; clink and shine sounds (placeholders you can swap, see docs/UI_FEEL.md); rock chips, squash and a screen jolt on every press; Settings > UI SHAKE.
+
 - **Done** · **Massive content update** (November 23)
   **Loop-de-Loop** piece (a full vertical loop with a booster and a funnel), the **Bounce Pad is now aimed** (turn it to fling marbles sideways), four new **WILD FRAMES** rules (TINY BALLS, REVERSE STEER, MAGNET MANIA, WINDY), a **TIME TRIAL ghost** that races your best run, **SKY RINGS** for the biplane (a timed lap through eight rings, 20 coins), a **neon LANES sign** and **SHOE RENTAL** counter by the PLAY arch, and a pop word for each world when a marble falls off (SPLASH!, KER-SPLAT!, FIZZLE!, FLUMP!, POOF!).
 

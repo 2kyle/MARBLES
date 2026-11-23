@@ -230,6 +230,9 @@ func _ready() -> void:
 	settings.load_from_disk()
 	settings.apply()
 	camera_shake = settings.camera_shake
+	# The pickaxe-on-rock button feel (looks, clinks, chips, jolts).
+	UIFeel.install(self)
+	UIFeel.shake_amount = settings.ui_shake
 	draft_build.setup(builder, player_count, player_colors)
 	hud.thumbnails = $Thumbnails
 	menu = MainMenu.new()
@@ -254,6 +257,7 @@ func _ready() -> void:
 		if hub and hub.visible:
 			_refresh_ready_tags()
 		camera_shake = settings.camera_shake
+		UIFeel.shake_amount = settings.ui_shake
 		retro_filter.set_look(settings.retro_look)
 		_apply_graphics())
 	menu.practice_requested.connect(_enter_hub)

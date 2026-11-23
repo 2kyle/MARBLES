@@ -22,6 +22,9 @@ var graphics := 2
 var graphics_auto := true
 ## Camera.
 var camera_shake := 1.0
+## The little screen jolt when you press a button (see UIFeel): 0 off,
+## 0.5 low, 1 normal, 1.6 high.
+var ui_shake := 1.0
 ## Controller rumble on big hits, strikes and falls.
 var rumble := true
 ## Slow-motion replay from by the pins after a strike.
@@ -56,6 +59,7 @@ func load_from_disk() -> void:
 	graphics_auto = cfg.get_value("screen", "graphics_auto", graphics_auto)
 	master_volume = cfg.get_value("sound", "master_volume", master_volume)
 	camera_shake = cfg.get_value("camera", "shake", camera_shake)
+	ui_shake = cfg.get_value("camera", "ui_shake", ui_shake)
 	strike_replay = cfg.get_value("camera", "strike_replay", strike_replay)
 	rumble = cfg.get_value("controls", "rumble", rumble)
 	player_symbols = cfg.get_value("screen", "player_symbols", player_symbols)
@@ -80,6 +84,7 @@ func save_to_disk() -> void:
 	cfg.set_value("screen", "graphics_auto", graphics_auto)
 	cfg.set_value("sound", "master_volume", master_volume)
 	cfg.set_value("camera", "shake", camera_shake)
+	cfg.set_value("camera", "ui_shake", ui_shake)
 	cfg.set_value("camera", "strike_replay", strike_replay)
 	cfg.set_value("controls", "rumble", rumble)
 	cfg.set_value("screen", "player_symbols", player_symbols)

@@ -554,6 +554,14 @@ func _update_draft(game) -> void:
 				break
 		var style: StyleBoxFlat = card.style
 		var target_scale := 1.0
+		# Pickaxe feel: a tick when a pointer moves onto a card, a clink,
+		# chips and a jolt when someone grabs it (see UIFeel).
+		if owner != card.was_owner and owner != -1:
+			UIFeel.strike(panel, game.player_colors[owner], 0.7 if game.is_bot(owner) else 1.3, false)
+		elif hover != card.was_hover and hover != -1 and owner == -1 and not game.is_bot(hover):
+			UIFeel.hover(panel)
+		card.was_owner = owner
+		card.was_hover = hover
 		if owner != -1:
 			style.border_color = game.player_colors[owner]
 			card.pic.modulate = Color(1, 1, 1, 0.35)
@@ -668,7 +676,7 @@ func _build_cards(crate: Array) -> void:
 		panel.modulate.a = 0.0
 		# "born": when it was dealt (see _update_draft for the deal-in).
 		_cards.append({"panel": panel, "style": style, "pic": pic, "stamp": stamp,
-				"born": Time.get_ticks_msec() / 1000.0})
+				"born": Time.get_ticks_msec() / 1000.0, "was_owner": -1, "was_hover": -1})
 
 
 ## A tilted red NEW! sticker for the top corner of a draft card.

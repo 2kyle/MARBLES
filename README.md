@@ -19,7 +19,7 @@ The game opens on the **BOWLING WIP** title screen (a working title; it's `TITLE
 - **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** hosts or joins a game over the internet or your home network (see below).
-- **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), **graphics** (LOW, MEDIUM or HIGH), volume, camera shake, controller **rumble** on/off, strike replay on/off, an FPS counter, **wild frames** on/off and **player symbols** on/off (colour-blind friendly shapes, see below). Long menu pages scroll (following the highlighted row) so they fit small screens. Settings and the last match options are saved on this computer (`user://settings.cfg`).
+- **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), **graphics** (LOW, MEDIUM or HIGH), volume, camera shake, **UI shake** (the little jolt when you press a button), controller **rumble** on/off, strike replay on/off, an FPS counter, **wild frames** on/off and **player symbols** on/off (colour-blind friendly shapes, see below). Long menu pages scroll (following the highlighted row) so they fit small screens. Settings and the last match options are saved on this computer (`user://settings.cfg`).
 - **How to play** is a short picture guide to a frame: draft a piece, build it into the lane, then roll and smash the pins (see below).
 - **Controls**, **Credits** and **Quit**.
 
@@ -428,6 +428,10 @@ To play on a track you've drawn yourself instead, click the **Main** node in `sc
 
 Tight corners send marbles over the wall, which is half the fun, but a corner sharper than about 4 m across will make the walls fold over each other.
 
+### The UI feel: pickaxe on rock
+
+Every button, panel and card has sharp, chipped stone edges with light and shadow facets (drawn in code, no textures). Moving onto a button ticks and glints; pressing it squashes it, sprays rock chips and sparkles, sweeps a shine across it, goes **clink!** and gives the screen a quick jolt (Settings > UI SHAKE). Draft cards, the closet and loot crates join in. The sounds are made in code as placeholders: drop your own `clink.wav`, `shine.wav` and friends into `assets/sounds/ui/` and they're used instead. Full guide: [docs/UI_FEEL.md](docs/UI_FEEL.md).
+
 ### Fonts
 
 Text uses two free fonts, both under the SIL Open Font License (the licence files are in `fonts/`):
@@ -490,6 +494,8 @@ scripts/
   piece_style.gd     the painted-toy colours and patterns for every lane piece
   horse_race.gd      the Ball Derby betting minigame
   main_menu.gd       title screen, Play/Settings/Controls/Credits pages, pause menu
+  ui_feel.gd         the pickaxe-on-rock feel: chipped stone look, chips, shine, screen jolt
+  ui_sfx.gd          UI sounds (clink, shine...): code-made placeholders, swappable
   game_settings.gd   saved settings (screen, sound, camera, match options)
   decor.gd           start/finish arches, lanterns, braces, rocks, islands, buoys
   thumbnails.gd      live pictures of each piece for the draft cards
@@ -565,6 +571,7 @@ godot --headless --script res://tests/test_wild_frames.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_wild.gd
 godot --headless --script res://tests/test_player_symbols.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_time_trial.gd
+godot --headless --fixed-fps 120 --script res://tests/test_ui_feel.gd
 godot --headless --fixed-fps 120 --script res://tests/perf_probe.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam

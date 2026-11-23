@@ -152,10 +152,11 @@ func request_confirm() -> void:
 			player_color = card.item.color
 		_refresh_cards()
 		_pop(card.panel, 1.18)
+		UIFeel.strike(card.panel, player_color, 1.1, false)
 		_bounce_marble()
 		_set_status("EQUIPPED!", Color(0.5, 1.0, 0.6))
 	else:
-		_shake(card.panel)
+		UIFeel.deny(card.panel)
 		_set_status("LOCKED: WIN IT FROM A LOOT CRATE", Color(1.0, 0.55, 0.5))
 
 
@@ -182,6 +183,8 @@ func _show_tab(t: int, animate: bool) -> void:
 		var label: Label = _tabs[i].get_child(0)
 		label.add_theme_color_override("font_color", Color.WHITE if i == t else Color(1, 1, 1, 0.45))
 	_select(Cosmetics.index_of(slot, profiles.equipped(player, slot)), false, false)
+	if animate:
+		UIFeel.hover(_tabs[t])
 	_refresh_cards()
 	# A new tab always starts scrolled to the top.
 	_scroll.scroll_vertical = 0
@@ -218,6 +221,7 @@ func _select(i: int, animate := true, scroll := true) -> void:
 	_highlight()
 	if animate and old != index:
 		_bounce_marble()
+		UIFeel.hover(_cards[index].panel)
 	_try_on()
 	if scroll:
 		var card: Dictionary = _cards[index]

@@ -96,6 +96,7 @@ func request_confirm() -> void:
 			var won := LootCrates.open(profiles, player, _rng)
 			if won.is_empty():
 				_shake_label(_prompt)
+				UIFeel.deny(_prompt)
 				_prompt.text = "NOT ENOUGH COINS: NEED %d" % LootCrates.PRICE
 				return
 			prize = won
@@ -106,6 +107,7 @@ func request_confirm() -> void:
 			_prompt.text = ""
 			_odds.visible = false
 			_hint.visible = false
+			UIFeel.strike(_prompt, GOLD, 1.0, false)
 			_start_reel()
 		Step.REVEAL:
 			_reset_crate()
@@ -213,6 +215,8 @@ func _show_prize() -> void:
 	var pop := card.create_tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	pop.tween_property(card, "scale", Vector2.ONE, 0.45)
 	pop.tween_property(card, "rotation", 0.0, 0.45)
+	# The big CLINK! of the prize breaking out (see UIFeel).
+	UIFeel.strike(card, cs.border_color, 1.6, false, "big")
 	_rays.modulate.a = 0.0
 	_rays.create_tween().tween_property(_rays, "modulate:a", 1.0, 0.3)
 	# Coins tick up to the new total.
@@ -532,6 +536,8 @@ func _spin_reel() -> void:
 	if under != _reel_tick:
 		# A little bump of the marker for every tile that passes it.
 		_reel_tick = under
+		# Tick... tick... tick, higher as it slows to a stop.
+		UISfx.play("hover", 1.0 + u * 0.4)
 		_marker.scale = Vector2(1.25, 1.0)
 		_marker.create_tween().tween_property(_marker, "scale", Vector2.ONE, 0.08)
 	var col := Cosmetics.rarity_color(prize.rarity) if prize.kind != "coins" else GOLD

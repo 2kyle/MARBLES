@@ -19,6 +19,8 @@ var _phase := 0
 
 func _initialize() -> void:
 	Achievements.save_path = "user://test_achievements.cfg"
+	TimeTrial.ghost_path = "user://test_ghost_run.cfg"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TimeTrial.ghost_path))
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 
@@ -91,10 +93,26 @@ func _physics_process(_d: float) -> bool:
 				var best: float = game.profiles.best_run(game.profile_of(0))
 				check("it's saved as a best (%.2fs)" % best, best > 0.0 and best <= s + 0.001)
 				check("the RUN RECORDS board shows it", hub.trial._board.text.contains("P1"))
-				_done()
-				return true
+				check("the run is kept as the ghost (%d samples, %.2fs)" % [hub.trial.ghost.size(), hub.trial.ghost_time],
+						hub.trial.ghost.size() > 20 and is_equal_approx(hub.trial.ghost_time, s))
+				var again := TimeTrial.new()
+				again.course = c
+				again.load_ghost()
+				check("the ghost is saved to disk and loads back", again.ghost.size() == hub.trial.ghost.size())
+				again.free()
+				_put_on_run(m, TimeTrial.START_AT + 0.5, 2.0)
+				_phase = 4
+				_step_t = 0
+				return false
 			if _step_t > 120 * 40:
 				check("a real run down the practice run finishes (never got there, at %.1f m of %.1f)" % [d, c.length()], false)
+				_done()
+				return true
+		4:
+			if _step_t == 30:
+				var g: Vector3 = hub.trial.ghost_position(0.0)
+				check("the next run has the ghost racing alongside", hub.trial.ghost_racing())
+				check("the ghost starts at the top of the run (%.1f m from the start)" % c.distance_of(g), c.distance_of(g) < TimeTrial.START_AT + 2.0)
 				_done()
 				return true
 	return false

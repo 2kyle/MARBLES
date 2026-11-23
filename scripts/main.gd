@@ -438,6 +438,10 @@ func _ensure_hub() -> void:
 ## The island's world, state and camera, once its marbles are placed.
 func _arrive_on_hub() -> void:
 	hub.casino.profiles = profiles
+	var names := []
+	for p in player_count:
+		names.append(seat_name(p))
+	hub.trial.set_names(names)
 	_show_hub_world(true)
 	state = State.HUB
 	_refresh_colors()

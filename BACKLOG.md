@@ -51,10 +51,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **Photo mode** *(suggested by Claude)* · branch `nightly/photo-mode`
-  Pause, pick PHOTO MODE, and fly a free camera round the frozen game (move, up/down, look, zoom, tilt, hide the help) and save a PNG screenshot with Enter / P or A. Not in online games.
+*(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Photo mode** *(suggested by Claude)* (November 24, branch `nightly/photo-mode`)
+  Pause, pick PHOTO MODE, and fly a free camera round the frozen game (move, up/down, look, zoom, tilt, hide the help) and save a PNG screenshot with Enter / P or A. Photos go in the game's `screenshots` folder (O opens it). Not in online games.
 
 - **Done** · **Pickaxe-on-rock UI feel** (November 23)
   Chipped, faceted stone look for every button, panel and card; clink and shine sounds (placeholders you can swap, see docs/UI_FEEL.md); rock chips, squash and a screen jolt on every press; Settings > UI SHAKE.

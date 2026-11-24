@@ -10,6 +10,7 @@ extends CanvasLayer
 ## net.gd do the networking); the lobby page shows who's in, lets the host
 ## invite Steam friends, add bots and start.
 ## ACHIEVEMENTS lists every achievement and which ones you have.
+## PHOTO MODE (on the pause menu) freezes the game for a free camera (PhotoMode).
 ## HOW TO PLAY is a short picture guide (draft, build, roll). main.gd also
 ## shows it over the first match anyone starts on this computer.
 ##
@@ -26,6 +27,7 @@ signal lobby_leave_requested
 signal lobby_start_requested
 signal lobby_bots_changed(count: int)
 signal resume_requested
+signal photo_requested
 signal restart_frame_requested
 signal quit_to_menu_requested
 signal quit_requested
@@ -39,6 +41,7 @@ const TITLE := "BOWLING WIP"
 const VERSION := "prototype"
 
 var _retry_button: Button
+var _photo_button: Button
 var settings: GameSettings
 ## Set by main.gd; the online page asks it whether Steam is running.
 var steam: SteamService
@@ -200,8 +203,10 @@ func open_main() -> void:
 
 ## Show the pause menu over a match.
 ## `retry`: show RETRY FRAME (not at the hub, where there's no frame).
-func open_pause(retry := true) -> void:
+## `photo`: show PHOTO MODE (not online, where the game can't freeze).
+func open_pause(retry := true, photo := true) -> void:
 	_retry_button.visible = retry
+	_photo_button.visible = photo
 	paused_menu = true
 	_stack = ["pause"]
 	_show_top()
@@ -653,6 +658,7 @@ func _build_pause_page() -> void:
 	var page := _page("pause", "PAUSED")
 	_button(page, "RESUME", func(): resume_requested.emit(), true)
 	_retry_button = _button(page, "RETRY FRAME", func(): restart_frame_requested.emit())
+	_photo_button = _button(page, "PHOTO MODE", func(): photo_requested.emit())
 	_button(page, "SETTINGS", func(): _push("settings"))
 	_button(page, "CONTROLS", func(): _push("controls"))
 	_button(page, "QUIT TO MENU", func(): quit_to_menu_requested.emit())

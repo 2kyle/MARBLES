@@ -23,7 +23,7 @@ The game opens on the **BOWLING WIP** title screen (a working title; it's `TITLE
 - **How to play** is a short picture guide to a frame: draft a piece, build it into the lane, then roll and smash the pins (see below).
 - **Controls**, **Credits** and **Quit**.
 
-During a match, **Esc** opens the pause menu.
+During a match (or on the island), **Esc** opens the pause menu: RESUME, RETRY FRAME, **PHOTO MODE** (see below), SETTINGS, CONTROLS and QUIT TO MENU.
 
 ### How to play guide
 
@@ -235,6 +235,27 @@ Switch it off in **Settings > STRIKE REPLAY**. It doesn't play in online games y
 
 The scoreboard then pops in and counts each player's new points up into their total one row at a time, with a "+N" flying off and the leader marked with a star.
 
+### Photo mode
+
+![Photo mode, flying low beside the marbles mid-roll](docs/photo_mode.png)
+
+Pause any moment (**Esc**, or **Start** on a controller) and pick **PHOTO MODE**. Everything freezes in place, marbles, flying pins, trails and pop words, and the HUD disappears. You get a free camera to fly round and line up a shot, then save it as a picture. Handy for the Steam store page and for sharing funny moments with friends.
+
+| | Keyboard | Controller |
+|---|---|---|
+| Move | W A S D | left stick |
+| Up / down | E / Q | RB / LB |
+| Look | arrow keys, or drag with the mouse | right stick |
+| Zoom | Z / X, or the mouse wheel | RT / LT |
+| Tilt the picture | C / V | d-pad left / right |
+| Fly faster | hold Shift | click the left stick |
+| **Take the photo** | **Enter** or **P** | **A** |
+| Hide the help panel | H | Y |
+| Back to where you started | Backspace | X |
+| Leave (back to the pause menu) | Esc | B or Start |
+
+Photos are saved as PNG files in a **screenshots** folder in the game's save folder (`user://screenshots`; on Windows that's `%APPDATA%\Godot\app_userdata\<game name>\screenshots`). After taking one, press **O** to open that folder. The help panel hides itself for the picture, and the retro look and ink outlines stay on. The camera can fly up to 60 metres from where you paused, and goes back exactly where it was when you leave. Photo mode isn't in online games, because the game can't freeze for everyone. The code is `scripts/photo_mode.gd`.
+
 ### Wild frames
 
 Every third frame (3, 6, 9) is a **WILD FRAME**: one rule is bent for everyone. Each rule has its own badge (a feather, spring, flame, weight, snowflake, up arrow, little ball, crossed arrows, horseshoe magnet or gusts, drawn in `scripts/wild_icon.gd`). It's announced with a big spinning badge and banner when the draft starts, a tag with the badge under the frame number all frame, and a soft glow round the screen edge in the rule's colour. The scoreboard marks wild frames with their badge (a "?" until they're played), and the results say "NEXT UP: A WILD FRAME!" the frame before one. The rules: LOW GRAVITY, SUPER BOUNCY, TURBO, HEAVY BALLS, ICE RINK, BIG HOPS, **TINY BALLS** (half-size marbles that slip through gaps between pieces), **REVERSE STEER** (left is right and right is left; bots know the trick), **MAGNET MANIA** (every marble pulls on the others when they're close) and **WINDY** (a gusty side wind that swings left and right). Online, every computer gets the same rule. Switch them off in **Settings > WILD FRAMES**. To add a rule, add it to `LIST` in `scripts/wild_frames.gd` and a branch in `apply()`.
@@ -324,6 +345,7 @@ Player 1's hop / place / grab key is **Space** (E still works too). Everything w
 | Roll: lean / hop | W A S D / Space | Arrow keys / Enter | Left stick (analog) / A |
 | Hub: roll / hop / leave a plate | W A S D / Space / Q | Arrows / Enter / Right Shift | Left stick / A / B or X |
 | Hub: turn the camera | Z / X, or hold the right mouse button and drag; mouse wheel to zoom | | Right stick |
+| Photo mode: fly / up-down / look / take photo / leave | W A S D / E Q / arrows or mouse drag / Enter or P / Esc | | Left stick / RB LB / right stick / A / B |
 
 **Controllers:** controller 1 plays as P1, controller 2 as P2, and so on, in the order they were plugged in. You can switch between keys and controller at any time, and the hints at the bottom of the screen show whichever you used last. Controllers give a little buzz on hard landings, crashes, falls and strikes (Settings > RUMBLE turns it off).
 
@@ -334,7 +356,7 @@ Player 1's hop / place / grab key is **Space** (E still works too). Everything w
 | **R** | Re-roll this frame on the same lane |
 | **C** | Turn marble-vs-marble collision on or off |
 | **V** (controller **LB**) | Switch between the follow camera and an overhead view |
-| **Esc** (controller **Start**) | Pause menu (resume, retry the frame, settings, or quit to the title screen) |
+| **Esc** (controller **Start**) | Pause menu (resume, retry the frame, photo mode, settings, or quit to the title screen) |
 
 ## Art direction (work in progress)
 
@@ -494,6 +516,7 @@ scripts/
   piece_style.gd     the painted-toy colours and patterns for every lane piece
   horse_race.gd      the Ball Derby betting minigame
   main_menu.gd       title screen, Play/Settings/Controls/Credits pages, pause menu
+  photo_mode.gd      PHOTO MODE: a free camera over the paused game that saves screenshots
   ui_feel.gd         the pickaxe-on-rock feel: chipped stone look, chips, shine, screen jolt
   ui_sfx.gd          UI sounds (clink, shine...): code-made placeholders, swappable
   game_settings.gd   saved settings (screen, sound, camera, match options)
@@ -527,6 +550,8 @@ tests/
   test_track_cards.gd  drops every TA card on a track and checks its preview and what it changed
   shot_ta.gd         screenshot of a TA card being placed (see the top of the file)
   test_strike_replay.gd  a strike plays the replay, any key skips it, everything ends up back in place
+  test_photo_mode.gd     the pause menu opens photo mode, the camera flies, zooms and tilts, Esc puts it all back
+  shot_photo.gd          takes a photo-mode picture mid-roll (needs a real window) and checks the photo saves
   test_match_awards.gd   the award rules, and the awards screen before the podium (skippable)
   shot_replay.gd     screenshot part way through a strike replay (not a test)
   sim_gap.gd         rolls over a gap, with or without well-timed hops
@@ -572,6 +597,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_wild.gd
 godot --headless --script res://tests/test_player_symbols.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_time_trial.gd
 godot --headless --fixed-fps 120 --script res://tests/test_ui_feel.gd
+godot --headless --script res://tests/test_photo_mode.gd
 godot --headless --fixed-fps 120 --script res://tests/perf_probe.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam

@@ -21,28 +21,25 @@ This is the to-do list for the game, **most important at the top**. Every night 
 1. **To do** · **Pick the game's real name** *(suggested by Claude)*
    The title is now **BOWLING WIP** as a stand-in. Pick a name and it changes everywhere at once (`TITLE` in `scripts/main_menu.gd`).
 
-2. **To do** · **Photo mode** *(suggested by Claude)*
-   Pause any moment and fly a free camera round to take a screenshot (hide the HUD, tilt, zoom). Handy for the Steam store page and for friends to share funny moments.
-
-3. **To do** · **Daily challenge track** *(suggested by Claude)*
+2. **To do** · **Daily challenge track** *(suggested by Claude)*
    One track a day (the same for everyone, picked from the date) with a few pieces already placed. Roll it once a day and try to beat your best score on it.
 
-4. **To do** · **Strike replay online** *(suggested by Claude)*
+3. **To do** · **Strike replay online** *(suggested by Claude)*
    Show the slow-motion strike replay in online games too, so everyone watches it together (right now it only plays at one computer).
 
-5. **To do** · **Last two WILD FRAMES rules** *(suggested by Claude)*
+4. **To do** · **Last two WILD FRAMES rules** *(suggested by Claude)*
    GIANT PINS (a rack of huge pins) and FOG (only see the lane near you). The other new rules are done.
 
-6. **To do** · **Online biplane, ghost and run board** *(suggested by Claude)*
+5. **To do** · **Online biplane, ghost and run board** *(suggested by Claude)*
    Show the biplane and the TIME TRIAL ghost to online guests too (right now only the host sees them), and put guests' best runs on the RUN RECORDS board.
 
-7. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
+6. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
    An achievement for a perfect 300, SKEE-JUMP for online guests, and a high-score table per player.
 
-8. **To do** · **Corkscrew TA** *(suggested by Claude)*
+7. **To do** · **Corkscrew TA** *(suggested by Claude)*
    A full spiral that drops under itself. Needs the track to allow crossing over itself (supports and a clearance check by height), so it's a bigger job.
 
-9. **To do** · **Ring and loop achievements** *(suggested by Claude)*
+8. **To do** · **Ring and loop achievements** *(suggested by Claude)*
    New achievements: LOOP THE LOOP (go round a Loop-de-Loop), ACE PILOT (a SKY RINGS lap under 30 seconds) and GHOSTBUSTER (beat the ghost by a second).
 
 ## Needs you (Claude can't do these alone)
@@ -57,6 +54,9 @@ This is the to-do list for the game, **most important at the top**. Every night 
 *(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Photo mode** *(suggested by Claude)* (November 24, branch `nightly/photo-mode`)
+  Pause, pick PHOTO MODE, and fly a free camera round the frozen game (move, up/down, look, zoom, tilt, hide the help) and save a PNG screenshot with Enter / P or A. Photos go in the game's `screenshots` folder (O opens it). Not in online games.
 
 - **Done** · **Pickaxe-on-rock UI feel** (November 23)
   Chipped, faceted stone look for every button, panel and card; clink and shine sounds (placeholders you can swap, see docs/UI_FEEL.md); rock chips, squash and a screen jolt on every press; Settings > UI SHAKE.

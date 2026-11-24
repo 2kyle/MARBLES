@@ -138,6 +138,8 @@ var _cam_zoom := 1.0
 ## Screen, sound and match options (saved between sessions).
 var settings := GameSettings.new()
 var menu: MainMenu
+## The free camera for screenshots, opened from the pause menu.
+var photo: PhotoMode
 ## The practice island (built the first time someone opens it).
 var hub: Hub
 ## The full-screen closet and loot crate screens on the practice island.
@@ -240,6 +242,11 @@ func _ready() -> void:
 	add_child(menu)
 	menu.play_requested.connect(_on_play_requested)
 	menu.resume_requested.connect(_resume)
+	menu.photo_requested.connect(_open_photo_mode)
+	photo = PhotoMode.new()
+	photo.name = "PhotoMode"
+	add_child(photo)
+	photo.closed.connect(func(): _pause())
 	menu.restart_frame_requested.connect(_on_restart_frame_requested)
 	menu.quit_to_menu_requested.connect(_on_quit_to_menu)
 	menu.quit_requested.connect(func(): get_tree().quit())
@@ -795,7 +802,18 @@ func _pause() -> void:
 		return
 	# Online, the game keeps going for everyone else.
 	get_tree().paused = not net.active()
-	menu.open_pause(state != State.HUB)
+	menu.open_pause(state != State.HUB, not net.active())
+
+
+## PHOTO MODE: the game stays paused while a free camera flies round.
+## Leaving it comes back to the pause menu.
+func _open_photo_mode() -> void:
+	if net.active():
+		return
+	menu.close()
+	get_tree().paused = true
+	if not photo.open():
+		_pause()
 
 
 func _resume() -> void:

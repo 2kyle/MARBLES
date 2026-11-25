@@ -1,6 +1,8 @@
 extends SceneTree
 ## Screenshot helper (not part of the game). Usage:
 ##   godot --script res://tests/shot.gd -- <out.png> <mode> [arg]
+## Modes include title, draft, build, roll, podium, awards, wild, howto,
+## hub, daily (the DAILY CHALLENGE page) and dailyready (its ready screen).
 var game: Node
 var _t := 0
 var out := "user://shot.png"
@@ -54,6 +56,15 @@ func _setup() -> void:
 			game._setup_local_seats()
 			game._new_match()
 			game.menu.close()
+		"daily":
+			# The DAILY CHALLENGE page on the title screen.
+			game.settings.player_count = 2
+			game.menu._push("daily")
+		"dailyready":
+			# The ready screen of today's DAILY CHALLENGE (pieces already down).
+			game.settings.player_count = 1
+			game.auto_how_to_play = false
+			game._on_daily_requested()
 		"howto":
 			# The HOW TO PLAY pop-up over a match; arg = step (0, 1 or 2).
 			game.settings.player_count = 2

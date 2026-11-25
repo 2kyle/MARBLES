@@ -302,6 +302,8 @@ func _update_scores(game) -> void:
 
 func _update_top(game) -> void:
 	var text := "FRAME %d/%d" % [game.frame, game.frames_per_match]
+	if game.daily_on:
+		text = "DAILY      " + text
 	if game.state in [game.State.COUNTDOWN, game.State.ROLLING, game.State.RESULTS, game.State.MATCH_OVER]:
 		text += "      PINS %d" % game.rack.standing_count()
 	if game.state == game.State.ROLLING:
@@ -775,6 +777,8 @@ func _update_ready(game) -> void:
 	if not show:
 		return
 	_ready_sub.text = "PRESS %s TO START  ·  CHANGE LOOKS IN THE CLOSET AT THE HUB" % _gk("SPACE")
+	if game.daily_on:
+		_ready_sub.text = "DAILY CHALLENGE  ·  %s  ·  PRESS %s TO START" % [DailyChallenge.pretty(game.daily_key), _gk("SPACE")]
 	var pulse := 1.0 + sin(Time.get_ticks_msec() / 1000.0 * 3.0) * 0.04
 	_ready_title.pivot_offset = _ready_title.size / 2.0
 	_ready_title.scale = Vector2(pulse, pulse)
@@ -1168,6 +1172,7 @@ func _fill_board(game) -> void:
 				lines.append("NEXT UP: A WILD FRAME!")
 		game.State.MATCH_OVER:
 			_board_title.text = _winner_text(game)
+			lines.append(game.daily_summary())
 			lines.append(_coins_text(game, true))
 		_:
 			_board_title.text = "SCORES"
@@ -1625,6 +1630,9 @@ func _coins_text(game, whole_match: bool) -> String:
 
 
 func _winner_text(game) -> String:
+	# A daily challenge on your own: it's about your score, not winning.
+	if game.daily_on and game.player_count == 1:
+		return "NEW BEST!" if game.daily_new_best[0] else "YOU SCORED %d" % game.totals[0]
 	var best := -1
 	var winners := []
 	for i in game.player_count:

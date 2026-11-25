@@ -48,10 +48,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **Daily challenge track** *(suggested by Claude)* (November 25, branch `nightly/daily-challenge-track`)
-  DAILY CHALLENGE on the title screen: one track a day, the same for everyone (the date picks the track, world, three starting pieces and the crates). 5 frames, no bots, best score today and a day streak per player.
+*(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Daily challenge track** *(suggested by Claude)* (November 25, branch `nightly/daily-challenge-track`)
+  DAILY CHALLENGE on the title screen: one track a day, the same for everyone (the date picks the track, world, three starting pieces and the crates). 5 frames, no bots, best score today and a day streak per player.
 
 - **Done** · **Photo mode** *(suggested by Claude)* (November 24, branch `nightly/photo-mode`)
   Pause, pick PHOTO MODE, and fly a free camera round the frozen game (move, up/down, look, zoom, tilt, hide the help) and save a PNG screenshot with Enter / P or A. Photos go in the game's `screenshots` folder (O opens it). Not in online games.

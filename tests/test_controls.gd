@@ -73,15 +73,18 @@ func _process(_d: float) -> bool:
 			pad_button(0, JOY_BUTTON_DPAD_DOWN)
 		2:
 			pad_button(0, JOY_BUTTON_DPAD_DOWN, false)
-			check("D-pad down moves to: " + focused(), focused().begins_with("THE HUB"))
+			check("D-pad down moves to: " + focused(), focused().begins_with("DAILY CHALLENGE"))
 			key(KEY_S)
 		3:
 			key(KEY_S, false)
-			check("S moves to: " + focused(), focused().begins_with("ONLINE"))
+			check("S moves to: " + focused(), focused().begins_with("THE HUB"))
 			pad_axis(0, JOY_AXIS_LEFT_Y, 1.0)
 		4:
 			pad_axis(0, JOY_AXIS_LEFT_Y, 0.0)
-			check("left stick down moves to: " + focused(), focused().begins_with("SETTINGS"))
+			check("left stick down moves to: " + focused(), focused().begins_with("ONLINE"))
+			# One more down to SETTINGS.
+			root.gui_get_focus_owner().find_valid_focus_neighbor(SIDE_BOTTOM).grab_focus()
+			check("on SETTINGS: " + focused(), focused().begins_with("SETTINGS"))
 			pad_button(0, JOY_BUTTON_A)
 		5:
 			pad_button(0, JOY_BUTTON_A, false)

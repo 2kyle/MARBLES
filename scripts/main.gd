@@ -160,6 +160,16 @@ var ink: InkOutline
 var _menu_time := 0.0
 ## Coins, owned looks and equipped looks for each seat (saved to disk).
 var profiles := Profiles.new()
+## DAILY CHALLENGE: today's track for everyone (DailyChallenge). `daily_on`
+## while one is being played, `daily_key` is its date, and `daily_new_best`
+## says (per seat) who beat their best for the day when it ended.
+var daily := DailyChallenge.new()
+var daily_on := false
+var daily_key := ""
+var daily_new_best: Array = [false, false, false, false]
+## Picks the daily challenge's crates (kept apart from `_rng`, so a marble
+## getting a hop out of a corner can't change the next crate).
+var _daily_rng := RandomNumberGenerator.new()
 ## Each player's marble colour (from the closet).
 var player_colors: Array = PLAYER_COLORS.duplicate()
 ## Coins each player earned in the last frame / match, for the scoreboard.
@@ -229,6 +239,7 @@ func _ready() -> void:
 	rack.swept.connect(_on_rack_swept)
 	arrival_line.body_entered.connect(_on_arrival_line_body_entered)
 	profiles.load_from_disk()
+	daily.load_from_disk()
 	settings.load_from_disk()
 	settings.apply()
 	camera_shake = settings.camera_shake
@@ -239,8 +250,10 @@ func _ready() -> void:
 	hud.thumbnails = $Thumbnails
 	menu = MainMenu.new()
 	menu.settings = settings
+	menu.daily = daily
 	add_child(menu)
 	menu.play_requested.connect(_on_play_requested)
+	menu.daily_requested.connect(_on_daily_requested)
 	menu.resume_requested.connect(_resume)
 	menu.photo_requested.connect(_open_photo_mode)
 	photo = PhotoMode.new()
@@ -339,6 +352,7 @@ func show_title() -> void:
 ## PLAY -> START: set up a local match from the menu's options and go to
 ## the ready screen. The island shown behind the menu is the one you play on.
 func _on_play_requested() -> void:
+	_leave_daily()
 	_setup_local_seats()
 	frames_per_match = settings.frames_per_match
 	marbles_collide = settings.marbles_collide
@@ -347,6 +361,26 @@ func _on_play_requested() -> void:
 	menu.close()
 	_new_match(false)
 	_maybe_show_how_to_play()
+
+
+## DAILY CHALLENGE -> START: today's track, with the people at this
+## computer and no bots (it's you against your own best score).
+func _on_daily_requested() -> void:
+	daily_on = true
+	daily_key = DailyChallenge.today()
+	_setup_local_seats(false)
+	frames_per_match = DailyChallenge.FRAMES
+	marbles_collide = settings.marbles_collide
+	camera_shake = settings.camera_shake
+	draft_build.setup(builder, player_count, player_colors)
+	menu.close()
+	_new_match()
+	_maybe_show_how_to_play()
+
+
+## Back to normal matches after a daily challenge.
+func _leave_daily() -> void:
+	daily_on = false
 
 
 ## The first time anyone starts a match on this computer, show the HOW TO
@@ -364,6 +398,7 @@ func _maybe_show_how_to_play() -> void:
 ## Only people go to the island: bots join when a match starts.
 func _enter_hub() -> void:
 	menu.close()
+	_leave_daily()
 	_setup_local_seats()
 	player_count = clampi(settings.player_count, 1, 4)
 	camera_shake = settings.camera_shake
@@ -802,7 +837,8 @@ func _pause() -> void:
 		return
 	# Online, the game keeps going for everyone else.
 	get_tree().paused = not net.active()
-	menu.open_pause(state != State.HUB, not net.active())
+	# No RETRY FRAME in the daily challenge: every roll counts.
+	menu.open_pause(state != State.HUB and not daily_on, not net.active())
 
 
 ## PHOTO MODE: the game stays paused while a free camera flies round.
@@ -835,6 +871,7 @@ func _on_restart_frame_requested() -> void:
 
 func _on_quit_to_menu() -> void:
 	get_tree().paused = false
+	_leave_daily()
 	_close_screens()
 	if hub:
 		hub.stop()
@@ -857,9 +894,14 @@ func _reset_scores() -> void:
 ## Start a fresh match on the ready screen. `new_track` false keeps the island
 ## that's already built (the one behind the title screen).
 func _new_match(new_track := true) -> void:
+	if net.active():
+		daily_on = false   # the daily challenge is only for this computer
 	_reset_scores()
 	builder.clear()
-	if random_track and (new_track or track.layout.is_empty()):
+	daily_new_best = [false, false, false, false]
+	if daily_on:
+		_daily_track()
+	elif random_track and (new_track or track.layout.is_empty()):
 		_new_track()
 	_place_deck()
 	state = State.WAITING
@@ -885,6 +927,22 @@ func _new_track() -> void:
 	var theme: String = force_theme if force_theme != "random" else Arena.random_theme(_rng)
 	var width := snappedf(_rng.randf_range(TRACK_WIDTHS.x, TRACK_WIDTHS.y), 0.1)
 	_set_arena(theme, layout, -(lo + hi) / 2.0, width)
+
+
+## Today's DAILY CHALLENGE track: the same world, track and starting
+## pieces for everyone today, and the same crates each frame too.
+func _daily_track() -> void:
+	var plan := DailyChallenge.plan(daily_key)
+	var pts := TrackGen.points(plan.layout)
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for p in pts:
+		lo = lo.min(Vector2(p.x, p.z))
+		hi = hi.max(Vector2(p.x, p.z))
+	($Course/Decor as TrackDecor).seed = plan.decor_seed
+	_set_arena(plan.theme, plan.layout, -(lo + hi) / 2.0, plan.width)
+	DailyChallenge.place_pieces(builder, plan.pieces)
+	_daily_rng.seed = plan.crate_seed
 
 
 ## Build the track from `layout` inside the arena `theme`: its colours, sky,
@@ -1022,7 +1080,7 @@ func _prepare_roll() -> void:
 # ------------------------------------------------------------ Phases
 
 func _start_draft() -> void:
-	draft_build.start_draft(player_count + crate_extra, _rng)
+	draft_build.start_draft(player_count + crate_extra, _daily_rng if daily_on else _rng)
 	_phase_left = draft_time
 	state = State.DRAFT
 	net.send_event("draft", {"crate": draft_build.crate, "frame": frame})
@@ -1429,10 +1487,11 @@ func _new_bot(p: int) -> MarbleBot:
 	return bot
 
 
-## Local play: people first (from the Play page), then bots.
-func _setup_local_seats() -> void:
+## Local play: people first (from the Play page), then bots (none when
+## `with_bots` is off, as in the daily challenge).
+func _setup_local_seats(with_bots := true) -> void:
 	var people := clampi(settings.player_count, 1, 4)
-	var bot_n := clampi(settings.bot_count, 0, 4 - people)
+	var bot_n := clampi(settings.bot_count, 0, 4 - people) if with_bots else 0
 	player_count = people + bot_n
 	seat_kinds = []
 	seat_keys = [0, 1, 2, 3]
@@ -1960,10 +2019,40 @@ func _finish_frame() -> void:
 	match_stats.record_frame(last_result.pins, striker, _finish_times)
 	if state == State.MATCH_OVER:
 		awards = match_stats.results(player_count)
+		_record_daily()
 	_frame_achievements(striker)
 	if striker >= 0 and _start_replay(striker):
 		return   # the scores come in once the replay is over
 	_show_frame_result(striker)
+
+
+## The daily challenge is over: save everyone's score (and streak) and
+## note who beat their best for the day.
+func _record_daily() -> void:
+	if not daily_on:
+		return
+	for p in player_count:
+		var prof := profile_of(p)
+		if prof >= 0:
+			daily_new_best[p] = daily.record(daily_key, prof, totals[p])
+	daily.save_to_disk()
+
+
+## One line for the end-of-match board: each player's best today, with
+## NEW BEST! for anyone who just beat it.
+func daily_summary() -> String:
+	if not daily_on:
+		return ""
+	var parts := []
+	for p in player_count:
+		var prof := profile_of(p)
+		if prof < 0:
+			continue
+		var text := "%s %d" % [seat_name(p), maxi(daily.best_on(daily_key, prof), 0)]
+		if daily_new_best[p]:
+			text += " NEW BEST!"
+		parts.append(text)
+	return "TODAY'S BEST:  " + "   ".join(parts)
 
 
 ## The STRIKE! banner, the podium at the end of a match, and the result for

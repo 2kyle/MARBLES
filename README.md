@@ -17,6 +17,7 @@ A party game where friends build a bowling lane together, then race physics marb
 The game opens on the **BOWLING WIP** title screen (a working title; it's `TITLE` at the top of `scripts/main_menu.gd`, and every sign in the game uses it), with the camera slowly circling the island. From there:
 
 - **Play** picks how many people play at this computer (1 to 4), how many **bots** join them (up to four seats in all), how many frames (3, 5 or 10) and whether marbles bump, then starts a local match on a short READY? screen (press Space or Y to start). The default is one person and one bot.
+- **Daily challenge** is one track a day, the same for everyone, with a few pieces already on the lane. Beat your best score on it (see below).
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** hosts or joins a game over the internet or your home network (see below).
 - **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), **graphics** (LOW, MEDIUM or HIGH), volume, camera shake, **UI shake** (the little jolt when you press a button), controller **rumble** on/off, strike replay on/off, an FPS counter, **wild frames** on/off and **player symbols** on/off (colour-blind friendly shapes, see below). Long menu pages scroll (following the highlighted row) so they fit small screens. Settings and the last match options are saved on this computer (`user://settings.cfg`).
@@ -32,6 +33,20 @@ During a match (or on the island), **Esc** opens the pause menu: RESUME, RETRY F
 The first time anyone starts a match on this computer, a short guide pops up over the READY? screen. It has three little animated pictures, one per step of a frame: **Draft** (grab a piece card with your pointer), **Build** (slide, turn and drop your piece on a winding lane) and **Roll** (race down the twisty lane to the pins). Under each picture are the buttons for that step, drawn like real keyboard keys and controller buttons (for example the WASD keys or the left stick to move, Space or A to grab). Press **NEXT** (or right) to flip through, **BACK** (or left) to go back, and **GOT IT!** or **SKIP** (or Esc) to start playing. It only pops up once; after that it's always on the title screen under **HOW TO PLAY**. The game remembers you've seen it in `user://settings.cfg`, so deleting that file brings the pop-up back.
 
 The pictures are drawn in code in `scripts/how_to_play.gd`, and the words and button prompts for each step are in the `STEPS` list at the top of that file if you want to change them.
+
+### Daily challenge
+
+![The DAILY CHALLENGE page on the title screen](docs/daily_challenge.png)
+
+Pick **DAILY CHALLENGE** on the title screen. Every day there's one track for everyone: the date picks its shape, its world, its lane width and scenery, **three pieces already sitting on the lane**, and even which pieces turn up in each frame's crate. So if you and a friend both play it today, you get exactly the same challenge; tomorrow brings a new one.
+
+- It's **5 frames**, with the people at this computer (choose 1 to 4 on the page) and **no bots**: it's you against your own best.
+- Play it as often as you like that day. Your **best score today** is kept for each player and shown on the page, and at the end of a go the scoreboard shows TODAY'S BEST, with **NEW BEST!** when you beat it (on your own the title says NEW BEST! or YOU SCORED 34).
+- Play on days in a row to build a **STREAK** (shown on the page once it's 2 days or more).
+- There's no RETRY FRAME on the pause menu in a daily challenge: every roll counts.
+- The top of the screen says **DAILY** next to the frame number, and the READY? screen shows the date.
+
+Scores and streaks are saved on this computer in `user://daily.cfg` (delete it to start fresh). The code is in `scripts/daily_challenge.gd`: change `FRAMES`, `PIECES_PLACED` or the `STARTER_PIECES` list at the top to tune it. Tip: the "same for everyone" part works because the date is turned into a number (a *seed*) and every random pick uses it, so the same date always rolls the same dice.
 
 ### The Hub
 
@@ -517,6 +532,7 @@ scripts/
   horse_race.gd      the Ball Derby betting minigame
   main_menu.gd       title screen, Play/Settings/Controls/Credits pages, pause menu
   photo_mode.gd      PHOTO MODE: a free camera over the paused game that saves screenshots
+  daily_challenge.gd DAILY CHALLENGE: the day's track and pieces from the date, best scores and streaks
   ui_feel.gd         the pickaxe-on-rock feel: chipped stone look, chips, shine, screen jolt
   ui_sfx.gd          UI sounds (clink, shine...): code-made placeholders, swappable
   game_settings.gd   saved settings (screen, sound, camera, match options)
@@ -598,6 +614,7 @@ godot --headless --script res://tests/test_player_symbols.gd
 godot --headless --fixed-fps 120 --script res://tests/sim_time_trial.gd
 godot --headless --fixed-fps 120 --script res://tests/test_ui_feel.gd
 godot --headless --script res://tests/test_photo_mode.gd
+godot --headless --fixed-fps 120 --script res://tests/test_daily_challenge.gd
 godot --headless --fixed-fps 120 --script res://tests/perf_probe.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam

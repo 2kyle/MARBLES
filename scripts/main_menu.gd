@@ -9,6 +9,8 @@ extends CanvasLayer
 ## ONLINE hosts or joins a game, over Steam or by address (main.gd and
 ## net.gd do the networking); the lobby page shows who's in, lets the host
 ## invite Steam friends, add bots and start.
+## DAILY CHALLENGE shows today's track (the same for everyone, see
+## DailyChallenge), each player's best score today and their streak.
 ## ACHIEVEMENTS lists every achievement and which ones you have.
 ## PHOTO MODE (on the pause menu) freezes the game for a free camera (PhotoMode).
 ## HOW TO PLAY is a short picture guide (draft, build, roll). main.gd also
@@ -18,6 +20,7 @@ extends CanvasLayer
 ## left/right change a setting, Esc goes back. The mouse works too.
 
 signal play_requested
+signal daily_requested
 signal practice_requested
 signal host_requested
 signal steam_host_requested
@@ -43,6 +46,8 @@ const VERSION := "prototype"
 var _retry_button: Button
 var _photo_button: Button
 var settings: GameSettings
+## Best scores and streaks for the DAILY CHALLENGE page (set by main.gd).
+var daily: DailyChallenge
 ## Set by main.gd; the online page asks it whether Steam is running.
 var steam: SteamService
 ## True while the pause menu is up (during a match).
@@ -132,6 +137,7 @@ func _ready() -> void:
 
 	_build_main_page()
 	_build_play_page()
+	_build_daily_page()
 	_build_online_page()
 	_build_lobby_page()
 	_build_achievements_page()
@@ -323,6 +329,7 @@ func toast(text: String) -> void:
 func _build_main_page() -> void:
 	var page := _page("main", "")
 	_button(page, "PLAY", func(): _push("play"), true)
+	_button(page, "DAILY CHALLENGE", func(): _push("daily"))
 	_button(page, "THE HUB", _on_practice)
 	_button(page, "ONLINE", func(): _push("online"))
 	_button(page, "SETTINGS", func(): _push("settings"))
@@ -371,6 +378,40 @@ func _build_play_page() -> void:
 		bump.index = 0 if settings.marbles_collide else 1)
 	_note(page, "Everyone shares this keyboard. Players 3 and 4 use I J K L and the number pad.")
 	_button(page, "START", func(): play_requested.emit(), true)
+	_button(page, "BACK", back)
+
+
+## Today's challenge: the date, the world, everyone's best and streak.
+func _build_daily_page() -> void:
+	var page := _page("daily", "DAILY CHALLENGE")
+	var about := _note(page, "")
+	var players := _stepper(page, "PLAYERS", [1, 2, 3, 4])
+	players.value_changed.connect(func(i):
+		settings.player_count = i + 1
+		settings.bot_count = mini(settings.bot_count, 3 - i)
+		_save()
+		page.get_meta("sync").call())
+	var scores := Label.new()
+	scores.add_theme_font_override("font", TITLE_FONT)
+	scores.add_theme_font_size_override("font_size", 22)
+	scores.add_theme_color_override("font_color", GOLD)
+	page.add_child(scores)
+	page.set_meta("sync", func():
+		players.index = settings.player_count - 1
+		var key := DailyChallenge.today()
+		var plan := DailyChallenge.plan(key)
+		about.text = "%s  ·  %s  ·  %d FRAMES\nOne track a day, the same for everyone, with a few pieces already on it. Play it as often as you like: your best score today counts. No bots." % [
+				DailyChallenge.pretty(key), String(plan.theme).to_upper(), DailyChallenge.FRAMES]
+		var lines := []
+		for p in settings.player_count:
+			var best := daily.best_on(key, p) if daily else -1
+			var line := "P%d   BEST TODAY %s" % [p + 1, str(best) if best >= 0 else "-"]
+			var days := daily.streak(p, key) if daily else 0
+			if days > 1:
+				line += "   STREAK %d DAYS" % days
+			lines.append(line)
+		scores.text = "\n".join(lines))
+	_button(page, "START", func(): daily_requested.emit(), true)
 	_button(page, "BACK", back)
 
 

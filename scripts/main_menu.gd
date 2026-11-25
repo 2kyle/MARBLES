@@ -57,6 +57,15 @@ var _pages := {}
 var _stack: Array = []
 var _root: Control
 var _title_box: Control
+## Where menu panels may start, in pixels from the top: just under the
+## logo's letters, just under its tilted sticker (for wide panels that
+## reach under it), or near the top when the logo is tucked away.
+const LOGO_LETTERS_BOTTOM := 168.0
+const LOGO_STICKER_BOTTOM := 206.0
+const STICKER_LEFT := 520.0
+const PANEL_TOP_NO_LOGO := 36.0
+## Space kept free under a panel (the version line in the corner).
+const PANEL_BOTTOM_ROOM := 60.0
 var _toast: Label
 var _toast_time := 0.0
 var _fps: Label
@@ -294,13 +303,22 @@ func _show_top() -> void:
 	# Over a match, dim the whole screen; on the title screen only shade
 	# the left side so the island stays in view.
 	_dim.color = Color(0.02, 0.03, 0.08, 0.6) if paused_menu else Color(0, 0, 0, 0)
-	_title_box.visible = not paused_menu or top == "pause"
+	_update_logo()
 	for name in _pages:
 		_pages[name].visible = name == top
 	if top != "":
 		var first := _first_focus(_pages[top])
 		if first:
 			first.grab_focus.call_deferred()
+
+
+## The logo shows on the title pages and the pause menu, unless the page
+## on show is too tall for the screen and needs the room.
+func _update_logo() -> void:
+	var top: String = _stack[-1] if not _stack.is_empty() else ""
+	var page: Control = _pages.get(top)
+	var tall: bool = page != null and page.get_meta("hide_logo", false)
+	_title_box.visible = (not paused_menu or top == "pause") and not tall
 
 
 func _first_focus(node: Node) -> Control:
@@ -575,6 +593,7 @@ func _build_achievements_page() -> void:
 	scroll.custom_minimum_size = Vector2(760, 420)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	page.add_child(scroll)
+	page.set_meta("stretch", scroll)   # the list fills the room the screen has
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 18)
@@ -731,15 +750,34 @@ func _page(name: String, heading: String) -> VBoxContainer:
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(box)
 	var fit := func():
-		# Slide up toward the logo first (down to just under its letters),
-		# and only scroll if that still isn't enough room.
-		var want := box.get_combined_minimum_size().y
 		var screen_h := get_viewport().get_visible_rect().size.y
-		panel.position.y = clampf(screen_h - want - 48.0 - 12.0, 168.0, 214.0)
-		var room := screen_h - panel.position.y - 48.0 - 12.0
+		# Wide pages (CONTROLS, ACHIEVEMENTS) reach under the logo's
+		# PARTY BOWLING! sticker, so they stop just below it instead of
+		# just below the letters.
+		var top_limit := LOGO_LETTERS_BOTTOM if panel.get_combined_minimum_size().x < STICKER_LEFT - panel.position.x else LOGO_STICKER_BOTTOM
+		var stretch: Control = box.get_meta("stretch") if box.has_meta("stretch") else null
+		var want := box.get_combined_minimum_size().y
+		if stretch:
+			# A page with its own scrolling list: the list takes whatever
+			# room is left, so the page itself never needs a second scroll bar.
+			var others := box.get_combined_minimum_size().y - stretch.custom_minimum_size.y
+			var inner_want: float = stretch.get_child(0).get_combined_minimum_size().y if stretch.get_child_count() > 0 else 0.0
+			var left := screen_h - top_limit - PANEL_BOTTOM_ROOM - others
+			stretch.custom_minimum_size.y = clampf(left, 160.0, maxf(inner_want, 160.0))
+			want = others + stretch.custom_minimum_size.y
+		# Slide up toward the logo first. If that still isn't enough room
+		# but tucking the logo away would make the whole page fit, do that.
+		# Otherwise keep the logo and scroll (very long pages like SETTINGS).
+		var free := screen_h - want - PANEL_BOTTOM_ROOM
+		var hide_logo := free < top_limit and free >= PANEL_TOP_NO_LOGO
+		panel.set_meta("hide_logo", hide_logo)
+		panel.position.y = clampf(screen_h - want - PANEL_BOTTOM_ROOM, PANEL_TOP_NO_LOGO if hide_logo else top_limit, 214.0)
+		var room := screen_h - panel.position.y - PANEL_BOTTOM_ROOM
 		scroll.custom_minimum_size.y = minf(want, maxf(room, 200.0))
 		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if want > room else ScrollContainer.SCROLL_MODE_DISABLED
 		panel.reset_size()
+		if panel.visible:
+			_update_logo()
 	box.minimum_size_changed.connect(fit, CONNECT_DEFERRED)
 	panel.visibility_changed.connect(fit, CONNECT_DEFERRED)
 	get_viewport().size_changed.connect(fit)

@@ -1134,7 +1134,11 @@ func _process(delta: float) -> void:
 			_end_replay()
 	_update_camera()
 	hud.refresh(self)
-	menu.set_toast_floor(hud.bottom_used())
+	# The closet and crate screens have their own key hints along the bottom.
+	var floor_px := hud.bottom_used()
+	if closet.is_open() or crate_screen.is_open():
+		floor_px = maxf(floor_px, 56.0)
+	menu.set_toast_floor(floor_px)
 
 
 func _physics_process(delta: float) -> void:
@@ -1392,6 +1396,7 @@ func _refresh_colors() -> void:
 	for p in player_count:
 		player_colors[p] = look_for(p).color.color
 	draft_build.colors = player_colors
+	builder.player_colors = player_colors
 
 
 func _pressed_or_repeat(p: int, action: String, delta: float, rate := 0.09) -> bool:

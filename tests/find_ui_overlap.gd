@@ -33,6 +33,13 @@ func _initialize() -> void:
 	steps = [
 		["title", 20, func(): pass],
 		["settings", 20, func(): game.menu._push("settings")],
+	]
+	# Every other title-menu page.
+	for page in ["play", "daily", "howto", "online", "controls", "achievements", "credits"]:
+		steps.append([page, 20, func():
+			game.menu.open_main()
+			game.menu._push(page)])
+	steps += [
 		["draft", 30, func():
 			game.menu.close()
 			game.settings.player_count = people
@@ -47,7 +54,13 @@ func _initialize() -> void:
 			game.wild = "low_gravity"
 			game._start_draft()],
 		["build", 40, func(): game._start_build()],
-		["countdown", 30, func(): game._start_countdown()],
+		["pause", 20, func(): game._pause()],
+		["photo", 30, func(): game._open_photo_mode()],
+		["countdown", 30, func():
+			game.photo.close()
+			game.menu.close()
+			paused = false
+			game._start_countdown()],
 		["roll", 120, func(): pass],
 		["results", 60, func():
 			game.state = game.State.ROLLING
@@ -62,7 +75,12 @@ func _initialize() -> void:
 		["hub", 60, func():
 			game.settings.player_count = people
 			game._enter_hub()],
+		["closet", 40, func(): game._on_hub_customize(0)],
+		["crate", 40, func():
+			game._close_closet()
+			game._on_hub_crates(0)],
 		["hub_trial", 8, func():
+			game._close_crates()
 			var t: TimeTrial = game.hub.trial
 			var m: Marble = game.hub.marbles[0]
 			var f := t.course.world_frame_at(TimeTrial.START_AT + 0.4)
@@ -124,6 +142,23 @@ func _text_rect(c: Control) -> Rect2:
 	return Rect2()
 
 
+## Only the part of `r` that a scrolling list (or any clipping parent)
+## actually lets you see. Text scrolled out of view is not a problem.
+func _clipped(c: Control, r: Rect2) -> Rect2:
+	if not r.has_area():
+		return r
+	var n := c.get_parent()
+	while n:
+		if n is Control and (n as Control).clip_contents:
+			var a := n as Control
+			var xf := a.get_global_transform_with_canvas()
+			r = r.intersection(Rect2(xf.origin, a.size * xf.get_scale()))
+			if not r.has_area():
+				return Rect2()
+		n = n.get_parent()
+	return r
+
+
 func _shown(c: CanvasItem) -> bool:
 	var n: Node = c
 	while n:
@@ -140,7 +175,7 @@ func _check(name: String) -> void:
 	var texts: Array = []
 	for c in root.find_children("*", "Control", true, false):
 		if (c is Label or c is Button) and _shown(c):
-			var r := _text_rect(c)
+			var r := _clipped(c, _text_rect(c))
 			if r.has_area():
 				texts.append([c, r])
 	var screen := root.get_visible_rect()
@@ -148,7 +183,7 @@ func _check(name: String) -> void:
 	for i in texts.size():
 		var a: Control = texts[i][0]
 		var ra: Rect2 = texts[i][1]
-		if not screen.encloses(ra.grow(-1.0)) and ra.intersects(screen):
+		if not screen.encloses(ra.grow(-1.0).abs()) and ra.intersects(screen):
 			found.append("  off screen: %s '%s' %s" % [a.get_path(), _short(a), ra])
 		for j in range(i + 1, texts.size()):
 			var b: Control = texts[j][0]

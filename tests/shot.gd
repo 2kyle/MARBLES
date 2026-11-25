@@ -2,7 +2,8 @@ extends SceneTree
 ## Screenshot helper (not part of the game). Usage:
 ##   godot --script res://tests/shot.gd -- <out.png> <mode> [arg]
 ## Modes include title, draft, build, roll, podium, awards, wild, howto,
-## hub, daily (the DAILY CHALLENGE page) and dailyready (its ready screen).
+## hub, daily (the DAILY CHALLENGE page), dailyready (its ready screen)
+## and flags (placed pieces with their owners' flags).
 var game: Node
 var _t := 0
 var out := "user://shot.png"
@@ -49,7 +50,7 @@ func _setup() -> void:
 				game.force_theme = arg
 				game._new_match()
 				game.show_title()
-		"match", "roll", "end", "draft", "return", "build", "podium", "awards", "wild":
+		"match", "roll", "end", "draft", "return", "build", "podium", "awards", "wild", "flags":
 			game.force_theme = arg
 			game.settings.player_count = 2
 			game.settings.bot_count = 2
@@ -135,6 +136,18 @@ func _tick() -> void:
 				game.state = game.State.MATCH_OVER
 				game._start_awards()
 				game.awards_left = 999.0   # hold it for the picture
+		"flags":
+			# Four players' pieces, each with its owner's little flag.
+			if _t == 4:
+				game._start_draft()
+			if _t == 6:
+				game._start_build()
+			if _t == 8:
+				var ids := ["spinner", "pop_bumper", "pendulum", "magnet"]
+				for p in 4:
+					var at := Vector2(-1.1 + 0.75 * p, -7.0 - 3.2 * p)
+					var free = game.builder.nearest_free(ids[p], at, 0.0)
+					game.builder.place(ids[p], free if free != null else at, 0.0, p)
 		"build":
 			if _t == 4:
 				game._start_draft()

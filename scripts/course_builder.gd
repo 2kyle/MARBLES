@@ -25,6 +25,10 @@ signal blasted(by_player: int, count: int)
 ## One entry per placed piece: {id, pos, angle, by, node}.
 var placed: Array = []
 
+## Each player's colour. When set, every placed piece gets a little flag
+## in its owner's colour, so everyone can see whose trap got them.
+var player_colors: Array = []
+
 var _zone: MeshInstance3D = null
 var _fit_cache := {}
 
@@ -296,9 +300,56 @@ func place(id: String, pos: Vector2, angle: float, by_player: int) -> bool:
 	if "is_exit" in node:
 		node.is_exit = id == "teleporter_exit"
 	add_child(node)
+	_add_owner_flag(node, id, pos, by_player)
 	last_placed = node
 	placed.append({"id": id, "pos": pos, "angle": angle, "by": by_player, "node": node})
 	return true
+
+
+## A small pennant on a pole at the back corner of a placed piece, in the
+## colour of the player who put it there (none for starting pieces).
+## It's a child of the piece, so it goes when the piece is blown up.
+func _add_owner_flag(node: Node3D, id: String, pos: Vector2, by_player: int) -> void:
+	if by_player < 0 or by_player >= player_colors.size():
+		return
+	var color: Color = player_colors[by_player]
+	var r: float = PieceCatalog.info(id).radius
+	var spot := Vector2(clampf(pos.x + r * 0.7, -half_width - 0.3, half_width + 0.3), pos.y + r * 0.7)
+	var flag := Node3D.new()
+	flag.name = "OwnerFlag"
+	# Undo the piece's own turn and size so every flag looks the same.
+	flag.transform = node.transform.affine_inverse() * lane_xform(spot)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	var pole := MeshInstance3D.new()
+	var stick := CylinderMesh.new()
+	stick.top_radius = 0.03
+	stick.bottom_radius = 0.035
+	stick.height = 1.0
+	stick.radial_segments = 6
+	stick.rings = 1
+	pole.mesh = stick
+	pole.set_meta("no_footprint", true)
+	pole.position.y = 0.5
+	var pole_mat := StandardMaterial3D.new()
+	pole_mat.albedo_color = Color(0.92, 0.9, 0.85)
+	pole.material_override = pole_mat
+	pole.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	flag.add_child(pole)
+	var cloth := MeshInstance3D.new()
+	var tri := PrismMesh.new()
+	tri.left_to_right = 0.0
+	tri.size = Vector3(0.32, 0.46, 0.02)
+	cloth.mesh = tri
+	cloth.set_meta("no_footprint", true)
+	cloth.material_override = mat
+	# Pointing sideways from the top of the pole, like a pennant.
+	cloth.rotation_degrees.z = -90.0
+	cloth.position = Vector3(0.23, 0.82, 0.0)
+	cloth.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	flag.add_child(cloth)
+	node.add_child(flag)
 
 
 ## What dropping track card `id` at `pos` would do: a Dictionary with

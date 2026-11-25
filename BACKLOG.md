@@ -21,23 +21,41 @@ This is the to-do list for the game, **most important at the top**. Every night 
 1. **To do** · **Pick the game's real name** *(suggested by Claude)*
    The title is now **BOWLING WIP** as a stand-in. Pick a name and it changes everywhere at once (`TITLE` in `scripts/main_menu.gd`).
 
-2. **To do** · **Strike replay online** *(suggested by Claude)*
+2. **To do** · **TRAPPED! points** *(suggested by Claude)*
+   When a rival's marble touches your piece and falls off the track a moment later, pop "TRAPPED BY P2!" in your colour and give you a bonus coin. A TRAPPER match award for the most. Makes building nasty tracks pay off, the heart of a party building game.
+
+3. **To do** · **Last place picks first** *(suggested by Claude)*
+   Whoever is behind on the scoreboard gets a FIRST PICK badge and a short head start in the draft, so matches stay close and chaotic to the end.
+
+4. **To do** · **Strike replay online** *(suggested by Claude)*
    Show the slow-motion strike replay in online games too, so everyone watches it together (right now it only plays at one computer).
 
-3. **To do** · **Last two WILD FRAMES rules** *(suggested by Claude)*
+5. **To do** · **Last two WILD FRAMES rules** *(suggested by Claude)*
    GIANT PINS (a rack of huge pins) and FOG (only see the lane near you). The other new rules are done.
 
-4. **To do** · **Online biplane, ghost and run board** *(suggested by Claude)*
+6. **To do** · **Online biplane, ghost and run board** *(suggested by Claude)*
    Show the biplane and the TIME TRIAL ghost to online guests too (right now only the host sees them), and put guests' best runs on the RUN RECORDS board.
 
-5. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
+7. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
    An achievement for a perfect 300, SKEE-JUMP for online guests, and a high-score table per player.
 
-6. **To do** · **Corkscrew TA** *(suggested by Claude)*
+8. **To do** · **Corkscrew TA** *(suggested by Claude)*
    A full spiral that drops under itself. Needs the track to allow crossing over itself (supports and a clearance check by height), so it's a bigger job.
 
-7. **To do** · **Ring and loop achievements** *(suggested by Claude)*
+9. **To do** · **Ring and loop achievements** *(suggested by Claude)*
    New achievements: LOOP THE LOOP (go round a Loop-de-Loop), ACE PILOT (a SKY RINGS lap under 30 seconds) and GHOSTBUSTER (beat the ghost by a second).
+
+10. **To do** · **TOO EASY! rule** *(suggested by Claude)*
+   A Settings switch: if every marble gets a strike, nobody gets the strike bonus that frame and a big TOO EASY! stamp shows. Pushes everyone to build a track that's hard but not impossible.
+
+11. **To do** · **Points breakdown bars** *(suggested by Claude)*
+   After each frame, each player's score bar grows in coloured chunks (pins, strike bonus, first to the pins, traps), with a small label on each chunk, so it's clear at a glance why someone scored.
+
+12. **To do** · **Chaos crate** *(suggested by Claude)*
+   Now and then a surprise piece nobody picked drops onto the track before the roll (with a warning sign), for extra chaos.
+
+13. **To do** · **Quick reactions** *(suggested by Claude)*
+   Press a button during build or roll to pop a little picture bubble over your marble (laughing, angry, thumbs up). No sound, just pictures, and handy online too.
 
 ## Needs you (Claude can't do these alone)
 
@@ -51,6 +69,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 *(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Owner flags** *(suggested by Claude)* (November 25)
+  Every placed piece has a little pennant in the colour of the player who put it there, so you can see whose trap got you.
+
+- **Done** · **More screens checked for overlapping text** (November 25)
+  `tests/find_ui_overlap.gd` now also checks the PLAY, DAILY CHALLENGE, HOW TO PLAY, ONLINE, CONTROLS, ACHIEVEMENTS and CREDITS pages, the pause menu, photo mode, the closet and the loot crates.
 
 - **Done** · **Daily challenge track** *(suggested by Claude)* (November 25, branch `nightly/daily-challenge-track`)
   DAILY CHALLENGE on the title screen: one track a day, the same for everyone (the date picks the track, world, three starting pieces and the crates). 5 frames, no bots, best score today and a day streak per player.

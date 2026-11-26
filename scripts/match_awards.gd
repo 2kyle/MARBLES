@@ -5,6 +5,7 @@ extends RefCounted
 ##   PIN CRUSHER   most pins knocked down in one roll
 ##   SPEED DEMON   fastest marble to reach the pins
 ##   DEMOLITION    most placed pieces blown up with bombs
+##   TRAPPER       most rival marbles trapped off the track (see Traps)
 ##
 ## Like Scoring, this is plain rules with no nodes: main.gd tells it what
 ## happened each frame and asks for the awards at the end. That keeps it
@@ -19,6 +20,7 @@ const AWARDS := [
 	{"id": "best_roll", "title": "PIN CRUSHER", "about": "Most pins in one roll"},
 	{"id": "fastest", "title": "SPEED DEMON", "about": "Fastest to the pins"},
 	{"id": "blown_up", "title": "DEMOLITION", "about": "Most pieces blown up"},
+	{"id": "trapped", "title": "TRAPPER", "about": "Most rivals trapped"},
 ]
 
 var strikes: Array = [0, 0, 0, 0]
@@ -26,6 +28,7 @@ var best_roll: Array = [0, 0, 0, 0]
 ## Seconds from the start gate to the pins, best roll (INF = never got there).
 var fastest: Array = [INF, INF, INF, INF]
 var blown_up: Array = [0, 0, 0, 0]
+var trapped: Array = [0, 0, 0, 0]
 
 
 ## A new match: everything back to zero.
@@ -34,6 +37,7 @@ func reset() -> void:
 	best_roll = [0, 0, 0, 0]
 	fastest = [INF, INF, INF, INF]
 	blown_up = [0, 0, 0, 0]
+	trapped = [0, 0, 0, 0]
 
 
 ## One frame is over. `pins`: pins each player knocked down this roll.
@@ -53,6 +57,12 @@ func record_frame(pins: Array, striker: int, finish_times: Dictionary) -> void:
 func record_blast(player: int, count: int) -> void:
 	if player >= 0 and player < 4:
 		blown_up[player] += count
+
+
+## `player` trapped a rival's marble off the track.
+func record_trap(player: int) -> void:
+	if player >= 0 and player < 4:
+		trapped[player] += 1
 
 
 ## The awards earned this match, in show order. Each is a Dictionary:
@@ -87,4 +97,6 @@ static func _detail(id: String, value) -> String:
 			return "%.1f SECONDS" % value
 		"blown_up":
 			return "%d PIECE%s" % [value, "" if value == 1 else "S"]
+		"trapped":
+			return "%d TRAP%s" % [value, "" if value == 1 else "S"]
 	return str(value)

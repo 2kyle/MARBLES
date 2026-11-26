@@ -1614,6 +1614,9 @@ func _frame_summary(game) -> String:
 			bits.append("sweep +%d" % r.sweep[i])
 		if r.knockouts[i] > 0:
 			bits.append("KO +%d" % r.knockouts[i])
+		var traps: Array = r.get("traps", [])
+		if i < traps.size() and traps[i] > 0:
+			bits.append("trap +%d" % traps[i])
 		parts.append("%s +%d  (%s)" % [game.seat_name(i), r.points[i], ", ".join(bits)])
 	var text := "      ".join(parts)
 	if r.note != "":

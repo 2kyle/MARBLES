@@ -3,7 +3,8 @@ extends SceneTree
 ##   godot --script res://tests/shot.gd -- <out.png> <mode> [arg]
 ## Modes include title, draft, build, roll, podium, awards, wild, howto,
 ## hub, daily (the DAILY CHALLENGE page), dailyready (its ready screen)
-## and flags (placed pieces with their owners' flags).
+## flags (placed pieces with their owners' flags) and trap (a TRAPPED BY P2!
+## pop as P1's marble falls off P2's piece).
 var game: Node
 var _t := 0
 var out := "user://shot.png"
@@ -22,6 +23,7 @@ func _initialize() -> void:
 	if a.size() > 3: arg2 = a[3]
 	if mode == "awards": shot_at = 360
 	if mode == "wild": shot_at = 12
+	if mode == "trap": shot_at = 40
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	game.settings.graphics_auto = false   # software drawing is slow; keep the look fixed
@@ -50,7 +52,7 @@ func _setup() -> void:
 				game.force_theme = arg
 				game._new_match()
 				game.show_title()
-		"match", "roll", "end", "draft", "return", "build", "podium", "awards", "wild", "flags":
+		"match", "roll", "end", "draft", "return", "build", "podium", "awards", "wild", "flags", "trap":
 			game.force_theme = arg
 			game.settings.player_count = 2
 			game.settings.bot_count = 2
@@ -132,10 +134,31 @@ func _tick() -> void:
 				st.record_frame([10, 2, 9, 0], 0, {0: 12.9})
 				st.record_frame([4, 1, 10, 0], 2, {2: 10.6})
 				st.record_blast(1, 3)
+				st.record_trap(3)
+				st.record_trap(3)
 				game.awards = st.results(game.player_count)
 				game.state = game.State.MATCH_OVER
 				game._start_awards()
 				game.awards_left = 999.0   # hold it for the picture
+		"trap":
+			# P1's marble goes over the edge off P2's pop bumper: TRAPPED BY P2!
+			if _t == 4:
+				game.builder.place("pop_bumper", Vector2(0.4, -6.0), 0.0, 1)
+				game._prepare_roll()
+				game._release_marbles()
+			if _t > 4 and _t < 36:
+				var m: Marble = game.marbles[0]
+				var k := clampf((_t - 20) / 14.0, 0.0, 1.0)
+				m.global_position = game.builder.lane_xform(Vector2(-0.2 - 2.2 * k, -6.0), 0.0, 0.35 - 1.4 * k).origin
+				m.linear_velocity = Vector3.ZERO
+				for o in game.marbles:
+					if o != m:
+						o.global_position = game.builder.lane_xform(Vector2(0.6 * o.player_id - 0.9, -2.0), 0.0, 0.35).origin
+						o.linear_velocity = Vector3.ZERO
+				game.traps.touch(0, game._piece_owner_touching(m), game._roll_time)
+			if _t == 36:
+				var m: Marble = game.marbles[0]
+				game._show_trap(m.global_position + Vector3.DOWN * 1.6, game.traps.fell(0, game._roll_time))
 		"flags":
 			# Four players' pieces, each with its owner's little flag.
 			if _t == 4:

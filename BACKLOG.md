@@ -63,10 +63,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **TRAPPED! points** *(suggested by Claude)* (branch `nightly/trapped-points`)
-  When a rival's marble touches your piece and falls off the track within 3 seconds, "TRAPPED BY P2!" pops up in your colour and you get +1 point (and so +1 coin). A TRAPPER match award for the most traps.
+*(Nothing yet.)*
 
 ## Done
+
+- **Done** · **TRAPPED! points** *(suggested by Claude)* (November 26, branch `nightly/trapped-points`)
+  When a rival's marble touches your piece and falls off the track within 3 seconds, "TRAPPED BY P2!" pops up in your colour and you get +1 point (and so +1 coin). A TRAPPER match award for the most traps.
 
 - **Done** · **Owner flags** *(suggested by Claude)* (November 25)
   Every placed piece has a little pennant in the colour of the player who put it there, so you can see whose trap got you.

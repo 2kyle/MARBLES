@@ -114,6 +114,14 @@ Looks are changed between games in the closet on the hub, not at the start of a 
 3. **Roll (45 s max):** marbles drop through the START arch together, crash into each other, and race to one shared rack of 28 pins. The track is a classic maple bowling lane: thin boards, approach dots, a foul line just past the START arch, guide dots and seven aiming arrows. Each pin has its own little face (most look normal, some are sleepy, googly, happy or grumpy); they blink, squeeze their eyes shut when hit, and stay knocked out once they fall. You can lean your marble a little and give it a small **hop** (your place key), but the lane does most of the work. Once a marble crosses the finish line, steering and hops switch off and it just carries its momentum into the pins.
 4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
 
+### TRAPPED! points
+
+![TRAPPED BY P2! as P1's marble falls off P2's pop bumper](docs/trapped.png)
+
+Building a nasty track pays off. If a rival's marble touches **your** piece and then falls off the track within 3 seconds, you trapped it: **TRAPPED BY P2!** pops up in your colour where it fell, your controller gives a little buzz, and you get **+1 point** (which is also +1 coin). The scoreboard line for the frame shows it as `trap +1`, and the player with the most traps in a match gets the **TRAPPER** match award.
+
+A few fair-play rules: your own piece never traps your own marble, the starting pieces in a daily challenge belong to nobody so they don't count, and if a marble bounced off two rivals' pieces on the way out, the **last** one it touched gets the credit. Magnets, fans and boosters count too, not just solid pieces. Online, the host spots the traps and everyone sees the pop-up. The rules are in `scripts/traps.gd` (change `WINDOW` to make the 3 seconds longer or shorter) and the bonus is `TRAP_BONUS` in `scripts/scoring.gd`.
+
 A match is 10 frames. Every match starts on a new random track that winds left and right, banks through its corners and has at least one steep drop, high above the water. Some tracks also have a gap. It starts empty. A marble that flies off the track splashes into the water and is out for that frame.
 
 ### Time trial
@@ -212,7 +220,7 @@ Every other look is won from loot crates at the casino. A crate costs **100 coin
 
 A look you already own pays coins back instead (25 for Common up to 150 for Legendary). The Golden Ball Trophy isn't worn: it stands on your hub. The odds are shown on the crate screen, and live in `scripts/loot_crates.gd` if you want to tune them.
 
-- **Coins:** you get 1 coin per pin you knock down and 1 per bonus point (race, sweep, knock-outs) each frame. At the end of a match you get a prize for where you finished (1st +50, 2nd +30, 3rd +15, 4th +5) and +10 just for finishing. The **COINS EARNED** screen after the podium shows the whole breakdown. The amounts are at the top of `scripts/profiles.gd`. New players start with 150, enough for one crate. The Ball Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on). Bots don't earn coins. Online, your coins and looks are the ones on your own computer (P1's).
+- **Coins:** you get 1 coin per pin you knock down and 1 per bonus point (race, sweep, knock-outs, traps) each frame. At the end of a match you get a prize for where you finished (1st +50, 2nd +30, 3rd +15, 4th +5) and +10 just for finishing. The **COINS EARNED** screen after the podium shows the whole breakdown. The amounts are at the top of `scripts/profiles.gd`. New players start with 150, enough for one crate. The Ball Derby is another way to win (or lose) coins. Coins and looks are saved on this computer for each player seat (P1, P2 and so on). Bots don't earn coins. Online, your coins and looks are the ones on your own computer (P1's).
 - Looks and rarities live in `scripts/cosmetics.gd`, hat shapes in `scripts/hats.gd`, and coin amounts in `scripts/profiles.gd`.
 
 ### Match awards
@@ -225,6 +233,7 @@ When the last frame is scored, a **MATCH AWARDS** screen comes up before the pod
 - **PIN CRUSHER**: most pins knocked down in a single roll.
 - **SPEED DEMON**: the fastest marble from the start gate to the pins.
 - **DEMOLITION**: most placed pieces blown up with bombs.
+- **TRAPPER**: most rival marbles trapped off the track (see TRAPPED! points).
 
 An award only shows if someone earned it (no strikes, no STRIKE KING), and players who tie share it. If nobody earned anything, the game goes straight to the podium. The screen moves on by itself after a few seconds, or **press any key or button to skip it**. Hold Tab to peek at the scores. Online, the host works the awards out and everyone sees the same ones.
 
@@ -615,6 +624,7 @@ godot --headless --fixed-fps 120 --script res://tests/sim_time_trial.gd
 godot --headless --fixed-fps 120 --script res://tests/test_ui_feel.gd
 godot --headless --script res://tests/test_photo_mode.gd
 godot --headless --fixed-fps 120 --script res://tests/test_daily_challenge.gd
+godot --headless --fixed-fps 120 --script res://tests/test_traps.gd
 godot --headless --fixed-fps 120 --script res://tests/perf_probe.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam

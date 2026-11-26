@@ -10,6 +10,8 @@ extends RefCounted
 ##   +5  clean sweep: you knocked down the last pin standing
 ##   +3 / +2 / +1  race bonus for 1st / 2nd / 3rd marble to reach the pins
 ##   +2  your piece knocked another player's marble out (e.g. a gutter cut)
+##   +1  TRAPPED!: a rival's marble touched your piece and fell off the
+##       track a moment later (see Traps)
 ## Balance rules:
 ##   Too easy: if every marble reaches the pins, nobody gets the race bonus.
 ##   Too hard: if no marble reaches the pins, the frame scores nothing.
@@ -17,6 +19,7 @@ extends RefCounted
 const RACE_BONUS := [3, 2, 1]
 const SWEEP_BONUS := 5
 const KNOCKOUT_BONUS := 2
+const TRAP_BONUS := 1
 
 
 ## player_count: number of marbles in the frame.
@@ -26,6 +29,7 @@ const KNOCKOUT_BONUS := 2
 ## sweep_player: player id that knocked down the last pin, or -1.
 ## knockouts: one entry per marble knocked out by someone else's piece,
 ##     the player id who placed that piece.
+## traps: one entry per marble trapped off the track, the trapper's id.
 ##
 ## Returns a Dictionary:
 ##   "points": Array[int], total frame points per player
@@ -33,22 +37,27 @@ const KNOCKOUT_BONUS := 2
 ##   "race": Array[int], race bonus per player
 ##   "sweep": Array[int], sweep bonus per player
 ##   "knockouts": Array[int], knockout bonus per player
+##   "traps": Array[int], trap bonus per player
 ##   "note": String, a short explanation for the scoreboard
 static func score_frame(player_count: int, arrival_order: Array,
-		fallen_pin_credits: Array, sweep_player: int, knockouts: Array = []) -> Dictionary:
+		fallen_pin_credits: Array, sweep_player: int, knockouts: Array = [], traps: Array = []) -> Dictionary:
 	var pins := _zeros(player_count)
 	var race := _zeros(player_count)
 	var sweep := _zeros(player_count)
 	var ko := _zeros(player_count)
+	var trap := _zeros(player_count)
 	var note := ""
 
 	if arrival_order.is_empty():
 		note = "Nobody made it!"
-		return _result(player_count, pins, race, sweep, ko, note)
+		return _result(player_count, pins, race, sweep, ko, trap, note)
 
 	for id in knockouts:
 		if id >= 0 and id < player_count:
 			ko[id] += KNOCKOUT_BONUS
+	for id in traps:
+		if id >= 0 and id < player_count:
+			trap[id] += TRAP_BONUS
 
 	for credit in fallen_pin_credits:
 		if credit >= 0 and credit < player_count:
@@ -65,7 +74,7 @@ static func score_frame(player_count: int, arrival_order: Array,
 			if id >= 0 and id < player_count:
 				race[id] = RACE_BONUS[i]
 
-	return _result(player_count, pins, race, sweep, ko, note)
+	return _result(player_count, pins, race, sweep, ko, trap, note)
 
 
 ## Each player's finishing place (0 = 1st) from match totals. Ties share
@@ -83,7 +92,7 @@ static func places(totals: Array) -> Array:
 
 ## The coins each player earns over a whole match, broken down for the
 ## coins screen. `pins` and `bonus` are match totals per player (bonus is
-## race, sweep and knockout points). Returns one Dictionary per player:
+## race, sweep, knockout and trap points). Returns one Dictionary per player:
 ##   pins, pin_coins, bonus, place (0 = 1st), place_coins, finish, total
 static func match_coins(pins: Array, bonus: Array, totals: Array) -> Array:
 	var place := places(totals)
@@ -101,12 +110,12 @@ static func match_coins(pins: Array, bonus: Array, totals: Array) -> Array:
 
 
 static func _result(player_count: int, pins: Array, race: Array,
-		sweep: Array, ko: Array, note: String) -> Dictionary:
+		sweep: Array, ko: Array, trap: Array, note: String) -> Dictionary:
 	var points := _zeros(player_count)
 	for i in player_count:
-		points[i] = pins[i] + race[i] + sweep[i] + ko[i]
+		points[i] = pins[i] + race[i] + sweep[i] + ko[i] + trap[i]
 	return {"points": points, "pins": pins, "race": race, "sweep": sweep,
-			"knockouts": ko, "note": note}
+			"knockouts": ko, "traps": trap, "note": note}
 
 
 static func _zeros(n: int) -> Array:

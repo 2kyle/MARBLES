@@ -89,6 +89,9 @@ var out := false
 ## Player whose piece knocked this marble out (-1 = nobody, e.g. it just
 ## rolled off the edge).
 var knocked_out_by := -1
+## Player whose piece this marble touched just before falling off the
+## track (TRAPPED!), or -1. Set by the game.
+var trapped_by := -1
 ## Seconds this marble has been nearly still (the game nudges stuck marbles).
 var still_time := 0.0
 ## Furthest the marble has got down the track, and when (the game rescues

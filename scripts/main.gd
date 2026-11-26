@@ -126,6 +126,8 @@ var awards: Array = []
 var awards_left := 0.0
 ## Seconds each marble took to reach the pins this roll (player id -> s).
 var _finish_times := {}
+## TRAPPED! points: who touched whose piece before falling off (see Traps).
+var traps := Traps.new()
 ## Online island: who's rolled through the PLAY arch (ready for a match),
 ## seconds left before the match starts once everyone is (-1 = not
 ## counting), and a short wait so rolling through once doesn't flip twice.
@@ -1040,6 +1042,7 @@ func _prepare_roll() -> void:
 	marbles.clear()
 	arrival_order.clear()
 	_finish_times.clear()
+	traps.reset_frame()
 	sweep_player = -1
 	_roll_time = 0.0
 	_settling = false
@@ -1728,7 +1731,7 @@ func _make_snapshot() -> Dictionary:
 				"rd": hub_ready, "rc": _ready_countdown}
 	var ms := []
 	for m in marbles:
-		ms.append([m.global_position, m.quaternion, m.arrived, m.out])
+		ms.append([m.global_position, m.quaternion, m.arrived, m.out, m.trapped_by])
 	var pins := []
 	for pin in rack.pins:
 		pins.append([pin.global_position, pin.quaternion])
@@ -1892,6 +1895,8 @@ func _apply_snapshot(snap: Dictionary, delta: float) -> void:
 			m.quaternion = m.quaternion.slerp(d[1], k)
 		if d[3] and not m.out:
 			_splash(d[0], m.color)
+			if d.size() > 4 and d[4] >= 0:
+				_show_trap(d[0], d[4])
 		m.arrived = d[2]
 		m.out = d[3]
 	var pins: Array = snap.pins
@@ -1949,11 +1954,21 @@ func _update_roll(delta: float) -> void:
 	_roll_time += delta
 
 	for m in marbles:
+		if not m.out and not m.arrived:
+			var owner := _piece_owner_touching(m)
+			if owner >= 0:
+				traps.touch(m.player_id, owner, _roll_time)
 		if not m.out and not m.arrived and m.global_position.y < out_of_bounds_y:
 			m.out = true
 			m.freeze = true
 			_splash(m.global_position, m.color)
 			_rumble(m.player_id, 0.2, 0.6, 0.3)
+			var by := traps.fell(m.player_id, _roll_time)
+			if by >= 0:
+				m.trapped_by = by
+				match_stats.record_trap(by)
+				_show_trap(m.global_position, by)
+				_rumble(by, 0.5, 0.3, 0.2)
 		_unstick(m, delta)
 
 	var all_done := true
@@ -1969,6 +1984,47 @@ func _update_roll(delta: float) -> void:
 
 	if _roll_time >= roll_time_limit or (_settling and _settle_left <= 0.0):
 		_finish_frame()
+
+
+## Who placed the piece marble `m` is touching (or nearly touching) right
+## now, or -1 for none (bare track, a starting piece, or nothing at all).
+## It checks a ball a little bigger than the marble against everything
+## solid and every trigger zone, so magnets, fans and boosters count too.
+func _piece_owner_touching(m: Marble) -> int:
+	if builder.placed.is_empty():
+		return -1
+	var shape_node := m.get_node_or_null("Shape") as CollisionShape3D
+	if shape_node == null or not shape_node.shape is SphereShape3D:
+		return -1
+	var ball := SphereShape3D.new()
+	ball.radius = (shape_node.shape as SphereShape3D).radius + 0.12
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = ball
+	q.transform = Transform3D(Basis.IDENTITY, m.global_position)
+	q.collide_with_areas = true
+	q.exclude = [m.get_rid()]
+	var hits := get_world_3d().direct_space_state.intersect_shape(q, 8)
+	var best := -1
+	for h in hits:
+		var node := h.collider as Node
+		while node and node.get_parent() != builder:
+			node = node.get_parent()
+		if node == null:
+			continue
+		for p in builder.placed:
+			if p.node == node:
+				var by: int = p.by
+				if by >= 0 and by != m.player_id:
+					return by   # a rival's piece: that's the one that matters
+				best = by
+	return best
+
+
+## "TRAPPED BY P2!" over the spot where a marble fell, in the trapper's colour.
+func _show_trap(at: Vector3, by: int) -> void:
+	var col: Color = player_colors[by] if by < player_colors.size() else Color.WHITE
+	PopText.spawn(self, Vector3(at.x, maxf(at.y, Arena.GROUND_Y) + 2.6, at.z),
+			"TRAPPED BY %s!" % seat_name(by), col.lightened(0.15), 1.6)
 
 
 func _unstick(m: Marble, delta: float) -> void:
@@ -2014,7 +2070,7 @@ func _finish_frame() -> void:
 		if m.out and m.knocked_out_by != -1 and m.knocked_out_by != m.player_id:
 			knockouts.append(m.knocked_out_by)
 	last_result = Scoring.score_frame(player_count, arrival_order,
-			rack.fallen_credits(), sweep_player, knockouts)
+			rack.fallen_credits(), sweep_player, knockouts, traps.frame_traps)
 	for i in player_count:
 		totals[i] += last_result.points[i]
 	frame_points.append(last_result.points.duplicate())

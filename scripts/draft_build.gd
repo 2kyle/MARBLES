@@ -24,6 +24,14 @@ var picks: Array = []          # per player: piece id or ""
 ## covers x from k to k+1 and y from 0 (top) to 1 (bottom). The HUD draws
 ## the cards and pointers from these numbers.
 var draft_pointer: Array = []  # per player: Vector2
+## LAST PICKS FIRST: whoever is last on the scoreboard (more than one if
+## they're tied) gets a FIRST PICK badge, and everyone else has to wait
+## `head_start` seconds before they can grab a card. Empty on the first
+## frame, or when everyone has the same score.
+var first_pick: Array = []
+var head_start := 0.0
+## How long the others wait, in seconds.
+const HEAD_START := 2.5
 
 ## Build
 var cursor_pos: Array = []     # per player: Vector2 lane position
@@ -51,18 +59,13 @@ func setup(p_builder: CourseBuilder, p_count: int, p_colors: Array) -> void:
 
 # ---------------------------------------------------------------- Draft
 
-func start_draft(crate_size: int, rng: RandomNumberGenerator) -> void:
-	crate = PieceCatalog.random_crate(crate_size, rng, not builder.track.layout.is_empty())
-	taken_by = _filled(crate.size(), -1)
-	picks = _filled(player_count, "")
-	draft_pointer = []
-	for i in player_count:
-		draft_pointer.append(Vector2((i + 0.5) * crate.size() / float(player_count), 1.3))
-	message = _filled(player_count, "")
+## `firsts`: who gets FIRST PICK this frame (see trailing()).
+func start_draft(crate_size: int, rng: RandomNumberGenerator, firsts: Array = []) -> void:
+	mirror_draft(PieceCatalog.random_crate(crate_size, rng, not builder.track.layout.is_empty()), firsts)
 
 
 ## Online client: show the same crate the host dealt.
-func mirror_draft(p_crate: Array) -> void:
+func mirror_draft(p_crate: Array, firsts: Array = []) -> void:
 	crate = p_crate
 	taken_by = _filled(crate.size(), -1)
 	picks = _filled(player_count, "")
@@ -70,6 +73,36 @@ func mirror_draft(p_crate: Array) -> void:
 	for i in player_count:
 		draft_pointer.append(Vector2((i + 0.5) * crate.size() / float(player_count), 1.3))
 	message = _filled(player_count, "")
+	first_pick = firsts.duplicate()
+	head_start = HEAD_START if not first_pick.is_empty() else 0.0
+
+
+## Who is last on the scoreboard: every player on the lowest total. Nobody
+## when everyone is level (like the first frame), so it's only a catch-up.
+static func trailing(totals: Array) -> Array:
+	if totals.size() < 2 or totals.min() == totals.max():
+		return []
+	var low: int = totals.min()
+	var out := []
+	for p in totals.size():
+		if totals[p] == low:
+			out.append(p)
+	return out
+
+
+## Count the head start down. It ends early once every first picker has
+## grabbed a card, so nobody waits for nothing.
+func tick(delta: float) -> void:
+	if head_start <= 0.0:
+		return
+	head_start = maxf(0.0, head_start - delta)
+	if first_pick.all(func(p): return p >= picks.size() or picks[p] != ""):
+		head_start = 0.0
+
+
+## True while this player has to wait for the FIRST PICK head start.
+func is_held(player: int) -> bool:
+	return head_start > 0.0 and not first_pick.has(player)
 
 
 ## Slide a player's pointer by `delta` card units.
@@ -101,6 +134,9 @@ func request_pick(player: int) -> bool:
 	if taken_by[slot] != -1:
 		message[player] = "Taken!"
 		return false
+	if is_held(player):
+		message[player] = "Wait!"
+		return false
 	taken_by[slot] = player
 	picks[player] = crate[slot]
 	message[player] = ""
@@ -114,7 +150,13 @@ func all_picked() -> bool:
 ## Time ran out: anyone who hasn't picked gets the slot under their cursor,
 ## or the next free one.
 func auto_pick_remaining() -> void:
+	head_start = 0.0
+	# First pickers still choose first, even when time runs out.
+	var order: Array = first_pick.filter(func(p): return p < player_count)
 	for p in player_count:
+		if not order.has(p):
+			order.append(p)
+	for p in order:
 		if picks[p] != "":
 			continue
 		var best := -1

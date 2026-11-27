@@ -1083,10 +1083,19 @@ func _prepare_roll() -> void:
 # ------------------------------------------------------------ Phases
 
 func _start_draft() -> void:
-	draft_build.start_draft(player_count + crate_extra, _daily_rng if daily_on else _rng)
+	draft_build.start_draft(player_count + crate_extra, _daily_rng if daily_on else _rng, first_pickers())
 	_phase_left = draft_time
 	state = State.DRAFT
-	net.send_event("draft", {"crate": draft_build.crate, "frame": frame})
+	net.send_event("draft", {"crate": draft_build.crate, "frame": frame, "first": draft_build.first_pick})
+
+
+## LAST PICKS FIRST: who gets the FIRST PICK head start in this frame's
+## draft (whoever is last on the scoreboard). Nobody in frame 1, when
+## everyone's level, or with the setting off.
+func first_pickers() -> Array:
+	if not settings.last_picks_first or frame <= 1:
+		return []
+	return DraftBuild.trailing(totals.slice(0, player_count))
 
 
 func _start_build() -> void:
@@ -1151,6 +1160,7 @@ func _physics_process(delta: float) -> void:
 	match state:
 		State.DRAFT:
 			_phase_left -= delta
+			draft_build.tick(delta)
 			if _phase_left <= 0.0 or draft_build.all_picked():
 				_start_build()
 		State.BUILD:
@@ -1742,6 +1752,7 @@ func _make_snapshot() -> Dictionary:
 		snap.tb = draft_build.taken_by
 		snap.pk = draft_build.picks
 		snap.msg = draft_build.message
+		snap.hs = draft_build.head_start
 	elif state == State.BUILD:
 		snap.cp = draft_build.cursor_pos
 		snap.ca = draft_build.cursor_angle
@@ -1813,7 +1824,7 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 			wild = data.get("wild", wild)
 		"draft":
 			frame = data.frame
-			draft_build.mirror_draft(data.crate)
+			draft_build.mirror_draft(data.crate, data.get("first", []))
 			state = State.DRAFT
 		"build":
 			draft_build.picks = data.picks
@@ -1908,6 +1919,7 @@ func _apply_snapshot(snap: Dictionary, delta: float) -> void:
 		draft_build.taken_by = snap.tb
 		draft_build.picks = snap.pk
 		draft_build.message = snap.msg
+		draft_build.head_start = snap.get("hs", 0.0)
 	if snap.has("cp") and state == State.BUILD:
 		for p in mini(player_count, draft_build.cursor_pos.size()):
 			if not draft_build.has_placed[p]:

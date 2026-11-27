@@ -4,7 +4,8 @@ extends SceneTree
 ## Modes include title, draft, build, roll, podium, awards, wild, howto,
 ## hub, daily (the DAILY CHALLENGE page), dailyready (its ready screen)
 ## flags (placed pieces with their owners' flags) and trap (a TRAPPED BY P2!
-## pop as P1's marble falls off P2's piece).
+## pop as P1's marble falls off P2's piece) and firstpick (LAST PICKS FIRST:
+## the draft opening with P2's FIRST PICK badge).
 var game: Node
 var _t := 0
 var out := "user://shot.png"
@@ -24,6 +25,7 @@ func _initialize() -> void:
 	if mode == "awards": shot_at = 360
 	if mode == "wild": shot_at = 12
 	if mode == "trap": shot_at = 40
+	if mode == "firstpick": shot_at = 50
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 	game.settings.graphics_auto = false   # software drawing is slow; keep the look fixed
@@ -52,7 +54,7 @@ func _setup() -> void:
 				game.force_theme = arg
 				game._new_match()
 				game.show_title()
-		"match", "roll", "end", "draft", "return", "build", "podium", "awards", "wild", "flags", "trap":
+		"match", "roll", "end", "draft", "firstpick", "return", "build", "podium", "awards", "wild", "flags", "trap":
 			game.force_theme = arg
 			game.settings.player_count = 2
 			game.settings.bot_count = 2
@@ -98,6 +100,13 @@ func _tick() -> void:
 				game.camera.snap_to(game.camera.target)
 		"draft":
 			if _t == 4:
+				game._start_draft()
+		"firstpick":
+			# LAST PICKS FIRST: P2 is last, so the draft opens with their
+			# FIRST PICK badge while everyone else waits.
+			if _t == 4:
+				game.frame = 2
+				game.totals = [9, 2, 7, 5]
 				game._start_draft()
 		"wild":
 			# A WILD FRAME's splash as its draft starts (arg2 = rule id).

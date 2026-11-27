@@ -544,6 +544,11 @@ func _build_settings_page() -> void:
 	wild.value_changed.connect(func(i):
 		settings.wild_frames = i == 1
 		_save())
+	# Whoever is last on the scoreboard gets a head start in the draft.
+	var catch_up := _stepper(page, "LAST PICKS FIRST", ["OFF", "ON"])
+	catch_up.value_changed.connect(func(i):
+		settings.last_picks_first = i == 1
+		_save())
 	# Colour-blind friendly: a shape for each player as well as a colour.
 	var symbols := _stepper(page, "PLAYER SYMBOLS", ["OFF", "ON"])
 	symbols.value_changed.connect(func(i):
@@ -561,6 +566,7 @@ func _build_settings_page() -> void:
 		replay.index = 1 if settings.strike_replay else 0
 		fps.index = 1 if settings.show_fps else 0
 		wild.index = 1 if settings.wild_frames else 0
+		catch_up.index = 1 if settings.last_picks_first else 0
 		symbols.index = 1 if settings.player_symbols else 0)
 	_button(page, "BACK", back)
 

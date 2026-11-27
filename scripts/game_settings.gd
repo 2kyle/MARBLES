@@ -31,6 +31,8 @@ var rumble := true
 var strike_replay := true
 ## Every third frame bends a rule (see WildFrames).
 var wild_frames := true
+## LAST PICKS FIRST: whoever is last gets a head start in the draft.
+var last_picks_first := true
 ## Colour-blind friendly: each player gets a shape as well as a colour
 ## (see PlayerSymbols).
 var player_symbols := false
@@ -64,6 +66,7 @@ func load_from_disk() -> void:
 	rumble = cfg.get_value("controls", "rumble", rumble)
 	player_symbols = cfg.get_value("screen", "player_symbols", player_symbols)
 	wild_frames = cfg.get_value("match", "wild_frames", wild_frames)
+	last_picks_first = cfg.get_value("match", "last_picks_first", last_picks_first)
 	# "humans"/"bots" replaced the old "players" key, so older saves start
 	# on the new default of one person and one bot.
 	player_count = clampi(cfg.get_value("match", "humans", player_count), 1, 4)
@@ -89,6 +92,7 @@ func save_to_disk() -> void:
 	cfg.set_value("controls", "rumble", rumble)
 	cfg.set_value("screen", "player_symbols", player_symbols)
 	cfg.set_value("match", "wild_frames", wild_frames)
+	cfg.set_value("match", "last_picks_first", last_picks_first)
 	cfg.set_value("match", "humans", player_count)
 	cfg.set_value("match", "bots", bot_count)
 	cfg.set_value("match", "bot_level", bot_level)

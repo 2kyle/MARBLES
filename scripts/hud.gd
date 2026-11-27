@@ -110,6 +110,10 @@ class DraftPointer extends Control:
 	var tag := "P1"
 	## Seat, for the PLAYER SYMBOLS shape after the name.
 	var seat := 0
+	## LAST PICKS FIRST: this player is last and picks first (gold badge).
+	var first := false
+	## Seconds this player still waits for the first picker (0 = free).
+	var held := 0.0
 	const SHAPE := [Vector2(0, 0), Vector2(0, 38), Vector2(10, 29), Vector2(17, 44),
 			Vector2(24, 41), Vector2(17, 26), Vector2(30, 26)]
 
@@ -130,6 +134,26 @@ class DraftPointer extends Control:
 		if PlayerSymbols.enabled:
 			var w := font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
 			PlayerSymbols.draw(self, seat, at + Vector2(w + 14, -8), 22)
+		if first:
+			_draw_sticker("FIRST PICK", Hud.GOLD, Color(0.1, 0.08, 0.05))
+		elif held > 0.0:
+			_draw_sticker("WAIT %d" % ceili(held), Color(0.12, 0.12, 0.16, 0.9), Color(1, 1, 1, 0.8))
+
+	## A small rounded label under the name tag.
+	func _draw_sticker(text: String, bg: Color, fg: Color) -> void:
+		var font: Font = Hud.TITLE_FONT
+		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+		var box := Rect2(Vector2(26, 64), Vector2(w + 16, 24))
+		draw_style_box(_sticker_style(bg), box)
+		draw_string(font, box.position + Vector2(8, 18), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, fg)
+
+	func _sticker_style(bg: Color) -> StyleBoxFlat:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = bg
+		sb.set_corner_radius_all(8)
+		sb.border_color = Color(0.05, 0.05, 0.12)
+		sb.set_border_width_all(2)
+		return sb
 
 
 func _ready() -> void:
@@ -319,12 +343,17 @@ func _update_top(game) -> void:
 	match game.state:
 		game.State.DRAFT:
 			banner = "DRAFT  %d" % game.phase_time_left()
+			var db: DraftBuild = game.draft_build
+			if db.head_start > 0.0:
+				# LAST PICKS FIRST: say who's catching up.
+				banner = "FIRST PICK  " + " ".join(db.first_pick.map(func(p): return game.seat_name(p)))
 		game.State.BUILD:
 			banner = "BUILD  %d" % game.phase_time_left()
 	_banner.text = banner
 	_banner.visible = banner != ""
 	_update_wild(game)
-	_banner.add_theme_color_override("font_color", GOLD if game.phase_time_left() <= 5 else Color.WHITE)
+	var gold: bool = game.phase_time_left() <= 5 or (game.state == game.State.DRAFT and game.draft_build.head_start > 0.0)
+	_banner.add_theme_color_override("font_color", GOLD if gold else Color.WHITE)
 
 
 ## The FRAME badge sits top centre, unless the score chips (four players
@@ -610,6 +639,9 @@ func _update_draft(game) -> void:
 		ptr.color = game.player_colors[p]
 		ptr.tag = game.seat_name(p)
 		ptr.seat = p
+		ptr.first = db.head_start > 0.0 and db.first_pick.has(p)
+		ptr.held = db.head_start if db.is_held(p) else 0.0
+		ptr.modulate.a = 0.55 if ptr.held > 0.0 else 1.0
 		var target := _card_to_screen(db.draft_pointer[p], n)
 		ptr.position = target if ptr.position == Vector2.ZERO else ptr.position.lerp(target, 0.5)
 		ptr.queue_redraw()

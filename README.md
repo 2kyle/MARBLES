@@ -20,7 +20,7 @@ The game opens on the **BOWLING WIP** title screen (a working title; it's `TITLE
 - **Daily challenge** is one track a day, the same for everyone, with a few pieces already on the lane. Beat your best score on it (see below).
 - **The Hub** drops everyone onto a small floating island to roll about, hop and try things out (see below).
 - **Online** hosts or joins a game over the internet or your home network (see below).
-- **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), **graphics** (LOW, MEDIUM or HIGH), volume, camera shake, **UI shake** (the little jolt when you press a button), controller **rumble** on/off, strike replay on/off, an FPS counter, **wild frames** on/off and **player symbols** on/off (colour-blind friendly shapes, see below). Long menu pages scroll (following the highlighted row) so they fit small screens. Settings and the last match options are saved on this computer (`user://settings.cfg`).
+- **Settings** has fullscreen, vsync, the **retro look** (OFF, LOUNGE or ARCADE, see Art direction), **graphics** (LOW, MEDIUM or HIGH), volume, camera shake, **UI shake** (the little jolt when you press a button), controller **rumble** on/off, strike replay on/off, an FPS counter, **wild frames** on/off, **last picks first** on/off (a head start in the draft for whoever is behind, see below) and **player symbols** on/off (colour-blind friendly shapes, see below). Long menu pages scroll (following the highlighted row) so they fit small screens. Settings and the last match options are saved on this computer (`user://settings.cfg`).
 - **How to play** is a short picture guide to a frame: draft a piece, build it into the lane, then roll and smash the pins (see below).
 - **Controls**, **Credits** and **Quit**.
 
@@ -113,6 +113,14 @@ Looks are changed between games in the closet on the hub, not at the start of a 
 2. **Build (30 s):** everyone slides their piece anywhere on the lane, turns it, and drops it, all at the same time. A ring shows your cursor and turns red where the piece won't fit. Your piece's name floats above it, and coloured arrows on the floor show which way marbles will roll through it. Pieces stay on the lane for the rest of the match.
 3. **Roll (45 s max):** marbles drop through the START arch together, crash into each other, and race to one shared rack of 28 pins. The track is a classic maple bowling lane: thin boards, approach dots, a foul line just past the START arch, guide dots and seven aiming arrows. Each pin has its own little face (most look normal, some are sleepy, googly, happy or grumpy); they blink, squeeze their eyes shut when hit, and stay knocked out once they fall. You can lean your marble a little and give it a small **hop** (your place key), but the lane does most of the work. Once a marble crosses the finish line, steering and hops switch off and it just carries its momentum into the pins.
 4. **Score:** pins are credited and a scoreboard shows every player's points for each frame plus the running total. Hold **Tab** to see it at any time.
+
+### Last picks first
+
+![P2 is last, so the draft opens with their FIRST PICK badge while everyone else waits](docs/last_picks_first.png)
+
+To keep matches close, whoever is **last on the scoreboard** gets the first pick of the crate. From frame 2 on, the draft opens with a gold **FIRST PICK P2** banner and a gold **FIRST PICK** badge under that player's pointer. Everyone else's pointer goes see-through with a **WAIT 2** countdown: they can move it and line up a card, but can't grab anything for **2.5 seconds**. The head start ends early as soon as the first picker grabs a card. If two players are tied for last, they both get it. Nobody gets it in frame 1 or when everyone has the same score. If the draft clock runs out, first pickers are given their card before anyone else. Bots play by the same rule, and online the host decides who's last and everyone sees the badges.
+
+Switch it off in **Settings > LAST PICKS FIRST**. The rules are in `scripts/draft_build.gd` (change `HEAD_START` to make the wait longer or shorter).
 
 ### TRAPPED! points
 
@@ -625,6 +633,7 @@ godot --headless --fixed-fps 120 --script res://tests/test_ui_feel.gd
 godot --headless --script res://tests/test_photo_mode.gd
 godot --headless --fixed-fps 120 --script res://tests/test_daily_challenge.gd
 godot --headless --fixed-fps 120 --script res://tests/test_traps.gd
+godot --headless --fixed-fps 120 --script res://tests/test_last_picks_first.gd
 godot --headless --fixed-fps 120 --script res://tests/perf_probe.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam

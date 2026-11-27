@@ -60,10 +60,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **Last place picks first** *(suggested by Claude)* (November 27, branch `nightly/last-place-picks-first`)
-  Whoever is last on the scoreboard gets a FIRST PICK badge and a 2.5 second head start in the draft (ties share it), so matches stay close and chaotic to the end. Settings > LAST PICKS FIRST switches it off.
+*(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Last place picks first** *(suggested by Claude)* (November 27, branch `nightly/last-place-picks-first`)
+  Whoever is last on the scoreboard gets a FIRST PICK badge and a 2.5 second head start in the draft (ties share it), so matches stay close and chaotic to the end. Settings > LAST PICKS FIRST switches it off.
 
 - **Done** · **TRAPPED! points** *(suggested by Claude)* (November 26, branch `nightly/trapped-points`)
   When a rival's marble touches your piece and falls off the track within 3 seconds, "TRAPPED BY P2!" pops up in your colour and you get +1 point (and so +1 coin). A TRAPPER match award for the most traps.

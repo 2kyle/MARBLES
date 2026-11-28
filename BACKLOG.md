@@ -55,10 +55,12 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## In review
 
-- **In review** · **Strike replay online** *(suggested by Claude)* (branch `nightly/strike-replay-online`)
-  The slow-motion strike replay now plays in online games too, and everyone watches it together: the host plays it and sends the marbles and pins to the guests. Only the host can skip it.
+*(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Strike replay online** *(suggested by Claude)* (November 28, branch `nightly/strike-replay-online`)
+  The slow-motion strike replay now plays in online games too, and everyone watches it together: the host plays it and sends the marbles and pins to the guests. Only the host can skip it.
 
 - **Done** · **Last place picks first** *(suggested by Claude)* (November 27, branch `nightly/last-place-picks-first`)
   Whoever is last on the scoreboard gets a FIRST PICK badge and a 2.5 second head start in the draft (ties share it), so matches stay close and chaotic to the end. Settings > LAST PICKS FIRST switches it off.

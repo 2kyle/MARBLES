@@ -119,6 +119,10 @@ var replay := StrikeReplay.new()
 ## Where the game goes once the replay ends (RESULTS or MATCH_OVER), and who struck.
 var _after_replay := State.RESULTS
 var _replay_striker := -1
+## Online guest: how far through the host's replay we are (sent in the
+## snapshots), and whether the last snapshot was a replay one.
+var _guest_replay_progress := 0.0
+var _snap_was_replay := false
 ## Match awards (most strikes, fastest marble...): the numbers so far, the
 ## awards to show at the end of the match, and seconds left on that screen.
 var match_stats := MatchAwards.new()
@@ -1437,12 +1441,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if state == State.MENU or menu.is_open():
 		return  # the menu handles its own keys
 	if state == State.REPLAY:
-		# Any key or button skips the strike replay.
+		# Any key or button skips the strike replay. Online, everyone
+		# watches the same replay, so only the host can skip it (for all).
 		if (event is InputEventKey or event is InputEventJoypadButton or event is InputEventMouseButton) \
 				and event.is_pressed() and not event.is_echo():
 			get_viewport().set_input_as_handled()
-			replay.finish()
-			_end_replay()
+			if not net.is_client():
+				replay.finish()
+				_end_replay()
 		return
 	if state == State.AWARDS:
 		# Any key or button (after a moment, so a late hop doesn't) skips
@@ -1757,6 +1763,8 @@ func _make_snapshot() -> Dictionary:
 		snap.cp = draft_build.cursor_pos
 		snap.ca = draft_build.cursor_angle
 		snap.msg = draft_build.message
+	elif state == State.REPLAY:
+		snap.rp = replay.progress()
 	return snap
 
 
@@ -1843,7 +1851,19 @@ func _on_net_event(name: String, data: Dictionary) -> void:
 		"rolling":
 			_roll_time = 0.0
 			state = State.ROLLING
+		"replay":
+			# The host is showing a strike replay: watch it too. The host
+			# moves everything, and the snapshots bring it here.
+			_guest_replay_progress = 0.0
+			state = State.REPLAY
+			for m in marbles:
+				m.clear_trail()
+			_update_camera()
+			camera.snap_to(camera.target)
 		"result":
+			if state == State.REPLAY:
+				for m in marbles:
+					m.clear_trail()
 			last_result = data.result
 			totals = data.totals
 			frame_points = data.points
@@ -1897,11 +1917,19 @@ func _apply_snapshot(snap: Dictionary, delta: float) -> void:
 	_last_arrival_time = snap.la
 	arrival_order = snap.arr
 	var k := clampf(delta * 18.0, 0.0, 1.0)
+	# The strike replay jumps everything back in time when it starts, and
+	# forward again when it ends: jump straight there instead of sliding.
+	var replaying: bool = snap.has("rp")
+	if replaying != _snap_was_replay:
+		_snap_was_replay = replaying
+		k = 1.0
+	if replaying:
+		_guest_replay_progress = snap.rp
 	var ms: Array = snap.m
 	for i in mini(ms.size(), marbles.size()):
 		var m: Marble = marbles[i]
 		var d: Array = ms[i]
-		if state in [State.COUNTDOWN, State.ROLLING, State.RESULTS, State.MATCH_OVER, State.AWARDS]:
+		if state in [State.COUNTDOWN, State.ROLLING, State.RESULTS, State.MATCH_OVER, State.AWARDS, State.REPLAY]:
 			m.global_position = m.global_position.lerp(d[0], k)
 			m.quaternion = m.quaternion.slerp(d[1], k)
 		if d[3] and not m.out:
@@ -2199,14 +2227,17 @@ func _frame_achievements(striker: int) -> void:
 
 
 ## Strike! Play the last moments back in slow motion from by the pins.
-## Not online (everyone would have to watch it together), and not if it's
-## switched off in Settings. Returns false if there's no replay to show.
+## Not if it's switched off in Settings (online, the host's setting decides).
+## Online, the host plays it and everyone watches it together: the guests
+## are told it's starting, and the snapshots carry every marble and pin.
+## Returns false if there's no replay to show.
 func _start_replay(striker: int) -> bool:
-	if net.active() or not settings.strike_replay or not replay.begin():
+	if not settings.strike_replay or not replay.begin():
 		return false
 	_after_replay = state
 	_replay_striker = striker
 	state = State.REPLAY
+	net.send_event("replay", {"striker": striker})
 	for m in marbles:
 		m.clear_trail()
 	_update_camera()
@@ -2222,6 +2253,12 @@ func _end_replay() -> void:
 		m.clear_trail()
 	state = _after_replay
 	_show_frame_result(_replay_striker)
+
+
+## How far through the strike replay we are, 0 to 1 (for the HUD's red
+## line). Online guests get it from the host.
+func replay_progress() -> float:
+	return _guest_replay_progress if net.is_client() else replay.progress()
 
 
 ## The player who knocked down every pin by themselves this frame, or -1

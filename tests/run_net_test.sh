@@ -3,6 +3,7 @@
 # checks both ended with the same scores.
 #   GODOT=/path/to/godot tests/run_net_test.sh          (by address)
 #   GODOT=/path/to/godot tests/run_net_test.sh steam    (over a stand-in for Steam)
+#   GODOT=/path/to/godot tests/run_net_test.sh replay   (a strike replay everyone watches)
 GODOT=${GODOT:-godot}
 MODE=${1:-address}
 cd "$(dirname "$0")/.."

@@ -2,6 +2,8 @@ extends SceneTree
 ## Online test, client side (see net_host.gd). Joins 127.0.0.1, steers the
 ## draft pointer onto a card with fake key presses, and after two frames
 ## checks this copy of the game matches what the host printed.
+## With "-- replay" (the host makes a strike in frame 1) it checks it
+## watches the host's strike replay: bars on, pins moving, then the scores.
 
 var game: Node
 var _fails := 0
@@ -12,6 +14,12 @@ var _quit_at := -1
 var _hub_seen := false
 var _lean_on := false
 var _steam_mode := OS.get_cmdline_user_args().has("steam")
+var _replay_mode := OS.get_cmdline_user_args().has("replay")
+var _replay_ticks := 0
+var _replay_progress := 0.0
+var _pin_path := 0.0
+var _pin_last := Vector3.ZERO
+var _left_replay_to := -1
 var fake: Object
 
 
@@ -70,6 +78,23 @@ func _process(_delta: float) -> bool:
 			Input.action_release(grab)
 	else:
 		_draft_ticks = 0
+	if game.state == game.State.REPLAY:
+		_replay_ticks += 1
+		_replay_progress = maxf(_replay_progress, game.replay_progress())
+		# The host moves the pins back through the strike; they move here too.
+		var pin_at: Vector3 = game.rack.pins[0].global_position
+		if _replay_ticks > 1:
+			_pin_path += pin_at.distance_to(_pin_last)
+		_pin_last = pin_at
+		if _replay_ticks == 60:
+			# A guest's key doesn't skip: only the host can.
+			var key := InputEventKey.new()
+			key.keycode = KEY_X
+			key.pressed = true
+			game._unhandled_input(key)
+			check("a guest's key press doesn't skip the replay", game.state == game.State.REPLAY)
+	elif _replay_ticks > 0 and _left_replay_to < 0:
+		_left_replay_to = game.state
 	if game.state == game.State.RESULTS and not _result_frames.has(game.frame):
 		_result_frames[game.frame] = true
 		print("CLIENT frame %d totals %s pieces %d" % [game.frame, game.totals, game.builder.placed.size()])
@@ -85,6 +110,12 @@ func _finish() -> bool:
 	check("was on the island before the match", _hub_seen)
 	check("saw two frames' results", _result_frames.size() >= 2)
 	check("first-frame achievement on this computer too", Achievements.has("FIRST_FRAME"))
+	if _replay_mode:
+		check("watched the host's strike replay (%.1fs)" % (_replay_ticks / 120.0), _replay_ticks > 120)
+		check("the replay's red line moved along (%.2f)" % _replay_progress, _replay_progress > 0.5)
+		check("the pins moved during the replay (%.2f m)" % _pin_path, _pin_path > 0.1)
+		check("after the replay, on to the scores", _left_replay_to == game.State.RESULTS)
+		check("the hint says only the host can skip", game.hud._replay_skip.text == "The host can skip")
 	print("CLIENT " + ("all passed" if _fails == 0 else "%d FAILED" % _fails))
 	game.net.leave()
 	quit(1 if _fails > 0 else 0)

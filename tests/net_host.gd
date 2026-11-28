@@ -5,6 +5,8 @@ extends SceneTree
 ## the client leaves) and checks everyone goes back to the island.
 ## With "-- steam" it plays over a stand-in for Steam (tests/fake_steam.gd):
 ## a Steam lobby, a friend invite, rich presence and achievements.
+## With "-- replay" it knocks every pin down for the host in frame 1, so the
+## strike replay plays online (the client checks it watches it too).
 
 var game: Node
 var _fails := 0
@@ -17,6 +19,9 @@ var _ready_at := -1
 var _guest_start := Vector3.ZERO
 var _back_at := -1
 var _steam_mode := OS.get_cmdline_user_args().has("steam")
+var _replay_mode := OS.get_cmdline_user_args().has("replay")
+var _knocked := false
+var _replay_seen := false
 var fake: Object
 
 
@@ -91,6 +96,16 @@ func _process(_delta: float) -> bool:
 			return _finish()
 		return false
 	match game.state:
+		game.State.ROLLING:
+			if _replay_mode and not _knocked and game.frame == 1 and game._roll_time > 1.0:
+				_knocked = true
+				for pin in game.rack.pins:
+					pin.credited_to = 0
+					var t: Transform3D = pin.global_transform
+					pin.global_transform = Transform3D(t.basis.rotated(Vector3.RIGHT, PI / 2), t.origin + Vector3(0, -0.3, 0))
+					pin.linear_velocity = Vector3(0, 0, -1)
+		game.State.REPLAY:
+			_replay_seen = true
 		game.State.DRAFT:
 			if game.draft_build.picks[1] != "" and game._phase_left > 1.0:
 				_client_picked_early = true
@@ -115,6 +130,8 @@ func _finish() -> bool:
 	check("the client's stick and button picked a card in time", _client_picked_early)
 	check("finished 3 frames", _frames == 3)
 	check("a bot took over when the client left", _left_seen)
+	if _replay_mode:
+		check("the strike replay played in the online match", _replay_seen)
 	var got := Achievements.unlocked_ids()
 	check("achievements for a finished online match " + str(got),
 			got.has("FIRST_FRAME") and got.has("FIRST_MATCH") and got.has("ONLINE_MATCH"))

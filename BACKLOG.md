@@ -18,41 +18,36 @@ This is the to-do list for the game, **most important at the top**. Every night 
 
 ## Up next
 
-1. **To do** · **Pick the game's real name** *(suggested by Claude)*
-   The title is now **BOWLING WIP** as a stand-in. Pick a name and it changes everywhere at once (`TITLE` in `scripts/main_menu.gd`).
-
-2. **To do** · **Strike replay online** *(suggested by Claude)*
-   Show the slow-motion strike replay in online games too, so everyone watches it together (right now it only plays at one computer).
-
-3. **To do** · **Last two WILD FRAMES rules** *(suggested by Claude)*
+1. **To do** · **Last two WILD FRAMES rules** *(suggested by Claude)*
    GIANT PINS (a rack of huge pins) and FOG (only see the lane near you). The other new rules are done.
 
-4. **To do** · **Online biplane, ghost and run board** *(suggested by Claude)*
+2. **To do** · **Online biplane, ghost and run board** *(suggested by Claude)*
    Show the biplane and the TIME TRIAL ghost to online guests too (right now only the host sees them), and put guests' best runs on the RUN RECORDS board.
 
-5. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
+3. **To do** · **SKEE-JUMP extras** *(suggested by Claude)*
    An achievement for a perfect 300, SKEE-JUMP for online guests, and a high-score table per player.
 
-6. **To do** · **Corkscrew TA** *(suggested by Claude)*
+4. **To do** · **Corkscrew TA** *(suggested by Claude)*
    A full spiral that drops under itself. Needs the track to allow crossing over itself (supports and a clearance check by height), so it's a bigger job.
 
-7. **To do** · **Ring and loop achievements** *(suggested by Claude)*
+5. **To do** · **Ring and loop achievements** *(suggested by Claude)*
    New achievements: LOOP THE LOOP (go round a Loop-de-Loop), ACE PILOT (a SKY RINGS lap under 30 seconds) and GHOSTBUSTER (beat the ghost by a second).
 
-8. **To do** · **TOO EASY! rule** *(suggested by Claude)*
+6. **To do** · **TOO EASY! rule** *(suggested by Claude)*
    A Settings switch: if every marble gets a strike, nobody gets the strike bonus that frame and a big TOO EASY! stamp shows. Pushes everyone to build a track that's hard but not impossible.
 
-9. **To do** · **Points breakdown bars** *(suggested by Claude)*
+7. **To do** · **Points breakdown bars** *(suggested by Claude)*
    After each frame, each player's score bar grows in coloured chunks (pins, strike bonus, first to the pins, traps), with a small label on each chunk, so it's clear at a glance why someone scored.
 
-10. **To do** · **Chaos crate** *(suggested by Claude)*
+8. **To do** · **Chaos crate** *(suggested by Claude)*
    Now and then a surprise piece nobody picked drops onto the track before the roll (with a warning sign), for extra chaos.
 
-11. **To do** · **Quick reactions** *(suggested by Claude)*
+9. **To do** · **Quick reactions** *(suggested by Claude)*
    Press a button during build or roll to pop a little picture bubble over your marble (laughing, angry, thumbs up). No sound, just pictures, and handy online too.
 
 ## Needs you (Claude can't do these alone)
 
+- **Pick the game's real name:** the title is **BOWLING WIP** as a stand-in. Tell Claude the name you want and it changes everywhere at once (`TITLE` in `scripts/main_menu.gd`). Moved here on November 28 because only you can choose it.
 - **Steam setup:** install the GodotSteam plugin, try online play with a friend, then get your own Steam App ID. Step-by-step guide: [docs/STEAM.md](docs/STEAM.md).
 - **Your first Blender model:** make a bowling pin in Blender and export it to `assets/models/pin/pin.glb`. Beginner guide: [docs/BLENDER.md](docs/BLENDER.md). Once it works, tell Claude what you'd like to model next (marble, hats, track pieces, hub trees and rocks) and it'll hook that up the same way.
 - **Sound and music:** you're adding these yourself, so Claude leaves audio out.
@@ -63,6 +58,9 @@ This is the to-do list for the game, **most important at the top**. Every night 
 *(Nothing yet.)*
 
 ## Done
+
+- **Done** · **Strike replay online** *(suggested by Claude)* (November 28, branch `nightly/strike-replay-online`)
+  The slow-motion strike replay now plays in online games too, and everyone watches it together: the host plays it and sends the marbles and pins to the guests. Only the host can skip it.
 
 - **Done** · **Last place picks first** *(suggested by Claude)* (November 27, branch `nightly/last-place-picks-first`)
   Whoever is last on the scoreboard gets a FIRST PICK badge and a 2.5 second head start in the draft (ties share it), so matches stay close and chaotic to the end. Settings > LAST PICKS FIRST switches it off.

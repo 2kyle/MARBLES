@@ -263,7 +263,9 @@ Before the STRIKE! banner, the game shows the strike again in **slow motion** fr
 
 How it works: while the marbles roll, `scripts/strike_replay.gd` notes where every marble and pin is, 60 times a second, keeping the last 8 seconds. For the replay it freezes everything and moves each piece back through those spots, blending smoothly between them, then puts everything exactly where the roll ended. Nothing is re-simulated, so the replay always matches what really happened.
 
-Switch it off in **Settings > STRIKE REPLAY**. It doesn't play in online games yet (everyone would have to watch it at the same time).
+Switch it off in **Settings > STRIKE REPLAY**.
+
+**Online, everyone watches it together.** The host's computer plays the replay and sends every marble and pin position to the guests, about 30 times a second (the same way it sends the roll itself), so all screens show the same slow-motion crash with the same bars and red line. The host's STRIKE REPLAY setting decides whether it plays. Only the host can skip it (that skips it for everyone), and guests see "The host can skip" on the bar instead.
 
 The scoreboard then pops in and counts each player's new points up into their total one row at a time, with a "+N" flying off and the leader marked with a star.
 
@@ -597,7 +599,7 @@ tests/
   sim_jungle.gd      checks the jungle: mushroom bounces, the hollow log, the cliff climb, secret gems and coins
   hub_view.gd        takes screenshots of the hub from any camera spot (not a test)
   find_clipping.gd   lists scenery poking into other scenery (or into the lane), worst first (not a test)
-  net_host.gd, net_client.gd, run_net_test.sh   plays an online match between two copies of the game
+  net_host.gd, net_client.gd, run_net_test.sh   plays an online match between two copies of the game (`replay` also checks guests watch the strike replay)
 ```
 
 `main.gd` makes every decision (physics, who arrived first, who gets each pin). Each seat is a person at this computer, a bot, or (online) someone on another computer, and their input only reaches the game through `seat_lean()` and `seat_pressed()`. Online, the host runs `main.gd` as usual and fills those in from the network; the other computers copy what the host sends.
@@ -637,6 +639,7 @@ godot --headless --fixed-fps 120 --script res://tests/test_last_picks_first.gd
 godot --headless --fixed-fps 120 --script res://tests/perf_probe.gd
 GODOT=godot tests/run_net_test.sh
 GODOT=godot tests/run_net_test.sh steam
+GODOT=godot tests/run_net_test.sh replay
 ```
 
 To hunt for clipping (things poking through each other), run the clipping finder on the hub or on a match world (0 beach, 1 city, 2 caves, 3 snow, 4 clouds) with a track seed. The `-d` matters: it lets the finder see which bit of code built each shape.

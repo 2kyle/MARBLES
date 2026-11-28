@@ -1725,7 +1725,8 @@ func _update_replay(game) -> void:
 	if on:
 		# The tag blinks like a camera's record light.
 		_replay_tag.modulate.a = 1.0 if fmod(Time.get_ticks_msec() / 1000.0, 1.0) < 0.6 else 0.35
-		_replay_line.size = Vector2(_bar_bottom.size.x * game.replay.progress(), 4)
+		_replay_line.size = Vector2(_bar_bottom.size.x * game.replay_progress(), 4)
+		_replay_skip.text = "The host can skip" if game.net.is_client() else "Press any key to skip"
 	# The score chips sit where the top bar goes, so they make way.
 	_scores.modulate.a = 1.0 - _bars
 
